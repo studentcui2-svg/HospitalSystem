@@ -140,6 +140,44 @@ async function replyToMessage(req, res) {
     msg.reply = reply;
     await msg.save();
 
+    // attempt to send the reply to the original sender via email
+    try {
+      const sendEmail = require("../utils/email");
+      const html = `
+        <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; color:#111;">
+          <h2 style="color:#4f46e5">Reply from ZeeCare</h2>
+          <p>Hi ${msg.firstName || "there"},</p>
+          <p>Thank you for contacting us. Below is the reply to your message:</p>
+          <hr />
+          <p><strong>Your message:</strong></p>
+          <blockquote style="background:#f9fafb;padding:12px;border-left:4px solid #e5e7eb">${
+            msg.message
+          }</blockquote>
+          <p><strong>Our reply:</strong></p>
+          <blockquote style="background:#fff9f2;padding:12px;border-left:4px solid #fde68a">${reply}</blockquote>
+          <p style="color:#6b7280;font-size:13px">If you have further questions reply to this email.</p>
+          <hr />
+          <p style="color:#9ca3af;font-size:12px">© ${new Date().getFullYear()} ZeeCare</p>
+        </div>
+      `;
+
+      await sendEmail({
+        to: msg.email,
+        subject: "Reply to your message from ZeeCare",
+        html,
+      });
+
+      // mark as delivered when email send succeeds
+      msg.status = "delivered";
+      await msg.save();
+      console.log("[REPLY] Reply email sent to", msg.email);
+    } catch (emailErr) {
+      console.error(
+        "[REPLY] Failed to send reply email",
+        emailErr && emailErr.message
+      );
+    }
+
     // emit reply event once so all clients (including admins) receive it
     try {
       if (io) {

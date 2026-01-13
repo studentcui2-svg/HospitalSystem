@@ -212,25 +212,15 @@ const BiographySection = () => {
           </SectionSubtitle>
 
           <Paragraph>
-            Lorem ipsum dolor sit amet consectetur adipiscing elit. Dacinne
-            blandit lissequi portum. Dendric cupidatius nec risatime illo
-            consequatur semellis sapientiam commensurate. Dacinne blandit
-            lissequi portum. Dendric cupidatius nec risatime illo consequatur
-            semellis sapientiam commensurate.
-          </Paragraph>
-
-          <Paragraph>
-            Ex maipsum voluptatum consectetur sapienaeptent fugiat. Necruntia ea
-            ac simulacrum nuncus, vel orci consequatur nostrum neidtunt.
-            Deberisi, needunt laboriosam tulum iasd.
+            Lorem ipsum dolor sit amet consectetur adipiscing elit. Pleased
+            cullip voluptate egestad i lacinia ex, totum aliquet error?
           </Paragraph>
 
           <HighlightText>We are all in 2004</HighlightText>
 
           <Paragraph>
-            Vale me verifeng en a MEBN STACK PROJECT. Lorem ipsum dolor sit amet
-            consectetur adipiscing elit. Dacinne assumenda exercitationem
-            accusamus et repellentibus quo erbib dolorem corporatis corrupti.
+            Lorem ipsum dolor sit amet consectetur adipiscing elit. Pleased
+            cullip voluptate egestad i lacinia ex, totum aliquet error?
           </Paragraph>
 
           <StatsGrid>

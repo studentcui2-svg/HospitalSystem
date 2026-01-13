@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import styled from "styled-components";
-import { ToastContainer } from "react-toastify";
+import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import AdminSidebar from "./Adminsidebar";
 import DashboardHome from "./DashboardHome";
@@ -83,17 +83,19 @@ const AdminDashboard = ({ onLogout }) => {
         setMessages((prev) =>
           prev.map((m) => (m._id === updated._id ? updated : m))
         );
+        // show immediate toast depending on delivery status
+        if (updated.status === "delivered") {
+          toast.success("Reply saved and email delivered to sender");
+        } else {
+          toast.success("Reply saved (email may not have been delivered)");
+        }
+      } else {
+        toast.error("Failed to save reply");
       }
     } catch (err) {
       console.error("[ADMIN] Reply failed", err);
-      if (
-        window.__APP_TOAST__ &&
-        typeof window.__APP_TOAST__.error === "function"
-      ) {
-        window.__APP_TOAST__.error(err?.message || "Failed to send reply");
-      } else {
-        alert(err?.message || "Failed to send reply");
-      }
+      const msg = err?.message || "Failed to send reply";
+      toast.error(msg);
     }
   };
 

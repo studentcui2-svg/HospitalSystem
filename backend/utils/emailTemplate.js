@@ -19,12 +19,12 @@ module.exports = (name = "User", otp = "------") => {
     </head>
     <body>
       <div class="card">
-        <div class="logo">NBC UI Lahore</div>
+        <div class="logo">ZeeCare</div>
         <div class="title">One-time verification code</div>
         <div class="lead">Hello ${name}, use the code below to complete your sign-up. This code expires in 10 minutes.</div>
         <div class="otp">${otp}</div>
         <div class="note">If you did not request this, you can safely ignore this email.</div>
-        <div class="footer">© ${new Date().getFullYear()} NBC UI Lahore</div>
+        <div class="footer">© ${new Date().getFullYear()} ZeeCare</div>
       </div>
     </body>
   </html>

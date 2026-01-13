@@ -17,7 +17,14 @@ const appointmentSchema = new mongoose.Schema(
     doctor: { type: String },
     notes: { type: String },
     visitedBefore: { type: Boolean, default: false },
+    // `date` is the appointment start time (stored as UTC)
     date: { type: Date, required: true },
+    // `end` is the appointment end time (stored as UTC)
+    end: { type: Date, required: true },
+    // duration in minutes (20 - 60)
+    durationMinutes: { type: Number, default: 30 },
+    // optional timezone identifier or offset provided by client for display purposes
+    timezone: { type: String },
     status: {
       type: String,
       enum: ["Pending", "Accepted", "Rejected"],

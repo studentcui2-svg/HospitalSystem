@@ -39,25 +39,44 @@ transporter
     );
   });
 
-module.exports = async function sendEmail({ to, subject, html, text }) {
+module.exports = async function sendEmail({
+  to,
+  subject,
+  html,
+  text,
+  from,
+  replyTo,
+}) {
   console.log("[SEND EMAIL] Called with params:");
   console.log("  To:", to);
   console.log("  Subject:", subject);
   console.log("  HTML length:", html?.length || 0);
 
-  const from = process.env.SMTP_FROM || process.env.SMTP_USER;
-  console.log("[SEND EMAIL] From:", from);
+  // Determine the From address priority:
+  // 1. explicit `from` param
+  // 2. SMTP_FROM env
+  // 3. SMTP_USER env
+  const defaultFrom = process.env.SMTP_FROM || process.env.SMTP_USER;
+  const finalFrom = from || defaultFrom;
+  console.log("[SEND EMAIL] From:", finalFrom);
+
+  const mailOptions = {
+    from: finalFrom,
+    to,
+    subject,
+    text: text || "",
+    html,
+  };
+
+  if (replyTo) {
+    mailOptions.replyTo = replyTo;
+    console.log("[SEND EMAIL] replyTo:", replyTo);
+  }
 
   try {
     console.log("[SEND EMAIL] Calling transporter.sendMail...");
-    const info = await transporter.sendMail({
-      from,
-      to,
-      subject,
-      text: text || "",
-      html,
-    });
-    console.log("[SEND EMAIL] ✓ Email sent successfully!");
+    const info = await transporter.sendMail(mailOptions);
+    console.log("[SEND EMAIL] ✓ Email sentgit add .git add . successfully!");
     console.log("[SEND EMAIL] Message ID:", info.messageId);
     console.log("[SEND EMAIL] Response:", info.response);
     return info;

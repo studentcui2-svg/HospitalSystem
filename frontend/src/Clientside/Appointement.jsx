@@ -1,6 +1,22 @@
 import React, { useState, useEffect, useMemo } from "react";
 import styled, { keyframes } from "styled-components";
-import { FaTimes, FaCheck, FaExclamationTriangle } from "react-icons/fa";
+import {
+  FaTimes,
+  FaCheck,
+  FaExclamationTriangle,
+  FaCalendarAlt,
+  FaClock,
+  FaMapMarkerAlt,
+  FaUser,
+  FaEnvelope,
+  FaPhone,
+  FaIdCard,
+  FaVenusMars,
+  FaUserMd,
+  FaGlobe,
+  FaHistory,
+  FaHospital,
+} from "react-icons/fa";
 import { jsonFetch } from "../utils/api";
 
 // Styled Components
@@ -18,14 +34,15 @@ const ModalOverlay = styled.div`
 `;
 
 const ModalContainer = styled.div`
-  background: white;
-  border-radius: 10px;
+  background: linear-gradient(180deg, #ffffff 0%, #fbfdff 100%);
+  border-radius: 12px;
   padding: clamp(1rem, 2.5vw, 2rem);
   width: 92%;
-  max-width: 720px;
+  max-width: 760px;
   max-height: 92vh;
   overflow-y: auto;
-  box-shadow: 0 6px 30px rgba(0, 0, 0, 0.15);
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.12);
+  border: 1px solid rgba(15, 23, 42, 0.04);
 `;
 
 const ModalHeader = styled.div`
@@ -33,43 +50,45 @@ const ModalHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 1rem;
-  border-bottom: 2px solid #1a73e8;
   padding-bottom: 0.75rem;
 `;
 
 const ModalTitle = styled.h2`
-  color: #1a73e8;
+  color: #0d6efd;
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1.6rem;
+  letter-spacing: -0.02em;
 `;
 
 const CloseButton = styled.button`
-  background: none;
+  background: transparent;
   border: none;
-  font-size: 1.5rem;
+  font-size: 1.25rem;
   cursor: pointer;
-  color: #666;
+  color: rgba(34, 34, 34, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0.25rem;
+  padding: 0.35rem;
+  border-radius: 6px;
 
   &:hover {
-    color: #1a73e8;
+    background: rgba(13, 110, 253, 0.06);
+    color: #0d6efd;
   }
 `;
 
 const Form = styled.form`
   display: grid;
-  gap: 0.9rem;
+  gap: 1rem;
 `;
 
 const FormRow = styled.div`
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.9rem;
+  gap: 1rem;
 
-  @media (max-width: 700px) {
+  @media (max-width: 820px) {
     grid-template-columns: 1fr;
   }
 `;
@@ -80,9 +99,9 @@ const FormGroup = styled.div`
 `;
 
 const Label = styled.label`
-  margin-bottom: 0.4rem;
-  font-weight: 600;
-  color: #222;
+  margin-bottom: 0.35rem;
+  font-weight: 700;
+  color: #1f2937;
   display: flex;
   align-items: center;
   gap: 0.35rem;
@@ -94,50 +113,45 @@ const RequiredStar = styled.span`
 `;
 
 const Input = styled.input`
-  padding: 0.7rem 0.9rem;
-  border: 1px solid ${(props) => (props.hasError ? "#e53935" : "#ddd")};
-  border-radius: 6px;
+  padding: 0.9rem 1rem;
+  border: 1px solid ${(props) => (props.hasError ? "#f44336" : "#e6e9ef")};
+  border-radius: 8px;
   font-size: 0.98rem;
+  background: #fff;
 
   &:focus {
     outline: none;
-    border-color: ${(props) => (props.hasError ? "#e53935" : "#1a73e8")};
-    box-shadow: 0 0 0 2px
-      ${(props) =>
-        props.hasError ? "rgba(229, 57, 53, 0.12)" : "rgba(26, 115, 232, 0.1)"};
+    border-color: ${(props) => (props.hasError ? "#f44336" : "#0d6efd")};
+    box-shadow: 0 6px 18px rgba(13, 110, 253, 0.08);
   }
 `;
 
 const Select = styled.select`
-  padding: 0.7rem 0.9rem;
-  border: 1px solid ${(props) => (props.hasError ? "#e53935" : "#ddd")};
-  border-radius: 6px;
+  padding: 0.85rem 1rem;
+  border: 1px solid ${(props) => (props.hasError ? "#f44336" : "#e6e9ef")};
+  border-radius: 8px;
   font-size: 0.98rem;
   background: white;
 
   &:focus {
     outline: none;
-    border-color: ${(props) => (props.hasError ? "#e53935" : "#1a73e8")};
-    box-shadow: 0 0 0 2px
-      ${(props) =>
-        props.hasError ? "rgba(229, 57, 53, 0.12)" : "rgba(26, 115, 232, 0.1)"};
+    border-color: ${(props) => (props.hasError ? "#f44336" : "#0d6efd")};
+    box-shadow: 0 6px 18px rgba(13, 110, 253, 0.08);
   }
 `;
 
 const TextArea = styled.textarea`
-  padding: 0.75rem 0.9rem;
-  border: 1px solid ${(props) => (props.hasError ? "#e53935" : "#ddd")};
-  border-radius: 6px;
+  padding: 0.9rem 1rem;
+  border: 1px solid ${(props) => (props.hasError ? "#f44336" : "#e6e9ef")};
+  border-radius: 8px;
   font-size: 0.98rem;
-  min-height: 90px;
+  min-height: 110px;
   resize: vertical;
 
   &:focus {
     outline: none;
-    border-color: ${(props) => (props.hasError ? "#e53935" : "#1a73e8")};
-    box-shadow: 0 0 0 2px
-      ${(props) =>
-        props.hasError ? "rgba(229, 57, 53, 0.12)" : "rgba(26, 115, 232, 0.1)"};
+    border-color: ${(props) => (props.hasError ? "#f44336" : "#0d6efd")};
+    box-shadow: 0 6px 18px rgba(13, 110, 253, 0.08);
   }
 `;
 
@@ -159,37 +173,40 @@ const RadioInput = styled.input`
 `;
 
 const ErrorMessage = styled.span`
-  color: #e53935;
-  font-size: 0.875rem;
-  margin-top: 0.25rem;
+  color: #f44336;
+  font-size: 0.9rem;
+  margin-top: 0.35rem;
   display: flex;
   align-items: center;
   gap: 0.5rem;
 `;
 
 const SubmitButton = styled.button`
-  background: #1a73e8;
+  background: linear-gradient(90deg, #0d6efd, #4f46e5);
   color: white;
   border: none;
-  padding: 1rem 2rem;
-  border-radius: 4px;
-  font-size: 1.1rem;
-  font-weight: 600;
+  padding: 0.95rem 1.6rem;
+  border-radius: 10px;
+  font-size: 1.02rem;
+  font-weight: 700;
   cursor: pointer;
-  transition: background 0.3s ease;
+  transition: transform 0.12s ease, box-shadow 0.12s ease;
   margin-top: 1rem;
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem;
+  gap: 0.6rem;
+  box-shadow: 0 8px 20px rgba(79, 70, 229, 0.12);
 
   &:hover {
-    background: #0d47a1;
+    transform: translateY(-2px);
+    box-shadow: 0 12px 26px rgba(79, 70, 229, 0.14);
   }
 
   &:disabled {
-    background: #ccc;
+    background: #c7d2fe;
     cursor: not-allowed;
+    box-shadow: none;
   }
 `;
 
@@ -246,6 +263,27 @@ const ToastIcon = styled.div`
   font-size: 1.2rem;
 `;
 
+const PreviewBox = styled.div`
+  background: #ffffff;
+  border: 1px solid #e6e9ee;
+  padding: 0.9rem 1rem;
+  border-radius: 8px;
+  margin-top: 0.6rem;
+  box-shadow: 0 4px 14px rgba(20, 20, 40, 0.04);
+  color: #111;
+`;
+
+const IconSmall = styled.span`
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
+  color: rgba(17, 24, 39, 0.7);
+  font-size: 0.95rem;
+`;
+
 // Validation Regex Patterns
 const VALIDATION_PATTERNS = {
   email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
@@ -267,6 +305,75 @@ const ERROR_MESSAGES = {
 };
 
 const AppointmentModal = ({ isOpen, onClose, showSuccess, showError }) => {
+  // Build timezone list: prefer Intl.supportedValuesOf('timeZone') when available,
+  // otherwise fall back to a curated list of major IANA time zones.
+  const allTimezones = useMemo(() => {
+    try {
+      if (
+        typeof Intl !== "undefined" &&
+        typeof Intl.supportedValuesOf === "function"
+      ) {
+        const tz = Intl.supportedValuesOf("timeZone");
+        if (Array.isArray(tz) && tz.length > 0) return tz;
+      }
+    } catch (e) {
+      console.warn(
+        "Intl.supportedValuesOf('timeZone') not supported, using fallback list.",
+        e
+      );
+      // ignore and use fallback
+    }
+
+    return [
+      "UTC",
+      "Europe/London",
+      "Europe/Dublin",
+      "Europe/Paris",
+      "Europe/Berlin",
+      "Europe/Madrid",
+      "Europe/Rome",
+      "Europe/Amsterdam",
+      "Europe/Zurich",
+      "Europe/Stockholm",
+      "Europe/Moscow",
+      "Africa/Cairo",
+      "Africa/Johannesburg",
+      "Asia/Dubai",
+      "Asia/Jerusalem",
+      "Asia/Tehran",
+      "Asia/Kuwait",
+      "Asia/Karachi",
+      "Asia/Kolkata",
+      "Asia/Kathmandu",
+      "Asia/Dhaka",
+      "Asia/Colombo",
+      "Asia/Bangkok",
+      "Asia/Jakarta",
+      "Asia/Singapore",
+      "Asia/Kuala_Lumpur",
+      "Asia/Shanghai",
+      "Asia/Hong_Kong",
+      "Asia/Tokyo",
+      "Asia/Seoul",
+      "Australia/Sydney",
+      "Australia/Melbourne",
+      "Pacific/Auckland",
+      "Pacific/Honolulu",
+      "America/Anchorage",
+      "America/Los_Angeles",
+      "America/Denver",
+      "America/Chicago",
+      "America/New_York",
+      "America/Toronto",
+      "America/Halifax",
+      "America/Sao_Paulo",
+      "America/Buenos_Aires",
+      "America/Mexico_City",
+      "America/Bogota",
+      "America/Lima",
+      "Atlantic/Reykjavik",
+    ];
+  }, []);
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [availableDoctors, setAvailableDoctors] = useState([]);
@@ -279,12 +386,77 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess, showError }) => {
     nic: "",
     dateOfBirth: "",
     gender: "",
-    appointmentDate: "",
+    appointmentDateTime: "",
     department: "Pediatrics",
     doctor: "",
+    durationMinutes: 30,
+    timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
     address: "",
     visitedBefore: "",
   });
+
+  const formatForInput = (date) => {
+    if (!date) return "";
+    const pad = (n) => String(n).padStart(2, "0");
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
+  };
+
+  // When timezone changes, prefill the appointment datetime with current time (rounded)
+  useEffect(() => {
+    if (!formData.timezone) return;
+    try {
+      const tz = formData.timezone;
+      // Get the current date/time parts in the target timezone
+      const parts = new Intl.DateTimeFormat("en-GB", {
+        timeZone: tz,
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+      }).formatToParts(new Date());
+
+      const map = {};
+      parts.forEach((p) => {
+        if (p.type && p.value) map[p.type] = p.value;
+      });
+
+      const year = Number(map.year);
+      const month = Number(map.month);
+      const day = Number(map.day);
+      const hour = Number(map.hour);
+      const minute = Number(map.minute);
+
+      // Construct a Date using these components as LOCAL time so the input shows the timezone's clock
+      const displayDate = new Date(year, month - 1, day, hour, minute, 0, 0);
+
+      // Round minutes to nearest 5
+      const mins = Math.ceil(displayDate.getMinutes() / 5) * 5;
+      displayDate.setMinutes(mins, 0, 0);
+
+      setFormData((prev) => ({
+        ...prev,
+        appointmentDateTime: formatForInput(displayDate),
+      }));
+    } catch (err) {
+      console.log(err);
+      // Fallback to current local time rounding
+      const now = new Date();
+      const mins = Math.ceil(now.getMinutes() / 5) * 5;
+      now.setMinutes(mins, 0, 0);
+      setFormData((prev) => ({
+        ...prev,
+        appointmentDateTime: formatForInput(now),
+      }));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formData.timezone]);
 
   // Using App-level toasts (showSuccess/showError) instead of modal-local toasts
 
@@ -317,20 +489,19 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess, showError }) => {
         return "";
 
       case "dateOfBirth":
-      case "appointmentDate":
         if (!value.trim()) return ERROR_MESSAGES.required;
         if (!VALIDATION_PATTERNS.date.test(value))
           return ERROR_MESSAGES.invalidDate;
-
-        if (name === "appointmentDate") {
-          const appointmentDate = new Date(
-            value.split("/").reverse().join("-")
-          );
-          const today = new Date();
-          today.setHours(0, 0, 0, 0);
-          if (appointmentDate <= today) return ERROR_MESSAGES.futureDate;
-        }
         return "";
+
+      case "appointmentDateTime": {
+        if (!value) return ERROR_MESSAGES.required;
+        // value is local datetime string from input[type=datetime-local]
+        const appt = new Date(value);
+        if (Number.isNaN(appt.getTime())) return ERROR_MESSAGES.invalidDate;
+        if (appt <= new Date()) return ERROR_MESSAGES.futureDate;
+        return "";
+      }
 
       case "gender":
       case "department":
@@ -411,10 +582,8 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess, showError }) => {
 
       const toIsoDate = (value) => {
         if (!value) return undefined;
-        const [day, month, year] = value.split("/");
-        if (!day || !month || !year) return undefined;
-        const iso = new Date(`${year}-${month}-${day}T09:00:00`);
-        return Number.isNaN(iso.getTime()) ? undefined : iso.toISOString();
+        const d = new Date(value);
+        return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
       };
 
       const payload = {
@@ -427,7 +596,9 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess, showError }) => {
         dateOfBirth: toIsoDate(formData.dateOfBirth),
         department: formData.department,
         doctor: formData.doctor,
-        date: toIsoDate(formData.appointmentDate),
+        date: toIsoDate(formData.appointmentDateTime),
+        durationMinutes: Number(formData.durationMinutes) || 30,
+        timezone: formData.timezone,
         visitedBefore: formData.visitedBefore === "yes",
         notes: `Booked online via website at ${new Date().toISOString()}`,
       };
@@ -456,9 +627,11 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess, showError }) => {
         nic: "",
         dateOfBirth: "",
         gender: "",
-        appointmentDate: "",
+        appointmentDateTime: "",
         department: "Pediatrics",
         doctor: "",
+        durationMinutes: 30,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
         address: "",
         visitedBefore: "",
       });
@@ -467,7 +640,12 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess, showError }) => {
     } catch (err) {
       console.error(err);
       if (typeof showError === "function") {
-        showError("Failed to book appointment. Please try again.");
+        // Surface server-provided message when available
+        const msg =
+          err?.data?.message ||
+          err.message ||
+          "Failed to book appointment. Please try again.";
+        showError(msg);
       }
     } finally {
       setIsSubmitting(false);
@@ -524,6 +702,56 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess, showError }) => {
     };
   }, [isOpen]);
 
+  // Precompute slot preview text to avoid inline IIFEs in JSX
+  const slotText = useMemo(() => {
+    if (!formData.appointmentDateTime) return null;
+    try {
+      const start = new Date(formData.appointmentDateTime);
+      const end = new Date(
+        start.getTime() + (Number(formData.durationMinutes) || 30) * 60000
+      );
+      const opts = {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: formData.timezone || undefined,
+      };
+      const s = new Intl.DateTimeFormat(undefined, opts).format(start);
+      const e = new Intl.DateTimeFormat(undefined, opts).format(end);
+      return `Slot: ${s} to ${e}`;
+    } catch (err) {
+      console.error("Failed to compute slot text", err);
+      return null;
+    }
+  }, [
+    formData.appointmentDateTime,
+    formData.durationMinutes,
+    formData.timezone,
+  ]);
+
+  // Current time formatted in selected timezone (updates when timezone changes)
+  const currentTimeInTz = useMemo(() => {
+    try {
+      const tz =
+        formData.timezone ||
+        Intl.DateTimeFormat().resolvedOptions().timeZone ||
+        undefined;
+      const opts = {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: true,
+        timeZone: tz,
+      };
+      return new Intl.DateTimeFormat(undefined, opts).format(new Date());
+    } catch (err) {
+      console.error("Failed to compute current time in timezone", err);
+      return new Intl.DateTimeFormat(undefined, {
+        hour: "2-digit",
+        minute: "2-digit",
+      }).format(new Date());
+    }
+  }, [formData.timezone]);
+
   if (!isOpen) return null;
 
   return (
@@ -542,6 +770,9 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess, showError }) => {
             <FormRow>
               <FormGroup>
                 <Label>
+                  <IconSmall>
+                    <FaUser />
+                  </IconSmall>
                   First Name <RequiredStar>*</RequiredStar>
                 </Label>
                 <Input
@@ -563,6 +794,9 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess, showError }) => {
 
               <FormGroup>
                 <Label>
+                  <IconSmall>
+                    <FaUser />
+                  </IconSmall>
                   Last Name <RequiredStar>*</RequiredStar>
                 </Label>
                 <Input
@@ -586,6 +820,9 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess, showError }) => {
             <FormRow>
               <FormGroup>
                 <Label>
+                  <IconSmall>
+                    <FaEnvelope />
+                  </IconSmall>
                   Email <RequiredStar>*</RequiredStar>
                 </Label>
                 <Input
@@ -607,6 +844,9 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess, showError }) => {
 
               <FormGroup>
                 <Label>
+                  <IconSmall>
+                    <FaPhone />
+                  </IconSmall>
                   Mobile Number <RequiredStar>*</RequiredStar>
                 </Label>
                 <Input
@@ -630,6 +870,9 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess, showError }) => {
             <FormRow>
               <FormGroup>
                 <Label>
+                  <IconSmall>
+                    <FaIdCard />
+                  </IconSmall>
                   NIC <RequiredStar>*</RequiredStar>
                 </Label>
                 <Input
@@ -651,6 +894,9 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess, showError }) => {
 
               <FormGroup>
                 <Label>
+                  <IconSmall>
+                    <FaCalendarAlt />
+                  </IconSmall>
                   Date of Birth <RequiredStar>*</RequiredStar>
                 </Label>
                 <Input
@@ -675,6 +921,9 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess, showError }) => {
             <FormRow>
               <FormGroup>
                 <Label>
+                  <IconSmall>
+                    <FaVenusMars />
+                  </IconSmall>
                   Select Gender <RequiredStar>*</RequiredStar>
                 </Label>
                 <Select
@@ -696,32 +945,14 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess, showError }) => {
                   </ErrorMessage>
                 )}
               </FormGroup>
-
-              <FormGroup>
-                <Label>
-                  Appointment Date <RequiredStar>*</RequiredStar>
-                </Label>
-                <Input
-                  type="text"
-                  name="appointmentDate"
-                  value={formData.appointmentDate}
-                  onChange={handleInputChange}
-                  onBlur={handleBlur}
-                  hasError={!!errors.appointmentDate}
-                  placeholder="DD/MM/YYYY"
-                />
-                {errors.appointmentDate && (
-                  <ErrorMessage>
-                    <FaExclamationTriangle />
-                    {errors.appointmentDate}
-                  </ErrorMessage>
-                )}
-              </FormGroup>
             </FormRow>
 
             <FormRow>
               <FormGroup>
                 <Label>
+                  <IconSmall>
+                    <FaHospital />
+                  </IconSmall>
                   Department <RequiredStar>*</RequiredStar>
                 </Label>
                 <Select
@@ -746,6 +977,9 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess, showError }) => {
 
               <FormGroup>
                 <Label>
+                  <IconSmall>
+                    <FaUserMd />
+                  </IconSmall>
                   Select Doctor <RequiredStar>*</RequiredStar>
                 </Label>
                 <Select
@@ -776,60 +1010,151 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess, showError }) => {
                 )}
               </FormGroup>
             </FormRow>
+            <FormRow>
+              <FormGroup>
+                <Label>
+                  <IconSmall>
+                    <FaGlobe />
+                  </IconSmall>
+                  Timezone
+                </Label>
+                <Select
+                  name="timezone"
+                  value={formData.timezone}
+                  onChange={handleInputChange}
+                >
+                  <option value="">(Detect / Select timezone)</option>
+                  {allTimezones.map((tz) => (
+                    <option key={tz} value={tz}>
+                      {tz}
+                    </option>
+                  ))}
+                </Select>
+              </FormGroup>
 
-            <FormGroup>
-              <Label>
-                Address <RequiredStar>*</RequiredStar>
-              </Label>
-              <TextArea
-                name="address"
-                value={formData.address}
-                onChange={handleInputChange}
-                onBlur={handleBlur}
-                hasError={!!errors.address}
-                placeholder="Enter your complete address"
-              />
-              {errors.address && (
-                <ErrorMessage>
-                  <FaExclamationTriangle />
-                  {errors.address}
-                </ErrorMessage>
-              )}
-            </FormGroup>
+              <FormGroup>
+                <Label>
+                  <IconSmall>
+                    <FaClock />
+                  </IconSmall>
+                  Duration (minutes) <RequiredStar>*</RequiredStar>
+                </Label>
+                <Select
+                  name="durationMinutes"
+                  value={formData.durationMinutes}
+                  onChange={handleInputChange}
+                >
+                  <option value={20}>20</option>
+                  <option value={30}>30</option>
+                  <option value={45}>45</option>
+                  <option value={60}>60</option>
+                </Select>
+              </FormGroup>
+            </FormRow>
 
-            <FormGroup>
-              <Label>
-                Have you visited before? <RequiredStar>*</RequiredStar>
-              </Label>
-              <RadioGroup>
-                <RadioLabel>
-                  <RadioInput
-                    type="radio"
-                    name="visitedBefore"
-                    value="yes"
-                    checked={formData.visitedBefore === "yes"}
-                    onChange={handleInputChange}
-                  />
-                  Yes
-                </RadioLabel>
-                <RadioLabel>
-                  <RadioInput
-                    type="radio"
-                    name="visitedBefore"
-                    value="no"
-                    checked={formData.visitedBefore === "no"}
-                    onChange={handleInputChange}
-                  />
-                  No
-                </RadioLabel>
-              </RadioGroup>
-              {errors.visitedBefore && (
-                <ErrorMessage>
-                  <FaExclamationTriangle />
-                  {errors.visitedBefore}
-                </ErrorMessage>
-              )}
-            </FormGroup>
+            <FormRow>
+              <FormGroup>
+                <Label>
+                  <IconSmall>
+                    <FaCalendarAlt />
+                  </IconSmall>
+                  Appointment Date & Time <RequiredStar>*</RequiredStar>
+                </Label>
+                <Input
+                  type="datetime-local"
+                  name="appointmentDateTime"
+                  value={formData.appointmentDateTime}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  hasError={!!errors.appointmentDateTime}
+                  placeholder="Select date and time"
+                />
+                {errors.appointmentDateTime && (
+                  <ErrorMessage>
+                    <FaExclamationTriangle />
+                    {errors.appointmentDateTime}
+                  </ErrorMessage>
+                )}
+                <PreviewBox>
+                  <div style={{ fontSize: 12, color: "#666", marginBottom: 6 }}>
+                    Current time in{" "}
+                    {formData.timezone ||
+                      Intl.DateTimeFormat().resolvedOptions().timeZone ||
+                      "Local"}
+                  </div>
+                  <div style={{ fontSize: 20, fontWeight: 700, lineHeight: 1 }}>
+                    {currentTimeInTz}
+                  </div>
+                  {slotText && (
+                    <div style={{ marginTop: 8, fontSize: 15, color: "#333" }}>
+                      {slotText}
+                    </div>
+                  )}
+                </PreviewBox>
+              </FormGroup>
+            </FormRow>
+
+            <FormRow>
+              <FormGroup>
+                <Label>
+                  <IconSmall>
+                    <FaMapMarkerAlt />
+                  </IconSmall>
+                  Address <RequiredStar>*</RequiredStar>
+                </Label>
+                <TextArea
+                  name="address"
+                  value={formData.address}
+                  onChange={handleInputChange}
+                  onBlur={handleBlur}
+                  hasError={!!errors.address}
+                  placeholder="Enter your complete address"
+                />
+                {errors.address && (
+                  <ErrorMessage>
+                    <FaExclamationTriangle />
+                    {errors.address}
+                  </ErrorMessage>
+                )}
+              </FormGroup>
+
+              <FormGroup>
+                <Label>
+                  <IconSmall>
+                    <FaHistory />
+                  </IconSmall>
+                  Have you visited before? <RequiredStar>*</RequiredStar>
+                </Label>
+                <RadioGroup>
+                  <RadioLabel>
+                    <RadioInput
+                      type="radio"
+                      name="visitedBefore"
+                      value="yes"
+                      checked={formData.visitedBefore === "yes"}
+                      onChange={handleInputChange}
+                    />
+                    Yes
+                  </RadioLabel>
+                  <RadioLabel>
+                    <RadioInput
+                      type="radio"
+                      name="visitedBefore"
+                      value="no"
+                      checked={formData.visitedBefore === "no"}
+                      onChange={handleInputChange}
+                    />
+                    No
+                  </RadioLabel>
+                </RadioGroup>
+                {errors.visitedBefore && (
+                  <ErrorMessage>
+                    <FaExclamationTriangle />
+                    {errors.visitedBefore}
+                  </ErrorMessage>
+                )}
+              </FormGroup>
+            </FormRow>
 
             <SubmitButton type="submit" disabled={isSubmitting}>
               {isSubmitting ? (

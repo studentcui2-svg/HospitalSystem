@@ -355,7 +355,6 @@ const LoginPage = ({
   const [formData, setFormData] = useState({
     email: "",
     password: "",
-    confirmPassword: "",
   });
   const [loading, setLoading] = useState(false);
 
@@ -368,11 +367,6 @@ const LoginPage = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    if (formData.password !== formData.confirmPassword) {
-      showError("Passwords do not match!");
-      return;
-    }
 
     setLoading(true);
 
@@ -454,20 +448,6 @@ const LoginPage = ({
               />
             </InputGroup>
 
-            <InputGroup>
-              <InputIcon>
-                <FaLock />
-              </InputIcon>
-              <Input
-                type="password"
-                name="confirmPassword"
-                placeholder="Confirm Password"
-                value={formData.confirmPassword}
-                onChange={handleChange}
-                required
-              />
-            </InputGroup>
-
             <SubmitButton type="submit" disabled={loading}>
               {loading ? "Checking credentials..." : "Login"}
             </SubmitButton>
@@ -525,20 +505,6 @@ const LoginPage = ({
                 name="password"
                 placeholder="Password"
                 value={formData.password}
-                onChange={handleChange}
-                required
-              />
-            </InputGroup>
-
-            <InputGroup>
-              <InputIcon>
-                <FaLock />
-              </InputIcon>
-              <Input
-                type="password"
-                name="confirmPassword"
-                placeholder="Confirm Password"
-                value={formData.confirmPassword}
                 onChange={handleChange}
                 required
               />

@@ -165,7 +165,7 @@ const AuthButtons = styled.div`
   }
 `;
 
-const LoginButton = styled.button`
+const LoginButton = styled.a`
   background: transparent;
   color: #4f46e5;
   border: 2px solid #4f46e5;
@@ -190,7 +190,7 @@ const LoginButton = styled.button`
   }
 `;
 
-const SignupButton = styled.button`
+const SignupButton = styled.a`
   background: linear-gradient(135deg, #4f46e5 0%, #7e22ce 100%);
   color: white;
   border: none;
@@ -239,15 +239,20 @@ const NavBar = ({
 
         <NavLinks>
           <NavLink
-            onClick={() => {
+            href="/"
+            onClick={(e) => {
+              e.preventDefault();
               setMenuOpen(false);
+              onNavigateToHome?.();
               window.scrollTo({ top: 0, behavior: "smooth" });
             }}
           >
             Home
           </NavLink>
           <NavLink
-            onClick={() => {
+            href="/appointment"
+            onClick={(e) => {
+              e.preventDefault();
               setMenuOpen(false);
               onOpenAppointment?.();
             }}
@@ -255,7 +260,9 @@ const NavBar = ({
             Appointment
           </NavLink>
           <NavLink
-            onClick={() => {
+            href="#about"
+            onClick={(e) => {
+              e.preventDefault();
               setMenuOpen(false);
               document
                 .getElementById("about")
@@ -266,11 +273,21 @@ const NavBar = ({
           </NavLink>
           <AuthButtons>
             {!isLoggedIn ? (
-              <LoginButton onClick={() => onNavigateToLogin?.(true)}>
+              <LoginButton
+                href="/login"
+                onClick={(e) => {
+                  e.preventDefault();
+                  onNavigateToLogin?.(true);
+                }}
+              >
                 Login
               </LoginButton>
             ) : (
-              <LoginButton onClick={onLogout}>
+              <LoginButton
+                as="button"
+                onClick={onLogout}
+                style={{ display: "inline-flex", alignItems: "center" }}
+              >
                 <FaSignOutAlt style={{ marginRight: 8 }} /> Logout
               </LoginButton>
             )}
@@ -287,15 +304,20 @@ const NavBar = ({
         {menuOpen && (
           <MobileMenu>
             <NavLink
-              onClick={() => {
+              href="/"
+              onClick={(e) => {
+                e.preventDefault();
                 setMenuOpen(false);
+                onNavigateToHome?.();
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
             >
               Home
             </NavLink>
             <NavLink
-              onClick={() => {
+              href="/appointment"
+              onClick={(e) => {
+                e.preventDefault();
                 setMenuOpen(false);
                 onOpenAppointment?.();
               }}
@@ -303,7 +325,9 @@ const NavBar = ({
               Appointment
             </NavLink>
             <NavLink
-              onClick={() => {
+              href="#about"
+              onClick={(e) => {
+                e.preventDefault();
                 setMenuOpen(false);
                 document
                   .getElementById("about")
@@ -315,7 +339,9 @@ const NavBar = ({
             <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
               {!isLoggedIn ? (
                 <LoginButton
-                  onClick={() => {
+                  href="/login"
+                  onClick={(e) => {
+                    e.preventDefault();
                     setMenuOpen(false);
                     onNavigateToLogin?.();
                   }}
@@ -324,6 +350,7 @@ const NavBar = ({
                 </LoginButton>
               ) : (
                 <LoginButton
+                  as="button"
                   onClick={() => {
                     setMenuOpen(false);
                     onLogout?.();

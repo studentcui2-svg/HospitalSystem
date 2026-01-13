@@ -89,10 +89,14 @@ exports.signup = async (req, res) => {
 
     let emailSent = false;
     try {
+      const noReplyFrom =
+        process.env.SMTP_NO_REPLY ||
+        `No Reply <${process.env.SMTP_FROM || process.env.SMTP_USER}>`;
       const emailResult = await sendEmail({
         to: user.email,
         subject: "Your OTP code",
         html,
+        from: noReplyFrom,
       });
       emailSent = true;
       console.log("[SIGNUP] Email sent successfully! Result:", emailResult);
@@ -145,10 +149,18 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
 
-    // admin shortcut if matches special credentials
+    // admin shortcut only when ADMIN_EMAIL and ADMIN_PASSWORD are set in env
     if (
-      email === process.env.ADMIN_EMAIL &&
-      password === process.env.ADMIN_PASSWORD
+      process.env.ADMIN_EMAIL &&
+      process.env.ADMIN_PASSWORD &&
+      String(email || "")
+        .trim()
+        .toLowerCase() ===
+        String(process.env.ADMIN_EMAIL || "")
+          .trim()
+          .toLowerCase() &&
+      String(password || "").trim() ===
+        String(process.env.ADMIN_PASSWORD || "").trim()
     ) {
       let admin = await User.findOne({ email });
       if (!admin) {
@@ -210,10 +222,14 @@ exports.resendOtp = async (req, res) => {
     const html = require("../utils/emailTemplate")(user.name, otp);
     console.log("[RESEND OTP] Attempting to send email to:", user.email);
 
+    const noReplyFrom =
+      process.env.SMTP_NO_REPLY ||
+      `No Reply <${process.env.SMTP_FROM || process.env.SMTP_USER}>`;
     const emailResult = await sendEmail({
       to: user.email,
       subject: "Your OTP code",
       html,
+      from: noReplyFrom,
     });
     console.log("[RESEND OTP] Email sent successfully! Result:", emailResult);
 

@@ -18,6 +18,8 @@ exports.createAppointment = async (req, res) => {
       notes,
       visitedBefore,
       date,
+      durationMinutes,
+      timezone,
     } = req.body;
 
     if (!patientName || !date) {
@@ -33,6 +35,33 @@ exports.createAppointment = async (req, res) => {
       return res
         .status(400)
         .json({ message: "Invalid appointment date provided" });
+    }
+
+    // Determine duration (minutes) and enforce limits
+    const parsedDuration = Number(durationMinutes) || 30;
+    const duration = Math.max(20, Math.min(60, Math.floor(parsedDuration)));
+
+    const endDate = new Date(appointmentDate.getTime() + duration * 60000);
+
+    // Check for overlapping appointments for the same doctor
+    if (doctor) {
+      const conflict = await Appointment.findOne({
+        doctor,
+        date: { $lt: endDate },
+        end: { $gt: appointmentDate },
+      });
+      if (conflict) {
+        console.warn(
+          "[CREATE APPOINTMENT] Slot conflict for doctor",
+          doctor,
+          appointmentDate,
+          endDate
+        );
+        return res.status(409).json({
+          message:
+            "Requested time overlaps with another appointment for this doctor",
+        });
+      }
     }
 
     const parsedDob = dateOfBirth ? new Date(dateOfBirth) : undefined;
@@ -56,6 +85,9 @@ exports.createAppointment = async (req, res) => {
       notes,
       visitedBefore: visitedFlag,
       date: appointmentDate,
+      end: endDate,
+      durationMinutes: duration,
+      timezone,
       createdBy: req.userId,
     });
 
@@ -169,11 +201,15 @@ exports.updateStatus = async (req, res) => {
       `;
 
       try {
+        const noReplyFrom =
+          process.env.SMTP_NO_REPLY ||
+          `No Reply <${process.env.SMTP_FROM || process.env.SMTP_USER}>`;
         await sendEmail({
           to: patientEmail,
           subject,
           html,
           text: `${statusMessage} Status: ${normalizedStatus}. Scheduled Date: ${readableDate}.`,
+          from: noReplyFrom,
         });
         notified = true;
       } catch (emailError) {

@@ -8,6 +8,7 @@ import SignupPage from "./Clientside/Signup";
 import AppointmentModal from "./Clientside/Appointement";
 import NavBar from "./Clientside/NavBar";
 import AdminDashboard from "./Admin/AdminDashboard";
+import AdminGate from "./Clientside/AdminGate";
 
 // Global Styles
 const GlobalStyle = createGlobalStyle`
@@ -78,30 +79,54 @@ const App = () => {
   const [isSignupStandalone, setIsSignupStandalone] = useState(false);
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
   const [userRole, setUserRole] = useState("user"); // 'user' or 'admin'
+  const [isAdminGateOpen, setIsAdminGateOpen] = useState(false);
 
   // Navigation handlers
   const navigateToHome = () => {
     setCurrentPage("home");
     setUserRole("user");
+    try {
+      window.history.pushState({}, "Home", "/");
+    } catch {}
   };
 
   const navigateToLogin = (standalone = true) => {
     setIsLoginStandalone(!!standalone);
     setCurrentPage("login");
+    try {
+      window.history.pushState({}, "Login", "/login");
+    } catch {}
   };
 
   const navigateToSignup = (standalone = true) => {
     setIsSignupStandalone(!!standalone);
     setCurrentPage("signup");
+    try {
+      window.history.pushState({}, "Signup", "/signup");
+    } catch {}
   };
 
   const navigateToAdmin = () => {
-    setCurrentPage("admin");
-    setUserRole("admin");
+    // open the admin gate (login prompt) before showing admin dashboard
+    setIsAdminGateOpen(true);
+    try {
+      window.history.pushState({}, "Admin", "/admin");
+    } catch {}
   };
+
+  const openAdminGate = () => setIsAdminGateOpen(true);
+  const closeAdminGate = () => setIsAdminGateOpen(false);
 
   const openAppointmentModal = () => setIsAppointmentModalOpen(true);
   const closeAppointmentModal = () => setIsAppointmentModalOpen(false);
+
+  const navigateToAppointment = () => {
+    setCurrentPage("home");
+    setIsAppointmentModalOpen(true);
+    try {
+      window.history.pushState({}, "Appointment", "/appointment");
+    } catch {}
+  };
 
   const handleLogin = (details) => {
     let token;
@@ -214,7 +239,7 @@ const App = () => {
           <Home
             onNavigateToLogin={navigateToLogin}
             onNavigateToSignup={navigateToSignup}
-            onOpenAppointment={openAppointmentModal}
+            onOpenAppointment={navigateToAppointment}
             isLoggedIn={isLoggedIn}
             onLogout={handleLogout}
             showSuccess={showSuccess}
@@ -227,6 +252,7 @@ const App = () => {
         return (
           <LoginPage
             onNavigateToHome={navigateToHome}
+            onSwitchToSignup={navigateToSignup}
             showSuccess={showSuccess}
             showError={showError}
             showInfo={showInfo}
@@ -268,7 +294,7 @@ const App = () => {
           <Home
             onNavigateToLogin={navigateToLogin}
             onNavigateToSignup={navigateToSignup}
-            onOpenAppointment={openAppointmentModal}
+            onOpenAppointment={navigateToAppointment}
             isLoggedIn={isLoggedIn}
             onLogout={handleLogout}
             showSuccess={showSuccess}
@@ -280,6 +306,45 @@ const App = () => {
     }
   };
 
+  // Initialize from URL and handle back/forward navigation
+  useEffect(() => {
+    const applyPath = (path) => {
+      if (!path || path === "/") {
+        navigateToHome();
+        return;
+      }
+      if (path.startsWith("/login")) {
+        setIsLoginStandalone(true);
+        setCurrentPage("login");
+        return;
+      }
+      if (path.startsWith("/signup")) {
+        setIsSignupStandalone(true);
+        setCurrentPage("signup");
+        return;
+      }
+      if (path.startsWith("/admin")) {
+        // show admin gate first
+        setIsAdminGateOpen(true);
+        return;
+      }
+      if (path.startsWith("/appointment")) {
+        setCurrentPage("home");
+        setIsAppointmentModalOpen(true);
+        return;
+      }
+      // fallback to home
+      navigateToHome();
+    };
+
+    applyPath(window.location.pathname || "/");
+
+    const onPop = () => applyPath(window.location.pathname || "/");
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <AppContainer>
       <GlobalStyle />
@@ -289,7 +354,7 @@ const App = () => {
         <NavBar
           onNavigateToLogin={navigateToLogin}
           onNavigateToSignup={navigateToSignup}
-          onOpenAppointment={openAppointmentModal}
+          onOpenAppointment={navigateToAppointment}
           isLoggedIn={isLoggedIn}
           onLogout={handleLogout}
           onNavigateToHome={navigateToHome}
@@ -309,6 +374,20 @@ const App = () => {
         showSuccess={showSuccess}
         showError={showError}
         showInfo={showInfo}
+      />
+
+      {/* Admin login gate (when navigating to /admin) */}
+      <AdminGate
+        isOpen={isAdminGateOpen}
+        onClose={() => setIsAdminGateOpen(false)}
+        showError={showError}
+        showSuccess={showSuccess}
+        onSuccess={(res) => {
+          // Use existing handleLogin to set user state
+          handleLogin(res);
+          setIsAdminGateOpen(false);
+          setCurrentPage("admin");
+        }}
       />
 
       {/* Global Toast Container */}
