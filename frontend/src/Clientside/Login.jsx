@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import styled from "styled-components";
+import SectionWithScene from "./SectionWithScene";
 import { FaEnvelope, FaLock, FaArrowLeft, FaSignOutAlt } from "react-icons/fa";
 import { jsonFetch } from "../utils/api";
 
@@ -10,70 +11,6 @@ const PageContainer = styled.div`
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   flex-direction: column;
-`;
-
-const Logo = styled.h1`
-  color: #4f46e5;
-  font-size: 1.8rem;
-  font-weight: 800;
-  margin: 0;
-  cursor: pointer;
-  background: linear-gradient(135deg, #4f46e5 0%, #7e22ce 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-
-  @media (max-width: 480px) {
-    font-size: 1.5rem;
-  }
-`;
-
-const NavLinks = styled.div`
-  display: flex;
-  gap: 2rem;
-  align-items: center;
-  flex: 1;
-  justify-content: flex-end;
-
-  @media (max-width: 768px) {
-    gap: 1.5rem;
-  }
-
-  @media (max-width: 480px) {
-    gap: 1rem;
-    display: none;
-  }
-`;
-
-const MenuButton = styled.button`
-  display: none;
-  background: transparent;
-  border: none;
-  color: #4f46e5;
-  padding: 0.5rem 0.8rem;
-  border-radius: 8px;
-  cursor: pointer;
-
-  @media (max-width: 768px) {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    right: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 1200;
-    border: 2px solid rgba(79, 70, 229, 0.12);
-    background: rgba(79, 70, 229, 0.04);
-    padding: 0.5rem 0.7rem;
-    border-radius: 10px;
-    transition: all 0.18s ease;
-
-    &:hover {
-      background: rgba(79, 70, 229, 0.06);
-      transform: translateY(-2px);
-    }
-  }
 `;
 
 const MobileMenu = styled.div`

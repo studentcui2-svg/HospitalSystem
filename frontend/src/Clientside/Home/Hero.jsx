@@ -1,6 +1,7 @@
 import React from "react";
 import styled from "styled-components";
 import { FaStethoscope, FaHeartbeat, FaCalendarCheck } from "react-icons/fa";
+import ThreeScene from "./ThreeScene.jsx";
 
 const HeroContainer = styled.section`
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -176,6 +177,7 @@ const StatLabel = styled.div`
 const HeroSection = ({ onBookAppointment }) => {
   return (
     <HeroContainer>
+      <ThreeScene />
       <HeroContent>
         <HeroTitle>Welcome to ZeeCare Medical Institute</HeroTitle>
         <HeroSubtitle>Your Trusted Healthcare Provider</HeroSubtitle>

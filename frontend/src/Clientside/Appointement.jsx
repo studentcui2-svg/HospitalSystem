@@ -455,7 +455,6 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess, showError }) => {
         appointmentDateTime: formatForInput(now),
       }));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.timezone]);
 
   // Using App-level toasts (showSuccess/showError) instead of modal-local toasts

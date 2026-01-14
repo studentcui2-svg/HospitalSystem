@@ -1,244 +1,276 @@
-import React from "react";
-import styled from "styled-components";
-import { FaBaby, FaBone, FaHeart, FaBrain, FaStar } from "react-icons/fa";
+import React, { useRef } from "react";
+import styled, { keyframes } from "styled-components";
+import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import SectionWithScene from "../SectionWithScene.jsx";
+import {
+  Baby,
+  Activity,
+  Heart,
+  Brain,
+  Stethoscope,
+  Thermometer,
+  ShieldPlus,
+  Zap,
+} from "lucide-react";
 
+// --- Animations & Keyframes ---
+const pulse = keyframes`
+  0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.4); }
+  70% { box-shadow: 0 0 0 10px rgba(16, 185, 129, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+`;
+
+// --- Styled Components ---
 const DepartmentsContainer = styled.section`
-  background: #fafbfc;
-  padding: clamp(2rem, 4vw, 5rem) 2rem;
-
-  @media (max-width: 768px) {
-    padding: clamp(1.5rem, 3.5vw, 4rem) 1.5rem;
-  }
-
-  @media (max-width: 480px) {
-    padding: 2rem 1rem;
-  }
-`;
-
-const SectionHeader = styled.div`
-  text-align: center;
-  margin-bottom: 4rem;
-
-  @media (max-width: 480px) {
-    margin-bottom: 3rem;
-  }
-`;
-
-const SectionTitle = styled.h2`
-  font-size: 2.8rem;
-  font-weight: 800;
-  margin-bottom: 1rem;
-  background: linear-gradient(135deg, #4f46e5 0%, #7e22ce 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-
-  @media (max-width: 768px) {
-    font-size: 2.3rem;
-  }
-
-  @media (max-width: 480px) {
-    font-size: 2rem;
-  }
-`;
-
-const SectionSubtitle = styled.p`
-  font-size: 1.2rem;
-  color: #718096;
-  max-width: 600px;
-  margin: 0 auto;
-  line-height: 1.6;
-
-  @media (max-width: 480px) {
-    font-size: 1.1rem;
-  }
-`;
-
-const DepartmentsGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: clamp(1rem, 2vw, 2rem);
-  max-width: 1200px;
-  margin: 0 auto;
-
-  @media (max-width: 480px) {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-`;
-
-const DepartmentCard = styled.div`
-  background: white;
-  border-radius: 16px;
-  padding: clamp(1.2rem, 2vw, 2.5rem);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
-  transition: all 0.28s ease;
-  border: 1px solid #f1f5f9;
-  position: relative;
+  background: radial-gradient(circle at 50% 50%, #fdfdff 0%, #e2e8f0 100%);
+  padding: 8rem 2rem;
   overflow: hidden;
+  perspective: 2000px;
+`;
+
+const Grid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 3rem;
+  max-width: 1400px;
+  margin: 0 auto;
+`;
+
+const GlassCard = styled(motion.div)`
+  background: rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(25px);
+  -webkit-backdrop-filter: blur(25px);
+  border-radius: 40px;
+  padding: 3.5rem 2rem;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.08);
+  position: relative;
+  transform-style: preserve-3d;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transition: border-color 0.3s ease;
 
   &:hover {
-    transform: translateY(-6px);
-    box-shadow: 0 16px 36px rgba(0, 0, 0, 0.09);
+    border-color: #6366f1;
+    background: rgba(255, 255, 255, 0.4);
   }
 `;
 
-const DepartmentIcon = styled.div`
-  width: clamp(60px, 8vw, 80px);
-  height: clamp(60px, 8vw, 80px);
-  border-radius: 16px;
+const MagneticIconWrapper = styled(motion.div)`
+  width: 110px;
+  height: 110px;
+  border-radius: 30px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: clamp(1.6rem, 2.8vw, 2.2rem);
-  margin-bottom: 1.25rem;
-  background: linear-gradient(
-    135deg,
-    ${(props) => props.color}20 0%,
-    ${(props) => props.color}40 100%
-  );
-  color: ${(props) => props.color};
-`;
-
-const DepartmentName = styled.h3`
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-  color: #2d3748;
-
-  @media (max-width: 480px) {
-    font-size: 1.3rem;
-  }
-`;
-
-const DepartmentDescription = styled.p`
-  color: #718096;
-  line-height: 1.7;
-  margin-bottom: 1.5rem;
-`;
-
-const DepartmentFeatures = styled.ul`
-  list-style: none;
+  background: ${(props) => props.$gradient};
+  color: white;
+  font-size: 3rem;
   margin-bottom: 2rem;
+  box-shadow: 0 20px 40px ${(props) => props.$shadow};
+  cursor: pointer;
+  z-index: 5;
 `;
 
-const FeatureItem = styled.li`
+const StatusChip = styled.div`
+  position: absolute;
+  top: 25px;
+  left: 25px;
+  background: rgba(255, 255, 255, 0.8);
+  padding: 6px 14px;
+  border-radius: 100px;
+  font-size: 0.7rem;
+  font-weight: 800;
+  color: #10b981;
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.5rem;
-  color: #4a5568;
-  font-size: 0.95rem;
-
-  &::before {
-    content: "✓";
-    color: #10b981;
-    font-weight: bold;
-  }
+  gap: 6px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.05);
+  animation: ${pulse} 2s infinite;
 `;
 
-const LearnMoreButton = styled.button`
-  background: transparent;
-  color: #4f46e5;
-  border: 2px solid #4f46e5;
-  padding: 0.8rem 1.5rem;
-  border-radius: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
+const DeptTitle = styled.h3`
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #0f172a;
+  margin-bottom: 0.8rem;
+  letter-spacing: -1px;
+`;
+
+const MagneticButton = styled(motion.button)`
+  margin-top: auto;
   width: 100%;
-
-  &:hover {
-    background: #4f46e5;
-    color: white;
-    transform: translateY(-2px);
-  }
+  padding: 1.2rem;
+  border-radius: 20px;
+  border: none;
+  background: #0f172a;
+  color: white;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  box-shadow: 0 10px 25px rgba(15, 23, 42, 0.2);
 `;
 
-const departmentsData = [
-  {
-    name: "PEDIATRICS",
-    description:
-      "Specialized care for infants, children, and adolescents with compassionate pediatric experts.",
-    icon: FaBaby,
-    color: "#3B82F6",
-    features: [
-      "Child Wellness Checkups",
-      "Vaccination Services",
-      "Growth Monitoring",
-      "Emergency Pediatric Care",
-    ],
-  },
-  {
-    name: "ORTHOPEDICS",
-    description:
-      "Comprehensive treatment for bone, joint, and musculoskeletal conditions with advanced surgical options.",
-    icon: FaBone,
-    color: "#EF4444",
-    features: [
-      "Joint Replacement",
-      "Sports Medicine",
-      "Fracture Care",
-      "Arthroscopic Surgery",
-    ],
-  },
-  {
-    name: "CARDIOLOGY",
-    description:
-      "Expert heart and cardiovascular care with state-of-the-art diagnostic and treatment facilities.",
-    icon: FaHeart,
-    color: "#DC2626",
-    features: [
-      "Cardiac Surgery",
-      "Angioplasty",
-      "Pacemaker Implantation",
-      "Heart Health Screening",
-    ],
-  },
-  {
-    name: "NEUROLOGY",
-    description:
-      "Advanced diagnosis and treatment of nervous system disorders with cutting-edge technology.",
-    icon: FaBrain,
-    color: "#7C3AED",
-    features: [
-      "Brain Surgery",
-      "Stroke Treatment",
-      "Epilepsy Management",
-      "Neurological Rehabilitation",
-    ],
-  },
-];
+// --- Magnetic Component Logic ---
+const MagneticCard = ({ dept, index }) => {
+  const cardRef = useRef(null);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+
+  const springConfig = { damping: 20, stiffness: 150 };
+  const dx = useSpring(x, springConfig);
+  const dy = useSpring(y, springConfig);
+
+  const handleMouseMove = (e) => {
+    const rect = cardRef.current.getBoundingClientRect();
+    const centerX = rect.left + rect.width / 2;
+    const centerY = rect.top + rect.height / 2;
+    x.set(e.clientX - centerX);
+    y.set(e.clientY - centerY);
+  };
+
+  const handleMouseLeave = () => {
+    x.set(0);
+    y.set(0);
+  };
+
+  const rotateX = useTransform(dy, [-100, 100], [10, -10]);
+  const rotateY = useTransform(dx, [-100, 100], [-10, 10]);
+
+  return (
+    <GlassCard
+      ref={cardRef}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{ rotateX, rotateY }}
+      initial={{ opacity: 0, scale: 0.9 }}
+      whileInView={{ opacity: 1, scale: 1 }}
+      transition={{ delay: index * 0.1 }}
+    >
+      <StatusChip>
+        <div
+          style={{
+            width: 8,
+            height: 8,
+            background: "#10b981",
+            borderRadius: "50%",
+          }}
+        />
+        LIVE CLINIC
+      </StatusChip>
+
+      <MagneticIconWrapper
+        $gradient={dept.gradient}
+        $shadow={dept.shadow}
+        style={{ x: dx, y: dy, translateZ: 60 }}
+        whileHover={{ scale: 1.1 }}
+      >
+        <dept.icon size={45} />
+      </MagneticIconWrapper>
+
+      <DeptTitle>{dept.name}</DeptTitle>
+      <p
+        style={{
+          color: "#64748b",
+          fontSize: "0.95rem",
+          lineHeight: 1.6,
+          marginBottom: "2rem",
+        }}
+      >
+        {dept.desc}
+      </p>
+
+      <MagneticButton
+        whileHover={{ scale: 1.05, background: "#4f46e5" }}
+        whileTap={{ scale: 0.95 }}
+      >
+        Book Now <Zap size={18} fill="currentColor" />
+      </MagneticButton>
+    </GlassCard>
+  );
+};
 
 const DepartmentsSection = () => {
-  return (
-    <DepartmentsContainer>
-      <SectionHeader>
-        <SectionTitle>Our Medical Departments</SectionTitle>
-        <SectionSubtitle>
-          Comprehensive healthcare services across various specialties with
-          expert medical professionals
-        </SectionSubtitle>
-      </SectionHeader>
+  const departments = [
+    {
+      name: "Pediatrics",
+      icon: Baby,
+      gradient: "linear-gradient(135deg, #3b82f6, #2563eb)",
+      shadow: "rgba(37, 99, 235, 0.3)",
+      desc: "Gentle healthcare for your little ones.",
+    },
+    {
+      name: "Cardiology",
+      icon: Heart,
+      gradient: "linear-gradient(135deg, #ef4444, #b91c1c)",
+      shadow: "rgba(239, 68, 68, 0.3)",
+      desc: "Advanced heart care and diagnostics.",
+    },
+    {
+      name: "Neurology",
+      icon: Brain,
+      gradient: "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+      shadow: "rgba(139, 92, 246, 0.3)",
+      desc: "Expert care for brain and nervous system.",
+    },
+    {
+      name: "Orthopedics",
+      icon: Activity,
+      gradient: "linear-gradient(135deg, #f59e0b, #d97706)",
+      shadow: "rgba(245, 158, 11, 0.3)",
+      desc: "Modern solutions for bone and joint health.",
+    },
+    {
+      name: "Dermatology",
+      icon: ShieldPlus,
+      gradient: "linear-gradient(135deg, #10b981, #059669)",
+      shadow: "rgba(16, 185, 129, 0.3)",
+      desc: "Clinical and aesthetic skin treatments.",
+    },
+    {
+      name: "Diagnostics",
+      icon: Thermometer,
+      gradient: "linear-gradient(135deg, #06b6d4, #0891b2)",
+      shadow: "rgba(6, 182, 212, 0.3)",
+      desc: "Precise lab testing and full-body scans.",
+    },
+  ];
 
-      <DepartmentsGrid>
-        {departmentsData.map((dept, index) => (
-          <DepartmentCard key={index}>
-            <DepartmentIcon color={dept.color}>
-              <dept.icon />
-            </DepartmentIcon>
-            <DepartmentName>{dept.name}</DepartmentName>
-            <DepartmentDescription>{dept.description}</DepartmentDescription>
-            <DepartmentFeatures>
-              {dept.features.map((feature, idx) => (
-                <FeatureItem key={idx}>{feature}</FeatureItem>
-              ))}
-            </DepartmentFeatures>
-            <LearnMoreButton>Learn More</LearnMoreButton>
-          </DepartmentCard>
-        ))}
-      </DepartmentsGrid>
-    </DepartmentsContainer>
+  return (
+    <SectionWithScene opacity={0.95}>
+      <DepartmentsContainer id="departments">
+        <motion.div
+          style={{ textAlign: "center", marginBottom: "6rem" }}
+          initial={{ opacity: 0, y: -20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+        >
+          <h2
+            style={{
+              fontSize: "3.5rem",
+              fontWeight: 900,
+              color: "#0f172a",
+              letterSpacing: "-2px",
+            }}
+          >
+            World Class <span style={{ color: "#4f46e5" }}>Clinics</span>
+          </h2>
+          <p style={{ color: "#64748b", fontSize: "1.2rem" }}>
+            Pioneering healthcare with digital precision.
+          </p>
+        </motion.div>
+
+        <Grid>
+          {departments.map((dept, idx) => (
+            <MagneticCard key={idx} dept={dept} index={idx} />
+          ))}
+        </Grid>
+      </DepartmentsContainer>
+    </SectionWithScene>
   );
 };
 

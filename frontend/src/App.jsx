@@ -1,7 +1,10 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import styled, { createGlobalStyle } from "styled-components";
+import { motion, AnimatePresence } from "framer-motion";
+
+// --- Components ---
 import Home from "./Clientside/Homepage";
 import LoginPage from "./Clientside/Login";
 import SignupPage from "./Clientside/Signup";
@@ -10,8 +13,18 @@ import NavBar from "./Clientside/NavBar";
 import AdminDashboard from "./Admin/AdminDashboard";
 import AdminGate from "./Clientside/AdminGate";
 
-// Global Styles
+// --- 1. Global 3D & Glassmorphism Theme ---
 const GlobalStyle = createGlobalStyle`
+  :root {
+    --primary: #6366f1;
+    --primary-dark: #4f46e5;
+    --accent: #a855f7;
+    --bg-deep: #020617;
+    --text-main: #f8fafc;
+    --glass-bg: rgba(255, 255, 255, 0.03);
+    --glass-border: rgba(255, 255, 255, 0.1);
+  }
+
   * {
     margin: 0;
     padding: 0;
@@ -19,58 +32,39 @@ const GlobalStyle = createGlobalStyle`
   }
 
   body {
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-    line-height: 1.6;
-    color: #1F2937;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    background: var(--bg-deep);
+    color: var(--text-main);
     overflow-x: hidden;
-    background: #FAFBFC;
+    line-height: 1.6;
+    /* This allows the 3D perspective to work globally */
+    perspective: 1500px;
   }
 
   html {
     scroll-behavior: smooth;
   }
 
-  a {
-    text-decoration: none;
-    color: inherit;
-  }
-
-  button {
-    font-family: inherit;
-    cursor: pointer;
-    border: none;
-    outline: none;
-  }
-
-  input, textarea, select {
-    font-family: inherit;
-    border: none;
-    outline: none;
-  }
-
-  /* Responsive breakpoints */
-  @media (max-width: 1200px) {
-    body {
-      font-size: 15px;
-    }
-  }
-
-  @media (max-width: 768px) {
-    body {
-      font-size: 14px;
-    }
-  }
-
-  @media (max-width: 480px) {
-    body {
-      font-size: 13px;
-    }
+  /* Custom Toast Styling to match Glassmorphism */
+  .Toastify__toast {
+    border-radius: 16px;
+    backdrop-filter: blur(10px);
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.2);
   }
 `;
 
 const AppContainer = styled.div`
   min-height: 100vh;
+  position: relative;
 `;
+
+// --- 2. Animation Variants for Page Transitions ---
+const pageVariants = {
+  initial: { opacity: 0, x: -20, scale: 0.98 },
+  animate: { opacity: 1, x: 0, scale: 1 },
+  exit: { opacity: 0, x: 20, scale: 1.02 },
+};
 
 const App = () => {
   const [currentPage, setCurrentPage] = useState("home");
@@ -78,152 +72,69 @@ const App = () => {
   const [isLoginStandalone, setIsLoginStandalone] = useState(false);
   const [isSignupStandalone, setIsSignupStandalone] = useState(false);
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
-  const [userRole, setUserRole] = useState("user"); // 'user' or 'admin'
+  const [userRole, setUserRole] = useState("user");
   const [isAdminGateOpen, setIsAdminGateOpen] = useState(false);
 
-  // Navigation handlers
-  const navigateToHome = () => {
-    setCurrentPage("home");
-    setUserRole("user");
+  // --- 3. Navigation Engine ---
+  const handleNavigation = useCallback((page, path, standalone = false) => {
+    setCurrentPage(page);
+    if (page === "login") setIsLoginStandalone(standalone);
+    if (page === "signup") setIsSignupStandalone(standalone);
+
     try {
-      window.history.pushState({}, "Home", "/");
-    } catch {}
-  };
+      window.history.pushState({}, "", path);
+    } catch (e) {
+      console.error("Navigation error:", e);
+    }
+  }, []);
 
-  const navigateToLogin = (standalone = true) => {
-    setIsLoginStandalone(!!standalone);
-    setCurrentPage("login");
-    try {
-      window.history.pushState({}, "Login", "/login");
-    } catch {}
-  };
-
-  const navigateToSignup = (standalone = true) => {
-    setIsSignupStandalone(!!standalone);
-    setCurrentPage("signup");
-    try {
-      window.history.pushState({}, "Signup", "/signup");
-    } catch {}
-  };
-
-  const navigateToAdmin = () => {
-    // open the admin gate (login prompt) before showing admin dashboard
-    setIsAdminGateOpen(true);
-    try {
-      window.history.pushState({}, "Admin", "/admin");
-    } catch {}
-  };
-
-  const openAdminGate = () => setIsAdminGateOpen(true);
-  const closeAdminGate = () => setIsAdminGateOpen(false);
-
-  const openAppointmentModal = () => setIsAppointmentModalOpen(true);
-  const closeAppointmentModal = () => setIsAppointmentModalOpen(false);
-
+  const navigateToHome = () => handleNavigation("home", "/");
+  const navigateToLogin = (standalone = true) =>
+    handleNavigation("login", "/login", standalone);
+  const navigateToSignup = (standalone = true) =>
+    handleNavigation("signup", "/signup", standalone);
+  const navigateToAdmin = () => setIsAdminGateOpen(true);
   const navigateToAppointment = () => {
     setCurrentPage("home");
     setIsAppointmentModalOpen(true);
-    try {
-      window.history.pushState({}, "Appointment", "/appointment");
-    } catch {}
   };
 
+  // --- 4. Auth & State Handlers ---
   const handleLogin = (details) => {
-    let token;
-    let userObj = { role: "user" };
-
-    if (details && typeof details === "object") {
-      if (details.user) {
-        userObj = { ...details.user };
-      } else {
-        userObj = {
-          role: details.role || details.roleId || "user",
-          name: details.name,
-          email: details.email,
-        };
-      }
-      token = details.token;
-    } else if (typeof details === "string") {
-      userObj = { role: details };
-    }
-
-    const resolvedRole = userObj.role || "user";
-    setUserRole(resolvedRole);
+    const role = details?.user?.role || details?.role || "user";
+    setUserRole(role);
     setIsLoggedIn(true);
 
-    try {
-      window.__APP_USER__ = userObj;
-      if (token) {
-        window.__APP_TOKEN__ = token;
-        window.localStorage?.setItem("app_token", token);
-      }
-    } catch {
-      /* ignore */
+    if (details?.token) {
+      localStorage.setItem("app_token", details.token);
+      window.__APP_TOKEN__ = details.token;
     }
 
-    showSuccess(`Logged in successfully as ${resolvedRole}`);
-
-    if (resolvedRole === "admin") {
-      setCurrentPage("admin");
-    } else {
-      setCurrentPage("home");
-    }
+    toast.success(`Welcome back, ${role}!`);
+    setCurrentPage(role === "admin" ? "admin" : "home");
   };
 
-  const handleLogout = (targetPageOrEvent) => {
-    let targetPage = "home";
-
-    if (typeof targetPageOrEvent === "string") {
-      targetPage = targetPageOrEvent;
-    } else if (
-      targetPageOrEvent &&
-      typeof targetPageOrEvent.preventDefault === "function"
-    ) {
-      targetPageOrEvent.preventDefault();
-    }
-
+  const handleLogout = () => {
     setIsLoggedIn(false);
     setUserRole("user");
-    showSuccess("Logged out successfully");
-    setCurrentPage(targetPage);
-    try {
-      delete window.__APP_USER__;
-      delete window.__APP_TOKEN__;
-      window.localStorage?.removeItem("app_token");
-    } catch {
-      /* ignore */
-    }
+    localStorage.removeItem("app_token");
+    toast.info("Successfully logged out");
+    setCurrentPage("home");
   };
 
-  // Toast functions
-  const showSuccess = (message) => toast.success(message);
-  const showError = (message) => toast.error(message);
-  const showInfo = (message) => toast.info(message);
-  const showWarning = (message) => toast.warning(message);
-
-  // Expose global toast helpers for deeply nested components
+  // Sync with URL for back/forward browser buttons
   useEffect(() => {
-    try {
-      window.__APP_TOAST__ = {
-        success: showSuccess,
-        error: showError,
-        info: showInfo,
-        warning: showWarning,
-      };
-    } catch {
-      /* ignore (server-side or restricted envs) */
-    }
-
-    return () => {
-      try {
-        delete window.__APP_TOAST__;
-      } catch {
-        /* ignore */
-      }
+    const syncRoute = () => {
+      const path = window.location.pathname;
+      if (path === "/login") handleNavigation("login", "/login", true);
+      else if (path === "/signup") handleNavigation("signup", "/signup", true);
+      else if (path === "/admin") setIsAdminGateOpen(true);
+      else setCurrentPage("home");
     };
-  }, []);
+    window.addEventListener("popstate", syncRoute);
+    return () => window.removeEventListener("popstate", syncRoute);
+  }, [handleNavigation]);
 
-  // Check if current page should show navbar
   const shouldShowNavbar = () => {
     if (currentPage === "admin") return false;
     if (currentPage === "login" && isLoginStandalone) return false;
@@ -231,181 +142,95 @@ const App = () => {
     return true;
   };
 
-  // Render current page
-  const renderCurrentPage = () => {
-    switch (currentPage) {
-      case "home":
-        return (
-          <Home
-            onNavigateToLogin={navigateToLogin}
-            onNavigateToSignup={navigateToSignup}
-            onOpenAppointment={navigateToAppointment}
-            isLoggedIn={isLoggedIn}
-            onLogout={handleLogout}
-            showSuccess={showSuccess}
-            showError={showError}
-            userRole={userRole}
-            onNavigateToAdmin={navigateToAdmin}
-          />
-        );
-      case "login":
-        return (
-          <LoginPage
-            onNavigateToHome={navigateToHome}
-            onSwitchToSignup={navigateToSignup}
-            showSuccess={showSuccess}
-            showError={showError}
-            showInfo={showInfo}
-            onLogin={handleLogin}
-            isLoggedIn={isLoggedIn}
-            onLogout={handleLogout}
-            standalone={isLoginStandalone}
-            userRole={userRole}
-            onNavigateToAdmin={navigateToAdmin}
-          />
-        );
-      case "signup":
-        return (
-          <SignupPage
-            onSwitchToLogin={navigateToLogin}
-            onNavigateToHome={navigateToHome}
-            showSuccess={showSuccess}
-            showError={showError}
-            showInfo={showInfo}
-            isLoggedIn={isLoggedIn}
-            onLogout={handleLogout}
-            onLogin={handleLogin}
-            standalone={isSignupStandalone}
-            userRole={userRole}
-          />
-        );
-      case "admin":
-        return (
-          <AdminDashboard
-            onLogout={() => handleLogout("login")}
-            onNavigateToHome={navigateToHome}
-            showSuccess={showSuccess}
-            showError={showError}
-            userRole={userRole}
-          />
-        );
-      default:
-        return (
-          <Home
-            onNavigateToLogin={navigateToLogin}
-            onNavigateToSignup={navigateToSignup}
-            onOpenAppointment={navigateToAppointment}
-            isLoggedIn={isLoggedIn}
-            onLogout={handleLogout}
-            showSuccess={showSuccess}
-            showError={showError}
-            userRole={userRole}
-            onNavigateToAdmin={navigateToAdmin}
-          />
-        );
-    }
-  };
-
-  // Initialize from URL and handle back/forward navigation
-  useEffect(() => {
-    const applyPath = (path) => {
-      if (!path || path === "/") {
-        navigateToHome();
-        return;
-      }
-      if (path.startsWith("/login")) {
-        setIsLoginStandalone(true);
-        setCurrentPage("login");
-        return;
-      }
-      if (path.startsWith("/signup")) {
-        setIsSignupStandalone(true);
-        setCurrentPage("signup");
-        return;
-      }
-      if (path.startsWith("/admin")) {
-        // show admin gate first
-        setIsAdminGateOpen(true);
-        return;
-      }
-      if (path.startsWith("/appointment")) {
-        setCurrentPage("home");
-        setIsAppointmentModalOpen(true);
-        return;
-      }
-      // fallback to home
-      navigateToHome();
-    };
-
-    applyPath(window.location.pathname || "/");
-
-    const onPop = () => applyPath(window.location.pathname || "/");
-    window.addEventListener("popstate", onPop);
-    return () => window.removeEventListener("popstate", onPop);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
   return (
     <AppContainer>
       <GlobalStyle />
 
-      {/* Render NavBar unless we're on admin or standalone auth pages */}
-      {shouldShowNavbar() && (
-        <NavBar
-          onNavigateToLogin={navigateToLogin}
-          onNavigateToSignup={navigateToSignup}
-          onOpenAppointment={navigateToAppointment}
-          isLoggedIn={isLoggedIn}
-          onLogout={handleLogout}
-          onNavigateToHome={navigateToHome}
-          userRole={userRole}
-          onNavigateToAdmin={navigateToAdmin}
-          showSuccess={showSuccess}
-          showError={showError}
-        />
-      )}
+      {/* 3D Progress & Navbar */}
+      <AnimatePresence mode="wait">
+        {shouldShowNavbar() && (
+          <motion.div
+            initial={{ y: -100 }}
+            animate={{ y: 0 }}
+            exit={{ y: -100 }}
+            key="navbar-anim"
+            style={{
+              position: "fixed",
+              left: 0,
+              right: 0,
+              top: 0,
+              zIndex: 1200,
+            }}
+          >
+            <NavBar
+              onNavigateToLogin={navigateToLogin}
+              onNavigateToSignup={navigateToSignup}
+              onOpenAppointment={navigateToAppointment}
+              isLoggedIn={isLoggedIn}
+              onLogout={handleLogout}
+              onNavigateToHome={navigateToHome}
+              userRole={userRole}
+              onNavigateToAdmin={navigateToAdmin}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
 
-      {renderCurrentPage()}
+      {/* --- Main Viewport with Page Transitions --- */}
+      <AnimatePresence mode="wait">
+        <motion.main
+          key={currentPage}
+          variants={pageVariants}
+          initial="initial"
+          animate="animate"
+          exit="exit"
+          transition={{ duration: 0.4, ease: "easeInOut" }}
+        >
+          {currentPage === "home" && (
+            <Home
+              onOpenAppointment={navigateToAppointment}
+              userRole={userRole}
+              isLoggedIn={isLoggedIn}
+            />
+          )}
 
-      {/* Global Appointment Modal */}
+          {currentPage === "login" && (
+            <LoginPage
+              onNavigateToHome={navigateToHome}
+              onLogin={handleLogin}
+              standalone={isLoginStandalone}
+            />
+          )}
+
+          {currentPage === "signup" && (
+            <SignupPage
+              onNavigateToHome={navigateToHome}
+              standalone={isSignupStandalone}
+            />
+          )}
+
+          {currentPage === "admin" && (
+            <AdminDashboard
+              onLogout={handleLogout}
+              onNavigateToHome={navigateToHome}
+            />
+          )}
+        </motion.main>
+      </AnimatePresence>
+
+      {/* --- Global Interactive Elements --- */}
       <AppointmentModal
         isOpen={isAppointmentModalOpen}
-        onClose={closeAppointmentModal}
-        showSuccess={showSuccess}
-        showError={showError}
-        showInfo={showInfo}
+        onClose={() => setIsAppointmentModalOpen(false)}
       />
 
-      {/* Admin login gate (when navigating to /admin) */}
       <AdminGate
         isOpen={isAdminGateOpen}
         onClose={() => setIsAdminGateOpen(false)}
-        showError={showError}
-        showSuccess={showSuccess}
-        onSuccess={(res) => {
-          // Use existing handleLogin to set user state
-          handleLogin(res);
-          setIsAdminGateOpen(false);
-          setCurrentPage("admin");
-        }}
+        onSuccess={handleLogin}
       />
 
-      {/* Global Toast Container */}
-      <ToastContainer
-        position="top-right"
-        autoClose={5000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-        style={{
-          fontSize: "14px",
-        }}
-      />
+      <ToastContainer theme="colored" position="bottom-right" limit={3} />
     </AppContainer>
   );
 };

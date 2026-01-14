@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import styled from "styled-components";
 import { FaSignOutAlt } from "react-icons/fa";
+import ThreeScene from "./Home/ThreeScene.jsx";
 
 export const NAV_HEIGHT = "72px";
 
@@ -226,80 +227,101 @@ const NavBar = ({
   return (
     <>
       <Navbar>
-        <Brand>
-          <Logo
-            onClick={() => {
-              onNavigateToHome?.();
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-          >
-            ZECARE
-          </Logo>
-        </Brand>
-
-        <NavLinks>
-          <NavLink
-            href="/"
-            onClick={(e) => {
-              e.preventDefault();
-              setMenuOpen(false);
-              onNavigateToHome?.();
-              window.scrollTo({ top: 0, behavior: "smooth" });
-            }}
-          >
-            Home
-          </NavLink>
-          <NavLink
-            href="/appointment"
-            onClick={(e) => {
-              e.preventDefault();
-              setMenuOpen(false);
-              onOpenAppointment?.();
-            }}
-          >
-            Appointment
-          </NavLink>
-          <NavLink
-            href="#about"
-            onClick={(e) => {
-              e.preventDefault();
-              setMenuOpen(false);
-              document
-                .getElementById("about")
-                ?.scrollIntoView({ behavior: "smooth" });
-            }}
-          >
-            About Us
-          </NavLink>
-          <AuthButtons>
-            {!isLoggedIn ? (
-              <LoginButton
-                href="/login"
-                onClick={(e) => {
-                  e.preventDefault();
-                  onNavigateToLogin?.(true);
-                }}
-              >
-                Login
-              </LoginButton>
-            ) : (
-              <LoginButton
-                as="button"
-                onClick={onLogout}
-                style={{ display: "inline-flex", alignItems: "center" }}
-              >
-                <FaSignOutAlt style={{ marginRight: 8 }} /> Logout
-              </LoginButton>
-            )}
-          </AuthButtons>
-        </NavLinks>
-
-        <MenuButton
-          aria-label="Toggle menu"
-          onClick={() => setMenuOpen((v) => !v)}
+        <div
+          style={{
+            position: "absolute",
+            inset: 0,
+            zIndex: 0,
+            pointerEvents: "none",
+            opacity: 0.9,
+          }}
         >
-          {menuOpen ? "✕" : "☰"}
-        </MenuButton>
+          <ThreeScene />
+        </div>
+        <div
+          style={{
+            position: "relative",
+            zIndex: 2,
+            display: "flex",
+            alignItems: "center",
+            width: "100%",
+          }}
+        >
+          <Brand>
+            <Logo
+              onClick={() => {
+                onNavigateToHome?.();
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            >
+              ZECARE
+            </Logo>
+          </Brand>
+
+          <NavLinks>
+            <NavLink
+              href="/"
+              onClick={(e) => {
+                e.preventDefault();
+                setMenuOpen(false);
+                onNavigateToHome?.();
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }}
+            >
+              Home
+            </NavLink>
+            <NavLink
+              href="/appointment"
+              onClick={(e) => {
+                e.preventDefault();
+                setMenuOpen(false);
+                onOpenAppointment?.();
+              }}
+            >
+              Appointment
+            </NavLink>
+            <NavLink
+              href="#about"
+              onClick={(e) => {
+                e.preventDefault();
+                setMenuOpen(false);
+                document
+                  .getElementById("about")
+                  ?.scrollIntoView({ behavior: "smooth" });
+              }}
+            >
+              About Us
+            </NavLink>
+            <AuthButtons>
+              {!isLoggedIn ? (
+                <LoginButton
+                  href="/login"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onNavigateToLogin?.(true);
+                  }}
+                >
+                  Login
+                </LoginButton>
+              ) : (
+                <LoginButton
+                  as="button"
+                  onClick={onLogout}
+                  style={{ display: "inline-flex", alignItems: "center" }}
+                >
+                  <FaSignOutAlt style={{ marginRight: 8 }} /> Logout
+                </LoginButton>
+              )}
+            </AuthButtons>
+          </NavLinks>
+
+          <MenuButton
+            aria-label="Toggle menu"
+            onClick={() => setMenuOpen((v) => !v)}
+          >
+            {menuOpen ? "✕" : "☰"}
+          </MenuButton>
+        </div>
 
         {menuOpen && (
           <MobileMenu>

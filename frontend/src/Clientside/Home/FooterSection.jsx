@@ -1,5 +1,12 @@
-import React from "react";
-import styled from "styled-components";
+import React, { useRef, useState, useEffect } from "react";
+import styled, { keyframes } from "styled-components"; // Added css helper
+import {
+  motion,
+  useMotionValue,
+  useSpring,
+  AnimatePresence,
+} from "framer-motion";
+import SectionWithScene from "../SectionWithScene.jsx";
 import {
   FaPhoneAlt,
   FaEnvelope,
@@ -7,209 +14,307 @@ import {
   FaFacebook,
   FaInstagram,
   FaTwitter,
+  FaChevronUp,
+  FaHeartbeat,
+  FaWaveSquare,
 } from "react-icons/fa";
 
-const FooterContainer = styled.footer`
-  background: #2c3e50;
-  color: #fff;
-  padding: 3rem 1rem 1rem;
+// --- 1. Define Keyframes First ---
+const orbit = keyframes`
+  from { transform: rotate(0deg) translateX(15px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(15px) rotate(-360deg); }
 `;
 
-const FooterContent = styled.div`
-  max-width: 1200px;
-  margin: auto;
+const scanLine = keyframes`
+  0% { top: -100%; }
+  100% { top: 100%; }
+`;
+
+// --- 2. Create Styled Components (Move Animations Here) ---
+
+// This fixes the error! We apply the animation inside the styled component, not inline.
+const AnimatedHeart = styled(FaHeartbeat)`
+  font-size: 2.5rem;
+  color: #6366f1;
+  /* Use the keyframe here */
+  animation: ${orbit} 4s linear infinite;
+`;
+
+const FooterWrapper = styled.footer`
+  background: #020617;
+  padding: 100px 20px 40px;
+  position: relative;
+  overflow: hidden;
+  perspective: 2000px;
+`;
+
+const GlassCard = styled(motion.div)`
+  background: rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 35px;
+  padding: 40px;
+  position: relative;
+  overflow: hidden;
+  transform-style: preserve-3d;
+
+  &::before {
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(99, 102, 241, 0.5),
+      transparent
+    );
+    /* This is also safe because it is inside a styled template literal */
+    animation: ${scanLine} 4s linear infinite;
+    opacity: 0.3;
+  }
+`;
+
+// ... keep other styled components (MouseGlow, MagneticBtn, etc.) same as before ...
+const MouseGlow = styled(motion.div)`
+  position: absolute;
+  width: 600px;
+  height: 600px;
+  background: radial-gradient(
+    circle,
+    rgba(99, 102, 241, 0.15) 0%,
+    transparent 70%
+  );
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 1;
+`;
+
+const MainGrid = styled.div`
+  max-width: 1400px;
+  margin: 0 auto;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-  gap: 2rem;
-`;
-
-const FooterSectionStyled = styled.div`
-  h3 {
-    color: #1a73e8;
-    margin-bottom: 1rem;
-    font-size: 1.3rem;
+  grid-template-columns: 1.5fr 1fr 1fr 1.2fr;
+  gap: 30px;
+  position: relative;
+  z-index: 2;
+  @media (max-width: 1024px) {
+    grid-template-columns: 1fr 1fr;
   }
-
-  ul {
-    list-style: none;
-    padding: 0;
-
-    li {
-      margin-bottom: 0.5rem;
-
-      a {
-        color: #ddd;
-        text-decoration: none;
-        font-size: 0.95rem;
-        transition: color 0.3s;
-
-        &:hover {
-          color: #1a73e8;
-        }
-      }
-    }
-  }
-
-  p {
-    font-size: 0.95rem;
-    color: #ccc;
-    line-height: 1.5;
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
   }
 `;
 
-const HoursGrid = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 0.4rem;
-  font-size: 0.9rem;
-  color: #ccc;
-`;
-
-const ContactInfo = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-
-  div {
-    display: flex;
-    align-items: center;
-    gap: 0.6rem;
-    font-size: 0.95rem;
-    color: #ccc;
-  }
-`;
-
-const AppointmentButton = styled.button`
-  background: #ff6b35;
+const MagneticBtn = styled(motion.button)`
+  background: linear-gradient(135deg, #6366f1 0%, #a855f7 100%);
   color: white;
   border: none;
-  padding: 0.75rem 1.5rem;
-  border-radius: 6px;
-  font-size: 1rem;
+  padding: 16px 32px;
+  border-radius: 16px;
+  font-weight: 700;
   cursor: pointer;
-  margin-top: 1rem;
-  width: 100%;
-  transition: background 0.3s ease;
-
-  &:hover {
-    background: #e55a2b;
-  }
-`;
-
-const SocialIcons = styled.div`
+  box-shadow: 0 10px 30px rgba(99, 102, 241, 0.3);
   display: flex;
-  gap: 1rem;
-  margin-top: 1rem;
-
-  a {
-    color: #ddd;
-    font-size: 1.3rem;
-    transition: color 0.3s;
-
-    &:hover {
-      color: #1a73e8;
-    }
-  }
+  align-items: center;
+  gap: 12px;
 `;
 
-const Copyright = styled.div`
-  text-align: center;
-  margin-top: 2rem;
-  padding-top: 1rem;
-  border-top: 1px solid #555;
-  color: #aaa;
-  font-size: 0.85rem;
+const ScrollTopBtn = styled(motion.div)`
+  position: fixed;
+  bottom: 40px;
+  right: 40px;
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  cursor: pointer;
+  z-index: 100;
 `;
+
+const MagneticElement = ({ children, strength = 0.5 }) => {
+  const ref = useRef(null);
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const springX = useSpring(x, { stiffness: 150, damping: 15 });
+  const springY = useSpring(y, { stiffness: 150, damping: 15 });
+  const handleMouseMove = (e) => {
+    const { left, top, width, height } = ref.current.getBoundingClientRect();
+    x.set((e.clientX - (left + width / 2)) * strength);
+    y.set((e.clientY - (top + height / 2)) * strength);
+  };
+  return (
+    <motion.div
+      ref={ref}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => {
+        x.set(0);
+        y.set(0);
+      }}
+      style={{ x: springX, y: springY }}
+    >
+      {children}
+    </motion.div>
+  );
+};
 
 const FooterSection = ({ onBookAppointment }) => {
+  const [showScroll, setShowScroll] = useState(false);
+  const mouseX = useMotionValue(0);
+  const mouseY = useMotionValue(0);
+
+  useEffect(() => {
+    const handleScroll = () => setShowScroll(window.scrollY > 400);
+    const handleMouseMove = (e) => {
+      mouseX.set(e.clientX - 300);
+      mouseY.set(e.clientY - 300);
+    };
+    window.addEventListener("scroll", handleScroll);
+    window.addEventListener("mousemove", handleMouseMove);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("mousemove", handleMouseMove);
+    };
+  }, [mouseX, mouseY]);
+
   return (
-    <FooterContainer>
-      <FooterContent>
-        {/* About Section */}
-        <FooterSectionStyled>
-          <h3>ZEECARE</h3>
-          <p>
-            Your trusted healthcare provider dedicated to comprehensive medical
-            services and personalized patient care.
-          </p>
-          <AppointmentButton onClick={onBookAppointment}>
-            Book Appointment
-          </AppointmentButton>
-          <SocialIcons>
-            <a href="https://facebook.com" aria-label="Facebook">
-              <FaFacebook />
-            </a>
-            <a href="https://instagram.com" aria-label="Instagram">
-              <FaInstagram />
-            </a>
-            <a href="https://twitter.com" aria-label="Twitter">
-              <FaTwitter />
-            </a>
-          </SocialIcons>
-        </FooterSectionStyled>
+    <SectionWithScene opacity={0.9}>
+      <FooterWrapper>
+        <MouseGlow style={{ left: mouseX, top: mouseY }} />
 
-        {/* Quick Links */}
-        <FooterSectionStyled>
-          <h3>Quick Links</h3>
-          <ul>
-            <li>
-              <a href="#home">Home</a>
-            </li>
-            <li>
-              <a href="#appointment">Appointment</a>
-            </li>
-            <li>
-              <a href="#about">About</a>
-            </li>
-            <li>
-              <a href="#departments">Departments</a>
-            </li>
-            <li>
-              <a href="#contact">Contact</a>
-            </li>
-          </ul>
-        </FooterSectionStyled>
-
-        {/* Hours */}
-        <FooterSectionStyled>
-          <h3>Hours</h3>
-          <HoursGrid>
-            <div>Monday</div>
-            <div>8:00 AM - 9:00 PM</div>
-            <div>Tuesday</div>
-            <div>9:00 AM - 10:00 PM</div>
-            <div>Wednesday</div>
-            <div>10:00 AM - 10:00 PM</div>
-            <div>Thursday</div>
-            <div>9:00 AM - 9:00 PM</div>
-            <div>Saturday</div>
-            <div>8:00 AM - 10:00 PM</div>
-          </HoursGrid>
-        </FooterSectionStyled>
-
-        {/* Contact Info */}
-        <FooterSectionStyled>
-          <h3>Contact</h3>
-          <ContactInfo>
-            <div>
-              <FaPhoneAlt /> 919-979-9999
+        <MainGrid>
+          <GlassCard whileHover={{ rotateY: -10, rotateX: 5 }}>
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: "15px",
+                marginBottom: "20px",
+              }}
+            >
+              {/* Using the new Styled Component instead of inline style animation */}
+              <AnimatedHeart />
+              <h2
+                style={{
+                  fontSize: "2rem",
+                  fontWeight: "900",
+                  letterSpacing: "-1px",
+                }}
+              >
+                ZEECARE
+              </h2>
             </div>
-            <div>
-              <FaEnvelope /> zee5eb@gmail.com
-            </div>
-            <div>
-              <FaMapMarkerAlt /> Kanichi, Pakistan
-            </div>
-          </ContactInfo>
-        </FooterSectionStyled>
-      </FooterContent>
+            <p
+              style={{
+                color: "#94a3b8",
+                lineHeight: "1.8",
+                marginBottom: "30px",
+              }}
+            >
+              Pioneering the next generation of precision medicine.
+            </p>
+            <MagneticElement strength={0.3}>
+              <MagneticBtn
+                onClick={onBookAppointment}
+                whileHover={{ scale: 1.05 }}
+              >
+                <FaWaveSquare /> Rapid Appointment
+              </MagneticBtn>
+            </MagneticElement>
+          </GlassCard>
 
-      {/* Copyright */}
-      <Copyright>
-        &copy; {new Date().getFullYear()} ZeeCare Medical Institute. All rights
-        reserved.
-      </Copyright>
-    </FooterContainer>
+          {/* ... Rest of the grid sections (Explore, Status, Support) same as before ... */}
+          <GlassCard>
+            <h3 style={{ color: "#6366f1", marginBottom: "20px" }}>
+              Navigation
+            </h3>
+            <div
+              style={{ display: "flex", flexDirection: "column", gap: "12px" }}
+            >
+              {["Dashboard", "Clinics", "Specialists"].map((item) => (
+                <motion.a
+                  key={item}
+                  href="#"
+                  whileHover={{ x: 10, color: "#fff" }}
+                  style={{ color: "#64748b", textDecoration: "none" }}
+                >
+                  {item}
+                </motion.a>
+              ))}
+            </div>
+          </GlassCard>
+
+          <GlassCard>
+            <h3 style={{ color: "#6366f1", marginBottom: "20px" }}>
+              Live Status
+            </h3>
+            <div
+              style={{
+                background: "rgba(16, 185, 129, 0.1)",
+                padding: "12px",
+                borderRadius: "12px",
+                color: "#10b981",
+                fontSize: "0.8rem",
+                fontWeight: "bold",
+              }}
+            >
+              ● SYSTEM OPERATIONAL
+            </div>
+          </GlassCard>
+
+          <GlassCard>
+            <h3 style={{ color: "#6366f1", marginBottom: "20px" }}>
+              Reach Support
+            </h3>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "15px",
+                color: "#94a3b8",
+              }}
+            >
+              <div>
+                <FaPhoneAlt /> 919-979-9999
+              </div>
+              <div>
+                <FaEnvelope /> care@zeecare.com
+              </div>
+            </div>
+          </GlassCard>
+        </MainGrid>
+
+        <AnimatePresence>
+          {showScroll && (
+            <ScrollTopBtn
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 20 }}
+              onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+            >
+              <FaChevronUp />
+            </ScrollTopBtn>
+          )}
+        </AnimatePresence>
+
+        <div
+          style={{
+            textAlign: "center",
+            marginTop: "80px",
+            color: "#475569",
+            fontSize: "0.8rem",
+          }}
+        >
+          &copy; {new Date().getFullYear()} ZEECARE MEDICAL • VERSION 4.0.2
+        </div>
+      </FooterWrapper>
+    </SectionWithScene>
   );
 };
 

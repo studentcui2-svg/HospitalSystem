@@ -16,6 +16,7 @@ const authRoutes = require("./routes/auth");
 const appointmentRoutes = require("./routes/appointments");
 const doctorRoutes = require("./routes/doctors");
 const messageRoutes = require("./routes/messages");
+const chatbotRoutes = require("./routes/chatbot");
 const Message = require("./models/Message");
 
 const app = express();
@@ -41,6 +42,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/appointments", appointmentRoutes);
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/messages", messageRoutes);
+app.use("/api/chatbot", chatbotRoutes);
 
 app.get("/", (req, res) => {
   res.json({ ok: true, message: "Backend running" });

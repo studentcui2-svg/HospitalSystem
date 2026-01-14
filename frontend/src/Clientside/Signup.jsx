@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import styled from "styled-components";
+import SectionWithScene from "./SectionWithScene";
 import {
   FaEnvelope,
   FaLock,
@@ -11,33 +12,14 @@ import {
   FaSignOutAlt,
 } from "react-icons/fa";
 import { jsonFetch } from "../utils/api";
-
 import { NAV_HEIGHT } from "./NavBar";
+
 const PageContainer = styled.div`
   min-height: calc(100vh - ${NAV_HEIGHT});
   padding-top: ${NAV_HEIGHT};
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   display: flex;
   flex-direction: column;
-`;
-
-const Navbar = styled.nav`
-  height: ${NAV_HEIGHT};
-  background: rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(20px);
-  padding: 0 1.75rem;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
-
-  @media (max-width: 768px) {
-    padding: 1rem 2rem;
-  }
-
-  @media (max-width: 480px) {
-    padding: 0 0.75rem;
-  }
 `;
 
 const Logo = styled.h1`

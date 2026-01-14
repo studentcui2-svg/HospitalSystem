@@ -59,6 +59,7 @@ const Title = styled.h3`
   font-size: 1.5rem;
   font-weight: 800;
   background: linear-gradient(90deg, #0f172a, #334155);
+  background-clip: text;
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 `;
