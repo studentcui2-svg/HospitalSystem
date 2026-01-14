@@ -41,3 +41,36 @@ exports.getDoctors = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+exports.updateDoctor = async (req, res) => {
+  try {
+    console.log("[UPDATE DOCTOR] ID:", req.params.id, "Payload:", req.body);
+    const doctor = await Doctor.findByIdAndUpdate(req.params.id, req.body, {
+      new: true,
+      runValidators: true,
+    });
+    if (!doctor) {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+    console.log("[UPDATE DOCTOR] Updated doctor:", doctor._id);
+    res.json({ ok: true, doctor });
+  } catch (err) {
+    console.error("[UPDATE DOCTOR ERROR]", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.deleteDoctor = async (req, res) => {
+  try {
+    console.log("[DELETE DOCTOR] ID:", req.params.id);
+    const doctor = await Doctor.findByIdAndDelete(req.params.id);
+    if (!doctor) {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+    console.log("[DELETE DOCTOR] Deleted doctor:", doctor._id);
+    res.json({ ok: true, message: "Doctor deleted successfully" });
+  } catch (err) {
+    console.error("[DELETE DOCTOR ERROR]", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};

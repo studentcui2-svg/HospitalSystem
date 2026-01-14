@@ -1,6 +1,16 @@
-import React from "react";
+import React, { useState } from "react";
 import styled from "styled-components";
-import { FaEnvelope, FaPhone, FaVenusMars, FaIdCard } from "react-icons/fa";
+import {
+  FaEnvelope,
+  FaPhone,
+  FaVenusMars,
+  FaIdCard,
+  FaEdit,
+  FaTrash,
+  FaSave,
+  FaTimes,
+  FaCamera,
+} from "react-icons/fa";
 
 const DoctorsContainer = styled.div`
   max-width: 1200px;
@@ -153,7 +163,163 @@ const DetailValue = styled.span`
   margin-top: 0.25rem;
 `;
 
-const DoctorsList = ({ doctors = [] }) => {
+const ActionButtons = styled.div`
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f3f4f6;
+`;
+
+const ActionButton = styled.button`
+  flex: 1;
+  padding: 0.75rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition: all 0.3s ease;
+
+  &.edit {
+    background: #4f46e5;
+    color: white;
+    &:hover {
+      background: #4338ca;
+    }
+  }
+
+  &.delete {
+    background: #ef4444;
+    color: white;
+    &:hover {
+      background: #dc2626;
+    }
+  }
+
+  &.save {
+    background: #10b981;
+    color: white;
+    &:hover {
+      background: #059669;
+    }
+  }
+
+  &.cancel {
+    background: #6b7280;
+    color: white;
+    &:hover {
+      background: #4b5563;
+    }
+  }
+`;
+
+const EditInput = styled.input`
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid #d1d5db;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  margin-top: 0.25rem;
+
+  &:focus {
+    outline: none;
+    border-color: #4f46e5;
+  }
+`;
+
+const AvatarEditWrapper = styled.div`
+  position: relative;
+  display: inline-block;
+`;
+
+const PhotoEditButton = styled.label`
+  position: absolute;
+  bottom: 0;
+  right: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: 3px solid white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
+
+  &:hover {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+    transform: scale(1.15);
+    box-shadow: 0 6px 16px rgba(79, 70, 229, 0.6);
+  }
+
+  input {
+    display: none;
+  }
+`;
+
+const DoctorsList = ({ doctors = [], onUpdateDoctor, onDeleteDoctor }) => {
+  const [editingId, setEditingId] = useState(null);
+  const [editForm, setEditForm] = useState({});
+
+  const handleEdit = (doctor) => {
+    setEditingId(doctor._id);
+    setEditForm({
+      name: doctor.name || "",
+      email: doctor.email || "",
+      phone: doctor.phone || "",
+      department: doctor.department || "",
+      nic: doctor.nic || "",
+      gender: doctor.gender || "",
+      photo: doctor.photo || "",
+    });
+  };
+
+  const handleCancel = () => {
+    setEditingId(null);
+    setEditForm({});
+  };
+
+  const handleSave = async (doctorId) => {
+    if (onUpdateDoctor) {
+      await onUpdateDoctor(doctorId, editForm);
+    }
+    setEditingId(null);
+    setEditForm({});
+  };
+
+  const handleDelete = async (doctorId) => {
+    if (window.confirm("Are you sure you want to delete this doctor?")) {
+      if (onDeleteDoctor) {
+        await onDeleteDoctor(doctorId);
+      }
+    }
+  };
+
+  const handleInputChange = (field, value) => {
+    setEditForm((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const handlePhotoUpload = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith("image/")) {
+        alert("Please select an image file");
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        handleInputChange("photo", reader.result);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
   return (
     <DoctorsContainer>
       <Header>
@@ -164,73 +330,194 @@ const DoctorsList = ({ doctors = [] }) => {
         {doctors.length === 0 ? (
           <div style={{ padding: 20 }}>No doctors found.</div>
         ) : (
-          doctors.map((doctor, index) => (
-            <DoctorCard key={doctor._id || index}>
-              <DoctorHeader>
-                {doctor.photo ? (
-                  <DoctorAvatarImage
-                    src={doctor.photo}
-                    alt={`${doctor.name || "Doctor"} avatar`}
-                  />
-                ) : (
-                  <DoctorAvatar>
-                    {(doctor.name || "DR")
-                      .split(" ")
-                      .map((n) => n[0])
-                      .join("")}
-                  </DoctorAvatar>
-                )}
-                <DoctorInfo>
-                  <DoctorName>{doctor.name}</DoctorName>
-                  <DoctorDepartment>
-                    Department of {doctor.department}
-                  </DoctorDepartment>
-                </DoctorInfo>
-              </DoctorHeader>
+          doctors.map((doctor, index) => {
+            const isEditing = editingId === doctor._id;
+            return (
+              <DoctorCard key={doctor._id || index}>
+                <DoctorHeader>
+                  {isEditing ? (
+                    <AvatarEditWrapper>
+                      {editForm.photo ? (
+                        <DoctorAvatarImage
+                          src={editForm.photo}
+                          alt="Doctor avatar"
+                        />
+                      ) : (
+                        <DoctorAvatar>
+                          {(editForm.name || "DR")
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")}
+                        </DoctorAvatar>
+                      )}
+                      <PhotoEditButton>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={handlePhotoUpload}
+                        />
+                        <FaCamera size={16} />
+                      </PhotoEditButton>
+                    </AvatarEditWrapper>
+                  ) : doctor.photo ? (
+                    <DoctorAvatarImage
+                      src={doctor.photo}
+                      alt={`${doctor.name || "Doctor"} avatar`}
+                    />
+                  ) : (
+                    <DoctorAvatar>
+                      {(doctor.name || "DR")
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
+                    </DoctorAvatar>
+                  )}
+                  <DoctorInfo>
+                    <DoctorName>
+                      {isEditing ? (
+                        <EditInput
+                          value={editForm.name}
+                          onChange={(e) =>
+                            handleInputChange("name", e.target.value)
+                          }
+                          placeholder="Doctor Name"
+                        />
+                      ) : (
+                        doctor.name
+                      )}
+                    </DoctorName>
+                    <DoctorDepartment>
+                      {isEditing ? (
+                        <EditInput
+                          value={editForm.department}
+                          onChange={(e) =>
+                            handleInputChange("department", e.target.value)
+                          }
+                          placeholder="Department"
+                        />
+                      ) : (
+                        `Department of ${doctor.department}`
+                      )}
+                    </DoctorDepartment>
+                  </DoctorInfo>
+                </DoctorHeader>
 
-              <DoctorDetails>
-                <DetailItem>
-                  <DetailIcon>
-                    <FaEnvelope />
-                  </DetailIcon>
-                  <DetailContent>
-                    <DetailLabel>Email</DetailLabel>
-                    <DetailValue>{doctor.email}</DetailValue>
-                  </DetailContent>
-                </DetailItem>
+                <DoctorDetails>
+                  <DetailItem>
+                    <DetailIcon>
+                      <FaEnvelope />
+                    </DetailIcon>
+                    <DetailContent>
+                      <DetailLabel>Email</DetailLabel>
+                      {isEditing ? (
+                        <EditInput
+                          type="email"
+                          value={editForm.email}
+                          onChange={(e) =>
+                            handleInputChange("email", e.target.value)
+                          }
+                          placeholder="Email"
+                        />
+                      ) : (
+                        <DetailValue>{doctor.email}</DetailValue>
+                      )}
+                    </DetailContent>
+                  </DetailItem>
 
-                <DetailItem>
-                  <DetailIcon>
-                    <FaPhone />
-                  </DetailIcon>
-                  <DetailContent>
-                    <DetailLabel>Phone</DetailLabel>
-                    <DetailValue>{doctor.phone}</DetailValue>
-                  </DetailContent>
-                </DetailItem>
+                  <DetailItem>
+                    <DetailIcon>
+                      <FaPhone />
+                    </DetailIcon>
+                    <DetailContent>
+                      <DetailLabel>Phone</DetailLabel>
+                      {isEditing ? (
+                        <EditInput
+                          value={editForm.phone}
+                          onChange={(e) =>
+                            handleInputChange("phone", e.target.value)
+                          }
+                          placeholder="Phone"
+                        />
+                      ) : (
+                        <DetailValue>{doctor.phone}</DetailValue>
+                      )}
+                    </DetailContent>
+                  </DetailItem>
 
-                <DetailItem>
-                  <DetailIcon>
-                    <FaIdCard />
-                  </DetailIcon>
-                  <DetailContent>
-                    <DetailLabel>NIC</DetailLabel>
-                    <DetailValue>{doctor.nic}</DetailValue>
-                  </DetailContent>
-                </DetailItem>
+                  <DetailItem>
+                    <DetailIcon>
+                      <FaIdCard />
+                    </DetailIcon>
+                    <DetailContent>
+                      <DetailLabel>NIC</DetailLabel>
+                      {isEditing ? (
+                        <EditInput
+                          value={editForm.nic}
+                          onChange={(e) =>
+                            handleInputChange("nic", e.target.value)
+                          }
+                          placeholder="NIC"
+                        />
+                      ) : (
+                        <DetailValue>{doctor.nic}</DetailValue>
+                      )}
+                    </DetailContent>
+                  </DetailItem>
 
-                <DetailItem>
-                  <DetailIcon>
-                    <FaVenusMars />
-                  </DetailIcon>
-                  <DetailContent>
-                    <DetailLabel>Gender</DetailLabel>
-                    <DetailValue>{doctor.gender}</DetailValue>
-                  </DetailContent>
-                </DetailItem>
-              </DoctorDetails>
-            </DoctorCard>
-          ))
+                  <DetailItem>
+                    <DetailIcon>
+                      <FaVenusMars />
+                    </DetailIcon>
+                    <DetailContent>
+                      <DetailLabel>Gender</DetailLabel>
+                      {isEditing ? (
+                        <EditInput
+                          value={editForm.gender}
+                          onChange={(e) =>
+                            handleInputChange("gender", e.target.value)
+                          }
+                          placeholder="Gender"
+                        />
+                      ) : (
+                        <DetailValue>{doctor.gender}</DetailValue>
+                      )}
+                    </DetailContent>
+                  </DetailItem>
+                </DoctorDetails>
+
+                <ActionButtons>
+                  {isEditing ? (
+                    <>
+                      <ActionButton
+                        className="save"
+                        onClick={() => handleSave(doctor._id)}
+                      >
+                        <FaSave /> Save
+                      </ActionButton>
+                      <ActionButton className="cancel" onClick={handleCancel}>
+                        <FaTimes /> Cancel
+                      </ActionButton>
+                    </>
+                  ) : (
+                    <>
+                      <ActionButton
+                        className="edit"
+                        onClick={() => handleEdit(doctor)}
+                      >
+                        <FaEdit /> Edit
+                      </ActionButton>
+                      <ActionButton
+                        className="delete"
+                        onClick={() => handleDelete(doctor._id)}
+                      >
+                        <FaTrash /> Delete
+                      </ActionButton>
+                    </>
+                  )}
+                </ActionButtons>
+              </DoctorCard>
+            );
+          })
         )}
       </DoctorsGrid>
     </DoctorsContainer>

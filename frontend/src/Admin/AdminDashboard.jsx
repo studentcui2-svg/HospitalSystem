@@ -107,6 +107,39 @@ const AdminDashboard = ({ onLogout }) => {
     );
   }, []);
 
+  const handleUpdateDoctor = async (doctorId, updatedData) => {
+    try {
+      console.log("[ADMIN] Updating doctor", doctorId, updatedData);
+      const res = await jsonFetch(`/api/doctors/${doctorId}`, {
+        method: "PUT",
+        body: updatedData,
+      });
+      if (res?.doctor) {
+        setDoctors((prev) =>
+          prev.map((doc) => (doc._id === doctorId ? res.doctor : doc))
+        );
+        toast.success("Doctor updated successfully");
+      }
+    } catch (err) {
+      console.error("[ADMIN] Update doctor failed", err);
+      toast.error(err?.message || "Failed to update doctor");
+    }
+  };
+
+  const handleDeleteDoctor = async (doctorId) => {
+    try {
+      console.log("[ADMIN] Deleting doctor", doctorId);
+      await jsonFetch(`/api/doctors/${doctorId}`, {
+        method: "DELETE",
+      });
+      setDoctors((prev) => prev.filter((doc) => doc._id !== doctorId));
+      toast.success("Doctor deleted successfully");
+    } catch (err) {
+      console.error("[ADMIN] Delete doctor failed", err);
+      toast.error(err?.message || "Failed to delete doctor");
+    }
+  };
+
   // fetch data from backend
   useEffect(() => {
     fetchDashboardData();
@@ -210,7 +243,13 @@ const AdminDashboard = ({ onLogout }) => {
           />
         );
       case "doctors":
-        return <DoctorsList doctors={doctors} />;
+        return (
+          <DoctorsList
+            doctors={doctors}
+            onUpdateDoctor={handleUpdateDoctor}
+            onDeleteDoctor={handleDeleteDoctor}
+          />
+        );
       case "add-admin":
         return <AddAdmin />;
       case "add-doctor":

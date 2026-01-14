@@ -83,6 +83,8 @@ IMPORTANT RULES:
 - If asked about doctors or departments not in the list, politely say they should contact reception for more information.
 - Keep responses concise and helpful.
 - If asked about medical advice, remind the user to consult a professional when needed.
+- Our hospital is open 24/7 (24 hours a day, 7 days a week) for emergency services and patient care.
+- Clinic timings: We are available round the clock for all services.
 ${doctorInfo}
 
 User Question: ${message}

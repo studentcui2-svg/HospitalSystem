@@ -5,5 +5,7 @@ const { authenticate } = require("../middleware/auth");
 
 router.get("/", doctorController.getDoctors);
 router.post("/", authenticate, doctorController.createDoctor);
+router.put("/:id", authenticate, doctorController.updateDoctor);
+router.delete("/:id", authenticate, doctorController.deleteDoctor);
 
 module.exports = router;
