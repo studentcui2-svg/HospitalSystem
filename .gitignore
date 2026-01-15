@@ -1,0 +1,12 @@
+# Secrets and Environment Variables
+.env
+backend/.env
+
+# Node Modules
+node_modules/
+dist/
+build/
+
+# IDE files
+.vscode/
+.idea/
