@@ -9,6 +9,7 @@ import AddAdmin from "./AddAdmin";
 import AddDoctor from "./AddDoctor";
 import Messages from "./Messages";
 import AppointmentsTable from "./AppointmentsTable";
+import LandingPageEditor from "./LandingPageEditor";
 import { jsonFetch } from "../utils/api";
 
 const DashboardContainer = styled.div`
@@ -51,7 +52,7 @@ const AdminDashboard = ({ onLogout }) => {
       const [doctorRes, messageRes, appointmentRes] = await Promise.all([
         jsonFetch("/api/doctors"),
         jsonFetch("/api/messages"),
-        jsonFetch("/api/appointments"),
+        jsonFetch("/api/appointments?all=true"),
       ]);
 
       console.log("[ADMIN DASHBOARD] Data payload", {
@@ -213,19 +214,30 @@ const AdminDashboard = ({ onLogout }) => {
       .slice(0, 6);
   }, [appointments]);
 
-  const stats = useMemo(
-    () => ({
+  const stats = useMemo(() => {
+    const completedPayments = appointments.filter(
+      (appt) => appt.payment?.status === "completed"
+    );
+
+    // Group payments by currency
+    const paymentsByCurrency = completedPayments.reduce((acc, appt) => {
+      const currency = (appt.payment?.currency || "usd").toLowerCase();
+      const amount = appt.payment?.amount || 0;
+      acc[currency] = (acc[currency] || 0) + amount;
+      return acc;
+    }, {});
+
+    return {
       totalAppointments: appointments.length,
       pendingAppointments: statusSummary.Pending,
       acceptedAppointments: statusSummary.Accepted,
       rejectedAppointments: statusSummary.Rejected,
       doctorsCount: doctors.length,
-      messagesCount: messages.length,
+      paymentsByCurrency,
       returningPatients: appointments.filter((appt) => appt.visitedBefore)
         .length,
-    }),
-    [appointments, doctors, messages, statusSummary]
-  );
+    };
+  }, [appointments, doctors, statusSummary]);
 
   const renderContent = () => {
     switch (activeSection) {
@@ -263,6 +275,8 @@ const AdminDashboard = ({ onLogout }) => {
         );
       case "messages":
         return <Messages messages={messages} onReply={handleReply} />;
+      case "landing":
+        return <LandingPageEditor />;
       default:
         return (
           <DashboardHome

@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback } from "react";
 import { ToastContainer, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import styled, { createGlobalStyle } from "styled-components";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion as M, AnimatePresence } from "framer-motion";
 
 // --- Components ---
 import Home from "./Clientside/Homepage";
@@ -149,7 +149,7 @@ const App = () => {
       {/* 3D Progress & Navbar */}
       <AnimatePresence mode="wait">
         {shouldShowNavbar() && (
-          <motion.div
+          <M.div
             initial={{ y: -100 }}
             animate={{ y: 0 }}
             exit={{ y: -100 }}
@@ -172,19 +172,20 @@ const App = () => {
               userRole={userRole}
               onNavigateToAdmin={navigateToAdmin}
             />
-          </motion.div>
+          </M.div>
         )}
       </AnimatePresence>
 
       {/* --- Main Viewport with Page Transitions --- */}
       <AnimatePresence mode="wait">
-        <motion.main
+        <M.main
           key={currentPage}
           variants={pageVariants}
           initial="initial"
           animate="animate"
           exit="exit"
           transition={{ duration: 0.4, ease: "easeInOut" }}
+          style={{ paddingTop: shouldShowNavbar() ? "72px" : "0px" }}
         >
           {currentPage === "home" && (
             <Home
@@ -215,7 +216,7 @@ const App = () => {
               onNavigateToHome={navigateToHome}
             />
           )}
-        </motion.main>
+        </M.main>
       </AnimatePresence>
 
       {/* --- Global Interactive Elements --- */}

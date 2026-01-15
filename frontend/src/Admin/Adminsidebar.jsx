@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
 import {
   FaTachometerAlt,
@@ -9,6 +9,7 @@ import {
   FaSignOutAlt,
   FaTimes,
   FaCalendarCheck,
+  FaPalette,
 } from "react-icons/fa";
 
 const SidebarContainer = styled.div`
@@ -17,24 +18,44 @@ const SidebarContainer = styled.div`
   color: white;
   min-height: 100vh;
   overflow-y: auto;
-  transition: all 0.3s ease;
+  transition: transform 320ms ease, width 220ms ease;
 
-  /* Desktop: normal full sidebar */
-  @media (min-width: 1025px) {
+  /* 2xl (>=1536px) */
+  @media (min-width: 1536px) {
+    width: 320px;
+  }
+
+  /* xl (>=1280px) */
+  @media (min-width: 1280px) and (max-width: 1535px) {
+    width: 300px;
+  }
+
+  /* lg (>=1024px) */
+  @media (min-width: 1024px) and (max-width: 1279px) {
     width: 280px;
     transform: translateX(0);
   }
 
-  /* Tablet: compact icons-only sidebar */
-  @media (max-width: 1024px) and (min-width: 769px) {
-    transform: translateX(0);
+  /* md (>=768px) compact */
+  @media (min-width: 768px) and (max-width: 1023px) {
     width: 80px;
+    transform: translateX(0);
   }
 
-  /* Mobile: overlay hidden unless opened */
-  @media (max-width: 768px) {
-    width: 80px;
-    transform: translateX(0);
+  /* sm and below: mobile overlay */
+  @media (max-width: 767px) {
+    width: 100%;
+    position: fixed;
+    left: 0;
+    top: 0;
+    height: 100vh;
+    transform: translateX(-110%);
+    will-change: transform;
+    z-index: 1200;
+    &.mobile-open {
+      transform: translateX(0);
+      box-shadow: 0 20px 50px rgba(2, 6, 23, 0.6);
+    }
   }
 `;
 
@@ -66,17 +87,13 @@ const LogoIcon = styled.div`
   justify-content: center;
   font-weight: bold;
   font-size: 1.2rem;
-  &.logo-mobile {
-    width: 44px;
-    height: 44px;
-  }
 `;
 
 const LogoText = styled.div`
   display: flex;
   flex-direction: column;
-  @media (max-width: 1024px) {
-    display: none; /* hide logo text on tablet and below */
+  @media (max-width: 767px) {
+    display: none;
   }
 `;
 
@@ -104,7 +121,7 @@ const CloseButton = styled.button`
   cursor: pointer;
   display: none;
 
-  @media (max-width: 1024px) {
+  @media (max-width: 767px) {
     display: block;
   }
 `;
@@ -112,8 +129,12 @@ const CloseButton = styled.button`
 const MenuLabel = styled.span`
   display: inline-block;
   margin-left: 6px;
-  @media (max-width: 1024px) {
-    display: none; /* hide labels on tablet and mobile */
+  @media (min-width: 768px) and (max-width: 1023px) {
+    display: none;
+  }
+  @media (max-width: 767px) {
+    display: inline-block;
+    font-weight: 700;
   }
 `;
 
@@ -149,11 +170,10 @@ const MenuButton = styled.button`
     color: #4f46e5;
   }
 
-  @media (max-width: 768px) {
+  @media (max-width: 767px) {
     padding: 1.2rem 1.5rem;
   }
-  /* Tablet: compact icons-only appearance */
-  @media (max-width: 1024px) and (min-width: 769px) {
+  @media (min-width: 768px) and (max-width: 1023px) {
     justify-content: center;
     gap: 0;
     padding: 0.9rem 0.4rem;
@@ -168,20 +188,56 @@ const MenuIcon = styled.div`
   justify-content: center;
 `;
 
-/* Mobile toggle removed — layout controlled via global CSS (.admin-sidebar) */
+const MobileTopBar = styled.div`
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #111827 0%, #0f172a 100%);
+  color: white;
+  position: sticky;
+  top: 0;
+  z-index: 1100;
 
-const MobileToggleIcon = styled.button`
+  @media (max-width: 767px) {
+    display: flex;
+  }
+`;
+
+const MobileTitle = styled.div`
+  font-weight: 800;
+  font-size: 1rem;
+  display: flex;
+  gap: 0.5rem;
+  align-items: center;
+`;
+
+const MobileHamburger = styled.button`
   background: transparent;
   border: none;
   color: #cbd5e1;
-  font-size: 1.2rem;
-  display: none;
+  font-size: 1.25rem;
+  padding: 0.25rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   cursor: pointer;
-  @media (max-width: 768px) {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.25rem 0.5rem;
+  width: 44px;
+  height: 44px;
+  border-radius: 8px;
+  &:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+`;
+
+const Backdrop = styled.div`
+  display: none;
+  @media (max-width: 767px) {
+    display: ${(p) => (p.$show ? "block" : "none")};
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1100;
   }
 `;
 
@@ -194,85 +250,124 @@ const AdminSidebar = ({ activeSection, setActiveSection, onLogout }) => {
     { id: "add-doctor", label: "Register Doctor", icon: FaStethoscope },
     { id: "appointments", label: "Appointments", icon: FaCalendarCheck },
     { id: "messages", label: "Messages", icon: FaEnvelope },
+    { id: "landing", label: "Landing Page", icon: FaPalette },
   ];
 
   const handleMenuClick = (sectionId) => {
     setActiveSection(sectionId);
-    // close mobile overlay after selection
     if (mobileOpen) setMobileOpen(false);
   };
 
+  useEffect(() => {
+    if (typeof document !== "undefined") {
+      document.body.style.overflow = mobileOpen ? "hidden" : "";
+    }
+    return () => {
+      if (typeof document !== "undefined") document.body.style.overflow = "";
+    };
+  }, [mobileOpen]);
+
   return (
     <>
+      <MobileTopBar>
+        <MobileTitle>
+          <LogoIcon style={{ width: 36, height: 36 }}>Z</LogoIcon>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 800 }}>ZEECARE</div>
+            <div style={{ fontSize: 11, color: "#cbd5e1" }}>Admin</div>
+          </div>
+        </MobileTitle>
+        <MobileHamburger
+          aria-label={mobileOpen ? "Close menu" : "Open menu"}
+          aria-expanded={mobileOpen}
+          onClick={() => setMobileOpen((s) => !s)}
+        >
+          {mobileOpen ? (
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M6 18L18 6M6 6l12 12"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          ) : (
+            <svg
+              width="20"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                d="M3 6H21"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M3 12H21"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+              <path
+                d="M3 18H21"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          )}
+        </MobileHamburger>
+      </MobileTopBar>
+      <Backdrop $show={mobileOpen} onClick={() => setMobileOpen(false)} />
       <SidebarContainer
         className={`admin-sidebar ${mobileOpen ? "mobile-open" : ""}`}
       >
         <SidebarHeader>
           <Logo>
-            <LogoIcon className="logo-mobile">Z</LogoIcon>
-            <LogoText className="logo-text">
+            <LogoIcon>Z</LogoIcon>
+            <LogoText>
               <LogoTitle>ZEECARE</LogoTitle>
               <LogoSubtitle>MEDICAL INSTITUTE</LogoSubtitle>
             </LogoText>
           </Logo>
-          <div>
-            <MobileToggleIcon
-              aria-label="Toggle menu"
-              onClick={() => setMobileOpen((s) => !s)}
-            >
-              {/* small bars icon */}
-              <svg
-                width="18"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M3 6H21"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M3 12H21"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <path
-                  d="M3 18H21"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-              </svg>
-            </MobileToggleIcon>
-          </div>
+          <CloseButton
+            aria-label="Close menu"
+            onClick={() => setMobileOpen(false)}
+          >
+            <FaTimes />
+          </CloseButton>
         </SidebarHeader>
 
-        <SidebarMenu className="sidebar-menu">
+        <SidebarMenu>
           {menuItems.map((item) => (
-            <MenuItem key={item.id} className="menu-item">
+            <MenuItem key={item.id}>
               <MenuButton
-                className="menu-button"
                 $active={activeSection === item.id}
                 onClick={() => handleMenuClick(item.id)}
               >
                 <MenuIcon>
                   <item.icon />
                 </MenuIcon>
-                <MenuLabel className="menu-label">{item.label}</MenuLabel>
+                <MenuLabel>{item.label}</MenuLabel>
               </MenuButton>
             </MenuItem>
           ))}
 
-          <MenuItem className="menu-item">
+          <MenuItem>
             <MenuButton
-              className="menu-button"
               onClick={() => {
                 if (typeof onLogout === "function") onLogout();
                 if (mobileOpen) setMobileOpen(false);
@@ -281,7 +376,7 @@ const AdminSidebar = ({ activeSection, setActiveSection, onLogout }) => {
               <MenuIcon>
                 <FaSignOutAlt />
               </MenuIcon>
-              <MenuLabel className="menu-label">Logout</MenuLabel>
+              <MenuLabel>Logout</MenuLabel>
             </MenuButton>
           </MenuItem>
         </SidebarMenu>

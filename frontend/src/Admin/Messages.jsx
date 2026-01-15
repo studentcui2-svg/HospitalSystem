@@ -37,6 +37,12 @@ const MessageCard = styled.div`
 
   @media (max-width: 768px) {
     padding: 1.5rem;
+    border-radius: 12px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 1.25rem;
+    border-left: 3px solid #4f46e5;
   }
 `;
 
@@ -91,9 +97,13 @@ const SenderDetails = styled.div`
   flex-wrap: wrap;
   gap: 1.5rem;
 
-  @media (max-width: 480px) {
+  @media (max-width: 640px) {
     gap: 1rem;
     flex-direction: column;
+  }
+
+  @media (max-width: 480px) {
+    gap: 0.75rem;
   }
 `;
 
@@ -115,6 +125,11 @@ const MessageContent = styled.div`
   border-radius: 12px;
   padding: 1.5rem;
   border-left: 3px solid #e5e7eb;
+
+  @media (max-width: 480px) {
+    padding: 1rem;
+    border-radius: 8px;
+  }
 `;
 
 const MessageLabel = styled.span`
@@ -212,6 +227,8 @@ const Messages = ({ messages = [], onReply }) => {
                           padding: "8px 12px",
                           borderRadius: 8,
                           cursor: "pointer",
+                          fontSize: "0.9rem",
+                          width: "100%",
                         }}
                       >
                         Reply

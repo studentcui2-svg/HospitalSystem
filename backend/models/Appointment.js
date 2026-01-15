@@ -31,6 +31,21 @@ const appointmentSchema = new mongoose.Schema(
       default: "Pending",
     },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    // Payment information
+    payment: {
+      status: {
+        type: String,
+        enum: ["pending", "completed", "failed", "cancelled", "refunded"],
+        default: "pending",
+      },
+      paymentIntentId: String,
+      amount: Number, // in USD
+      currency: { type: String, default: "usd" },
+      paidAt: Date,
+      refundedAt: Date,
+      refundId: String,
+      receipt: String,
+    },
   },
   { timestamps: true }
 );

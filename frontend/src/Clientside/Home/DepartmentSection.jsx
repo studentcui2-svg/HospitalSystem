@@ -1,6 +1,7 @@
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import styled, { keyframes } from "styled-components";
 import { motion, useMotionValue, useSpring, useTransform } from "framer-motion";
+import { jsonFetch } from "../../utils/api";
 import SectionWithScene from "../SectionWithScene.jsx";
 import {
   Baby,
@@ -12,6 +13,46 @@ import {
   ShieldPlus,
   Zap,
 } from "lucide-react";
+
+// Generate an icon component or emoji based on department name
+const generateIconForName = (name = "") => {
+  const key = (name || "").toLowerCase();
+  if (key.includes("cardio") || key.includes("heart")) return Heart;
+  if (key.includes("neuro") || key.includes("brain")) return Brain;
+  if (key.includes("pedi") || key.includes("child")) return Baby;
+  if (key.includes("derm") || key.includes("skin")) return ShieldPlus;
+  if (key.includes("ortho") || key.includes("bone") || key.includes("joint"))
+    return Activity;
+  if (
+    key.includes("diagn") ||
+    key.includes("lab") ||
+    key.includes("scan") ||
+    key.includes("test")
+  )
+    return Thermometer;
+  if (
+    key.includes("clinic") ||
+    key.includes("hospital") ||
+    key.includes("general")
+  )
+    return Stethoscope;
+  // fallback
+  return Stethoscope;
+};
+
+// Safely render icon values which may be: emoji string, React element, component function, or memo/forwardRef object
+const renderIcon = (icon) => {
+  if (!icon && icon !== 0) return null;
+  if (React.isValidElement(icon)) return icon;
+  if (typeof icon === "string")
+    return <span style={{ fontSize: 28, lineHeight: 1 }}>{icon}</span>;
+  try {
+    return React.createElement(icon, { size: 45 });
+  } catch {
+    // fallback to rendering as text
+    return <span style={{ fontSize: 28, lineHeight: 1 }}>{String(icon)}</span>;
+  }
+};
 
 // --- Animations & Keyframes ---
 const pulse = keyframes`
@@ -170,7 +211,7 @@ const MagneticCard = ({ dept, index }) => {
         style={{ x: dx, y: dy, translateZ: 60 }}
         whileHover={{ scale: 1.1 }}
       >
-        <dept.icon size={45} />
+        {renderIcon(dept.icon)}
       </MagneticIconWrapper>
 
       <DeptTitle>{dept.name}</DeptTitle>
@@ -196,7 +237,25 @@ const MagneticCard = ({ dept, index }) => {
 };
 
 const DepartmentsSection = () => {
-  const departments = [
+  const [services, setServices] = useState([]);
+
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        // Add cache-busting parameter to force fresh data
+        const res = await jsonFetch(`/api/site-content?t=${Date.now()}`);
+        if (res?.data?.services && Array.isArray(res.data.services)) {
+          setServices(res.data.services);
+        }
+      } catch (err) {
+        console.warn("Failed to load services from API, using defaults", err);
+      }
+    };
+    fetchServices();
+  }, []);
+
+  // Default departments if API fails
+  const defaultDepartments = [
     {
       name: "Pediatrics",
       icon: Baby,
@@ -240,6 +299,38 @@ const DepartmentsSection = () => {
       desc: "Precise lab testing and full-body scans.",
     },
   ];
+
+  // Map API services to department format
+  const departments =
+    services.length > 0
+      ? services.map((service, idx) => {
+          // resolve icon: prioritize API-provided icon (emoji string or component),
+          // otherwise auto-generate from the service name
+          let resolvedIcon = null;
+          if (service.icon) {
+            if (typeof service.icon === "string") resolvedIcon = service.icon;
+            else resolvedIcon = service.icon;
+          } else {
+            resolvedIcon = generateIconForName(service.name);
+          }
+
+          return {
+            name: service.name,
+            icon: resolvedIcon,
+            gradient: [
+              "linear-gradient(135deg, #ef4444, #b91c1c)",
+              "linear-gradient(135deg, #8b5cf6, #6d28d9)",
+              "linear-gradient(135deg, #f59e0b, #d97706)",
+            ][idx % 3],
+            shadow: [
+              "rgba(239, 68, 68, 0.3)",
+              "rgba(139, 92, 246, 0.3)",
+              "rgba(245, 158, 11, 0.3)",
+            ][idx % 3],
+            desc: service.description || service.desc || "",
+          };
+        })
+      : defaultDepartments;
 
   return (
     <SectionWithScene opacity={0.95}>

@@ -5,11 +5,12 @@ import {
   FaUserMd,
   FaCheckCircle,
   FaClock,
-  FaInbox,
+  FaCreditCard,
   FaSyncAlt,
-  FaUserCheck,
+  FaTimesCircle,
 } from "react-icons/fa";
 import SimpleChart from "./SimpleChart";
+import { AdvancedChartsSection } from "./AdvancedCharts";
 
 const DashboardContainer = styled.div`
   max-width: 1200px;
@@ -138,10 +139,21 @@ const AppointmentsSection = styled.div`
   border-radius: 16px;
   padding: 1.75rem;
   box-shadow: 0 8px 30px rgba(2, 6, 23, 0.05);
+  overflow-x: auto;
+
+  @media (max-width: 1024px) {
+    padding: 1.5rem;
+  }
 
   @media (max-width: 768px) {
-    padding: 1rem;
-    overflow-x: auto;
+    padding: 0.75rem;
+    border-radius: 12px;
+    overflow-x: visible;
+  }
+
+  @media (max-width: 480px) {
+    padding: 0.5rem;
+    border-radius: 8px;
   }
 `;
 
@@ -151,8 +163,19 @@ const SectionTitle = styled.h2`
   color: #1f2937;
   margin-bottom: 1.5rem;
 
+  @media (max-width: 1024px) {
+    font-size: 1.4rem;
+    margin-bottom: 1.25rem;
+  }
+
   @media (max-width: 768px) {
-    font-size: 1.3rem;
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+  }
+
+  @media (max-width: 480px) {
+    font-size: 1.1rem;
+    margin-bottom: 0.75rem;
   }
 `;
 
@@ -167,15 +190,35 @@ const ChartSection = styled.div`
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  min-width: 800px;
+  min-width: 900px;
 
-  @media (max-width: 768px) {
-    min-width: 100%;
+  @media (max-width: 1024px) {
+    min-width: 850px;
+  }
+
+  @media (max-width: 767px) {
+    display: block;
+    min-width: unset;
+    width: 100%;
+    border: none;
+
+    thead {
+      display: none;
+    }
+
+    tbody {
+      display: block;
+      width: 100%;
+    }
   }
 `;
 
 const TableHeader = styled.thead`
   background: #0b1220; /* darker header */
+
+  @media (max-width: 767px) {
+    display: none;
+  }
 `;
 
 const TableRow = styled.tr`
@@ -183,6 +226,24 @@ const TableRow = styled.tr`
 
   &:last-child {
     border-bottom: none;
+  }
+
+  @media (max-width: 767px) {
+    display: block;
+    width: 100%;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 0.75rem;
+    margin-bottom: 0.75rem;
+    border-bottom: none;
+    box-sizing: border-box;
+  }
+
+  @media (max-width: 480px) {
+    padding: 0.5rem;
+    margin-bottom: 0.5rem;
+    border-radius: 6px;
   }
 `;
 
@@ -193,27 +254,58 @@ const TableHead = styled.th`
   color: #fff;
   font-size: 0.95rem;
 
-  @media (max-width: 768px) {
-    padding: 0.75rem 0.5rem;
-    font-size: 0.85rem;
+  @media (max-width: 767px) {
+    display: none;
   }
 `;
 
 const TableCell = styled.td`
   padding: 1rem;
   color: #374151;
+  font-size: 0.95rem;
 
-  @media (max-width: 768px) {
-    padding: 0.75rem 0.5rem;
+  @media (max-width: 1024px) {
+    padding: 0.9rem 0.75rem;
+    font-size: 0.9rem;
+  }
+
+  @media (max-width: 767px) {
+    display: grid;
+    grid-template-columns: 110px 1fr;
+    gap: 0.5rem;
+    padding: 0.4rem 0;
+    align-items: flex-start;
+    border-bottom: none;
     font-size: 0.85rem;
+    word-break: break-word;
+
+    &::before {
+      content: attr(data-label);
+      font-weight: 700;
+      color: #111827;
+      font-size: 0.8rem;
+    }
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: 80px 1fr;
+    gap: 0.35rem;
+    padding: 0.35rem 0;
+    font-size: 0.8rem;
+
+    &::before {
+      font-size: 0.75rem;
+    }
   }
 `;
 
 const StatusBadge = styled.span`
+  display: inline-block;
   padding: 0.4rem 0.8rem;
   border-radius: 20px;
   font-size: 0.8rem;
   font-weight: 600;
+  white-space: nowrap;
   background: ${(props) => {
     switch (props.$status) {
       case "Accepted":
@@ -238,6 +330,11 @@ const StatusBadge = styled.span`
         return "#6B7280";
     }
   }};
+
+  @media (max-width: 480px) {
+    padding: 0.3rem 0.6rem;
+    font-size: 0.75rem;
+  }
 `;
 
 const HeaderRow = styled.div`
@@ -296,6 +393,30 @@ const EmptyState = styled.div`
   font-weight: 500;
 `;
 
+// Helper function to format payments by currency
+const formatPaymentsByCurrency = (paymentsByCurrency) => {
+  if (!paymentsByCurrency || Object.keys(paymentsByCurrency).length === 0) {
+    return "$0";
+  }
+
+  const currencySymbols = {
+    usd: "$",
+    pkr: "PKR ",
+    eur: "€",
+    gbp: "£",
+    inr: "₹",
+  };
+
+  const formattedParts = Object.entries(paymentsByCurrency).map(
+    ([currency, amount]) => {
+      const symbol = currencySymbols[currency] || currency.toUpperCase() + " ";
+      return `${symbol}${amount.toLocaleString()}`;
+    }
+  );
+
+  return formattedParts.join(" | ");
+};
+
 const DashboardHome = ({
   loading,
   error,
@@ -332,16 +453,17 @@ const DashboardHome = ({
       alt: true,
     },
     {
-      key: "messages",
-      icon: <FaInbox />,
-      label: "Unread Messages",
-      value: stats?.messagesCount ?? 0,
+      key: "payments",
+      icon: <FaCreditCard />,
+      label: "Total Revenue",
+      value: formatPaymentsByCurrency(stats?.paymentsByCurrency),
+      alt: true,
     },
     {
-      key: "returning",
-      icon: <FaUserCheck />,
-      label: "Returning Patients",
-      value: stats?.returningPatients ?? 0,
+      key: "rejected",
+      icon: <FaTimesCircle />,
+      label: "Rejected Bookings",
+      value: stats?.rejectedAppointments ?? 0,
     },
   ];
 
@@ -383,6 +505,8 @@ const DashboardHome = ({
           </StatCard>
         ))}
       </StatsGrid>
+
+      <AdvancedChartsSection />
 
       <ChartSection>
         <SectionTitle>Appointments in the Last 6 Months</SectionTitle>
@@ -429,21 +553,27 @@ const DashboardHome = ({
                   : "First time";
                 return (
                   <TableRow key={appointment._id}>
-                    <TableCell>
+                    <TableCell data-label="Patient">
                       {appointment.patientName || "Unknown"}
                     </TableCell>
-                    <TableCell>{appointment.patientEmail || "-"}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Email">
+                      {appointment.patientEmail || "-"}
+                    </TableCell>
+                    <TableCell data-label="Date">
                       {appointment.date
                         ? new Date(appointment.date).toLocaleDateString()
                         : "-"}
                     </TableCell>
-                    <TableCell>{appointment.doctor || "-"}</TableCell>
-                    <TableCell>{appointment.department || "-"}</TableCell>
-                    <TableCell>
+                    <TableCell data-label="Doctor">
+                      {appointment.doctor || "-"}
+                    </TableCell>
+                    <TableCell data-label="Department">
+                      {appointment.department || "-"}
+                    </TableCell>
+                    <TableCell data-label="Status">
                       <StatusBadge $status={status}>{status}</StatusBadge>
                     </TableCell>
-                    <TableCell>{visitText}</TableCell>
+                    <TableCell data-label="Visit Type">{visitText}</TableCell>
                   </TableRow>
                 );
               })

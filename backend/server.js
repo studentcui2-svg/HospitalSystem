@@ -10,13 +10,14 @@ const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
 const { Server } = require("socket.io");
-
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/auth");
 const appointmentRoutes = require("./routes/appointments");
 const doctorRoutes = require("./routes/doctors");
 const messageRoutes = require("./routes/messages");
 const chatbotRoutes = require("./routes/chatbot");
+const siteContentRoutes = require("./routes/siteContent");
+const paymentRoutes = require("./routes/payments");
 const Message = require("./models/Message");
 
 const app = express();
@@ -43,6 +44,8 @@ app.use("/api/appointments", appointmentRoutes);
 app.use("/api/doctors", doctorRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/chatbot", chatbotRoutes);
+app.use("/api/site-content", siteContentRoutes);
+app.use("/api/payments", paymentRoutes);
 
 app.get("/", (req, res) => {
   res.json({ ok: true, message: "Backend running" });

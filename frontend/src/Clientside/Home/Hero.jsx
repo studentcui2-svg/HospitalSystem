@@ -1,6 +1,14 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import styled from "styled-components";
-import { FaStethoscope, FaHeartbeat, FaCalendarCheck } from "react-icons/fa";
+import {
+  FaStethoscope,
+  FaHeartbeat,
+  FaCalendarCheck,
+  FaHospital,
+  FaAward,
+  FaClock,
+} from "react-icons/fa";
+import { jsonFetch } from "../../utils/api";
 import ThreeScene from "./ThreeScene.jsx";
 
 const HeroContainer = styled.section`
@@ -175,23 +183,76 @@ const StatLabel = styled.div`
 `;
 
 const HeroSection = ({ onBookAppointment }) => {
+  const [heroData, setHeroData] = useState(null);
+  const [statsData, setStatsData] = useState(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Add cache-busting parameter to force fresh data
+        const res = await jsonFetch(`/api/site-content?t=${Date.now()}`);
+        console.log("Hero fetch result:", res);
+        if (res?.data?.hero) {
+          setHeroData(res.data.hero);
+        }
+        if (res?.data?.stats && Array.isArray(res.data.stats)) {
+          setStatsData(res.data.stats);
+        }
+      } catch (err) {
+        console.warn("Failed to load hero data from API, using defaults", err);
+      }
+    };
+    fetchData();
+  }, []);
+
+  // Default data if API fails
+  const hero = heroData || {
+    title: "Welcome to ZeeCare Medical Institute",
+    subtitle: "Your Trusted Healthcare Provider",
+    description:
+      "ZeeCare Medical Institute is a state-of-the-art facility dedicated to providing comprehensive healthcare services with compassion and expertise. Our team of skilled professionals is committed to delivering personalized care tailored to each patient's needs.",
+    cta: "Book Appointment Now",
+  };
+
+  // Default stats in case API fails
+  const defaultStats = [
+    { icon: <FaHeartbeat />, number: "50,000+", label: "Patients Treated" },
+    { icon: <FaStethoscope />, number: "200+", label: "Expert Doctors" },
+    { icon: <FaCalendarCheck />, number: "24/7", label: "Emergency Care" },
+  ];
+
+  // Map statsData with icons
+  const stats =
+    statsData && statsData.length > 0
+      ? statsData.map((stat, idx) => {
+          const iconMap = [
+            <FaHeartbeat />,
+            <FaStethoscope />,
+            <FaCalendarCheck />,
+            <FaHospital />,
+            <FaAward />,
+            <FaClock />,
+          ];
+          return {
+            icon: iconMap[idx % iconMap.length],
+            number: stat.number || stat.statNumber,
+            label: stat.label || stat.statLabel,
+          };
+        })
+      : defaultStats;
+
   return (
     <HeroContainer>
       <ThreeScene />
       <HeroContent>
-        <HeroTitle>Welcome to ZeeCare Medical Institute</HeroTitle>
-        <HeroSubtitle>Your Trusted Healthcare Provider</HeroSubtitle>
-        <HeroDescription>
-          ZeeCare Medical Institute is a state-of-the-art facility dedicated to
-          providing comprehensive healthcare services with compassion and
-          expertise. Our team of skilled professionals is committed to
-          delivering personalized care tailored to each patient's needs.
-        </HeroDescription>
+        <HeroTitle>{hero.title}</HeroTitle>
+        <HeroSubtitle>{hero.subtitle}</HeroSubtitle>
+        <HeroDescription>{hero.description}</HeroDescription>
 
         <CTAButtons>
           <PrimaryButton onClick={onBookAppointment}>
             <FaCalendarCheck />
-            Book Appointment Now
+            {hero.cta}
           </PrimaryButton>
           <SecondaryButton>
             <FaStethoscope />
@@ -200,27 +261,13 @@ const HeroSection = ({ onBookAppointment }) => {
         </CTAButtons>
 
         <StatsContainer>
-          <StatCard>
-            <StatIcon>
-              <FaHeartbeat />
-            </StatIcon>
-            <StatNumber>50,000+</StatNumber>
-            <StatLabel>Patients Treated</StatLabel>
-          </StatCard>
-          <StatCard>
-            <StatIcon>
-              <FaStethoscope />
-            </StatIcon>
-            <StatNumber>200+</StatNumber>
-            <StatLabel>Expert Doctors</StatLabel>
-          </StatCard>
-          <StatCard>
-            <StatIcon>
-              <FaCalendarCheck />
-            </StatIcon>
-            <StatNumber>24/7</StatNumber>
-            <StatLabel>Emergency Care</StatLabel>
-          </StatCard>
+          {stats.map((stat, idx) => (
+            <StatCard key={idx}>
+              <StatIcon>{stat.icon}</StatIcon>
+              <StatNumber>{stat.number}</StatNumber>
+              <StatLabel>{stat.label}</StatLabel>
+            </StatCard>
+          ))}
         </StatsContainer>
       </HeroContent>
     </HeroContainer>

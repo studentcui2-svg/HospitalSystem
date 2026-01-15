@@ -12,7 +12,8 @@
     "mongoose": "^8.19.1",
     "morgan": "^1.10.1",
     "nodemailer": "^7.0.9",
-    "socket.io": "^4.8.1"
+    "socket.io": "^4.8.1",
+    "stripe": "^20.1.2"
   },
   "name": "backend",
   "version": "1.0.0",

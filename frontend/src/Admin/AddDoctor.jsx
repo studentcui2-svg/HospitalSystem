@@ -195,7 +195,6 @@ const AddDoctor = () => {
     dateOfBirth: "",
     gender: "",
     department: "",
-    password: "",
   });
 
   const [selectedFile, setSelectedFile] = useState(null);
@@ -447,20 +446,6 @@ const AddDoctor = () => {
           </FormRow>
 
           <FormRow>
-            <InputGroup>
-              <InputIcon>
-                <FaLock />
-              </InputIcon>
-              <Input
-                type="password"
-                name="password"
-                placeholder="Password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-              />
-            </InputGroup>
-
             <FileUpload
               onClick={() => document.getElementById("file-upload").click()}
             >
@@ -468,22 +453,46 @@ const AddDoctor = () => {
                 type="file"
                 id="file-upload"
                 onChange={handleFileChange}
-                accept="image/*,.pdf,.doc,.docx"
+                accept="image/*"
               />
               <FileUploadContent>
                 <FileUploadIcon>
                   <FaUpload />
                 </FileUploadIcon>
-                <FileUploadText>
-                  {selectedFile ? (
-                    <FileName>{selectedFile.name}</FileName>
-                  ) : (
-                    <>
-                      Choose File!{" "}
-                      <span style={{ color: "#9CA3AF" }}>No file chosen</span>
-                    </>
-                  )}
-                </FileUploadText>
+                {selectedFile &&
+                selectedFile.type &&
+                selectedFile.type.startsWith("image/") ? (
+                  <img
+                    src={URL.createObjectURL(selectedFile)}
+                    alt="preview"
+                    style={{
+                      width: 96,
+                      height: 96,
+                      objectFit: "cover",
+                      borderRadius: 12,
+                      border: "2px solid rgba(79,70,229,0.12)",
+                    }}
+                  />
+                ) : (
+                  <FileUploadText>
+                    {selectedFile ? (
+                      <FileName>{selectedFile.name}</FileName>
+                    ) : (
+                      <>
+                        Upload profile photo
+                        <span
+                          style={{
+                            color: "#9CA3AF",
+                            display: "block",
+                            marginTop: 6,
+                          }}
+                        >
+                          (Tap to choose or use device camera)
+                        </span>
+                      </>
+                    )}
+                  </FileUploadText>
+                )}
               </FileUploadContent>
             </FileUpload>
           </FormRow>

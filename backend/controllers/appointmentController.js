@@ -1,5 +1,7 @@
 const Appointment = require("../models/Appointment");
 const sendEmail = require("../utils/email");
+const Stripe = require("stripe");
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
 exports.createAppointment = async (req, res) => {
   try {
@@ -108,9 +110,18 @@ exports.getAppointments = async (req, res) => {
     if (req.query.search)
       q.patientName = { $regex: req.query.search, $options: "i" };
 
-    const appointments = await Appointment.find(q)
-      .sort({ date: -1 })
-      .limit(100);
+    // allow admin to request full list when needed via query param `all=true`
+    let queryExec = Appointment.find(q).sort({ date: -1 });
+    if (String(req.query.all) !== "true") {
+      const max = 1000; // safety cap
+      const limit = Math.min(Number(req.query.limit) || 100, max);
+      queryExec = queryExec.limit(limit);
+      console.log("[GET APPOINTMENTS] Applying limit:", limit);
+    } else {
+      console.log("[GET APPOINTMENTS] Returning all appointments (no limit)");
+    }
+
+    const appointments = await queryExec;
     console.log(
       "[GET APPOINTMENTS] Found",
       appointments.length,
@@ -164,6 +175,37 @@ exports.updateStatus = async (req, res) => {
       return res.json({ ok: true, appointment: appt, notified: false });
     }
 
+    // Process refund if rejecting an appointment with completed payment
+    let refundInfo = null;
+    if (
+      normalizedStatus === "Rejected" &&
+      appt.payment?.status === "completed" &&
+      appt.payment?.paymentIntentId
+    ) {
+      try {
+        console.log(`[REFUND] Processing refund for appointment ${appt._id}`);
+        const refund = await stripe.refunds.create({
+          payment_intent: appt.payment.paymentIntentId,
+        });
+
+        appt.payment.status = "refunded";
+        appt.payment.refundedAt = new Date();
+        appt.payment.refundId = refund.id;
+
+        refundInfo = {
+          refundId: refund.id,
+          amount: refund.amount / 100,
+          currency: refund.currency,
+        };
+
+        console.log(`[REFUND] Refund successful: ${refund.id}`);
+      } catch (refundError) {
+        console.error("[REFUND ERROR]", refundError.message);
+        // Continue with rejection even if refund fails
+        // Admin can manually process refund later
+      }
+    }
+
     appt.status = normalizedStatus;
     await appt.save();
     console.log("[UPDATE APPOINTMENT] Updated:", appt._id);
@@ -182,12 +224,30 @@ exports.updateStatus = async (req, res) => {
       const capitalizedStatus = normalizedStatus.toUpperCase();
       const subject = `Your appointment has been ${capitalizedStatus}`;
 
-      const statusMessage =
+      let statusMessage =
         normalizedStatus === "Accepted"
           ? "We're happy to let you know that your appointment has been approved."
           : normalizedStatus === "Rejected"
           ? "We're sorry to inform you that we cannot accommodate your appointment at this time."
           : "Your appointment status has been updated.";
+
+      // Add refund information if applicable
+      let refundMessage = "";
+      if (refundInfo) {
+        const currencySymbol =
+          refundInfo.currency === "usd"
+            ? "$"
+            : refundInfo.currency === "pkr"
+            ? "PKR "
+            : refundInfo.currency.toUpperCase() + " ";
+        refundMessage = `
+          <div style="background: #d1fae5; border-radius: 8px; padding: 12px; margin: 16px 0;">
+            <p style="margin: 0; color: #065f46; font-weight: 600;">💰 Refund Processed</p>
+            <p style="margin: 8px 0 0 0; color: #047857;">Your payment of ${currencySymbol}${refundInfo.amount} has been refunded. It may take 5-10 business days to appear in your account.</p>
+            <p style="margin: 4px 0 0 0; color: #6b7280; font-size: 0.875rem;">Refund ID: ${refundInfo.refundId}</p>
+          </div>
+        `;
+      }
 
       const html = `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
@@ -195,10 +255,17 @@ exports.updateStatus = async (req, res) => {
           <p>${statusMessage}</p>
           <p><strong>Status:</strong> ${normalizedStatus}</p>
           <p><strong>Scheduled Date:</strong> ${readableDate}</p>
+          ${refundMessage}
           <p style="margin-top: 18px;">If you have any questions, please reply to this email or call our reception.</p>
           <p style="margin-top: 24px;">Best regards,<br/>The Clinic Team</p>
         </div>
       `;
+
+      const refundText = refundInfo
+        ? ` Your payment of ${refundInfo.currency.toUpperCase()} ${
+            refundInfo.amount
+          } has been refunded (Refund ID: ${refundInfo.refundId}).`
+        : "";
 
       try {
         const noReplyFrom =
@@ -208,7 +275,7 @@ exports.updateStatus = async (req, res) => {
           to: patientEmail,
           subject,
           html,
-          text: `${statusMessage} Status: ${normalizedStatus}. Scheduled Date: ${readableDate}.`,
+          text: `${statusMessage} Status: ${normalizedStatus}. Scheduled Date: ${readableDate}.${refundText}`,
           from: noReplyFrom,
         });
         notified = true;
@@ -226,7 +293,7 @@ exports.updateStatus = async (req, res) => {
       );
     }
 
-    res.json({ ok: true, appointment: appt, notified });
+    res.json({ ok: true, appointment: appt, notified, refund: refundInfo });
   } catch (err) {
     console.error("[UPDATE APPOINTMENT ERROR]", err);
     res.status(500).json({ message: "Server error" });

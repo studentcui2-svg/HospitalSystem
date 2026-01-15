@@ -8,11 +8,17 @@ import html2canvas from "html2canvas";
 // ========== Styled Components ==========
 
 const TableWrap = styled.div`
-  background: white;
+  background: #ffffff;
   border-radius: 12px;
   padding: 1rem;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
   overflow-x: auto;
+  color: #111827;
+
+  @media (max-width: 767px) {
+    padding: 0.75rem;
+    border-radius: 8px;
+  }
 `;
 
 const Toolbar = styled.div`
@@ -22,18 +28,32 @@ const Toolbar = styled.div`
   margin-bottom: 16px;
   gap: 12px;
   flex-wrap: wrap;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
 `;
 
 const LeftControls = styled.div`
   display: flex;
   gap: 12px;
   align-items: center;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
 `;
 
 const RightControls = styled.div`
   display: flex;
   gap: 12px;
   align-items: center;
+
+  @media (max-width: 640px) {
+    width: 100%;
+    flex-direction: column;
+  }
 `;
 
 const SearchInput = styled.input`
@@ -42,12 +62,20 @@ const SearchInput = styled.input`
   border: 1px solid #d1d5db;
   font-size: 0.95rem;
   width: 220px;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
 `;
 
 const Select = styled.select`
   padding: 0.6rem 1rem;
   border-radius: 8px;
   border: 1px solid #d1d5db;
+
+  @media (max-width: 640px) {
+    width: 100%;
+  }
 `;
 
 const ClearButton = styled.button`
@@ -66,22 +94,70 @@ const ClearButton = styled.button`
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
+  min-width: 800px;
+
+  @media (max-width: 767px) {
+    display: block;
+    min-width: unset;
+    border: none;
+
+    thead {
+      display: none;
+    }
+
+    tbody {
+      display: block;
+      gap: 1rem;
+    }
+  }
 `;
 
 const Tr = styled.tr`
   border-bottom: 1px solid #e5e7eb;
+
+  @media (max-width: 767px) {
+    display: block;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-bottom: none;
+  }
 `;
 
 const Th = styled.th`
   text-align: left;
   padding: 0.75rem;
-  background: #f9fafb;
-  font-weight: 600;
+  background: #f3f4f6;
+  font-weight: 700;
+  color: #374151;
+
+  @media (max-width: 767px) {
+    display: none;
+  }
 `;
 
 const Td = styled.td`
   padding: 0.75rem;
   font-size: 0.95rem;
+  color: #111827;
+
+  @media (max-width: 767px) {
+    display: block;
+    padding: 0.5rem 0;
+    text-align: left;
+    border-bottom: none;
+
+    &::before {
+      content: attr(data-label);
+      font-weight: 700;
+      color: #374151;
+      margin-right: 0.5rem;
+      display: inline-block;
+      width: 120px;
+    }
+  }
 `;
 
 const Status = styled.span`
@@ -122,7 +198,7 @@ const ActionButton = styled.button`
 const Empty = styled.div`
   text-align: center;
   padding: 2rem;
-  color: #6b7280;
+  color: #374151;
 `;
 
 const ModalOverlay = styled.div`
@@ -141,6 +217,16 @@ const ModalContent = styled.div`
   width: 700px;
   max-height: 90vh;
   overflow-y: auto;
+
+  @media (max-width: 768px) {
+    width: 90%;
+    max-height: 95vh;
+  }
+
+  @media (max-width: 480px) {
+    width: 95%;
+    border-radius: 8px;
+  }
 `;
 
 const ModalHeader = styled.div`
@@ -171,6 +257,18 @@ const ModalBody = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 1.5rem;
+
+  @media (max-width: 768px) {
+    padding: 1.5rem;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+  }
+
+  @media (max-width: 480px) {
+    padding: 1rem;
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
 `;
 
 const DetailCard = styled.div`
@@ -372,18 +470,21 @@ const AppointmentsTable = ({ data = [], onStatusUpdate }) => {
           ) : (
             visibleRows.map((row) => (
               <Tr key={row._id || row.id}>
-                <Td>{row.patientName || "Unknown"}</Td>
-                <Td>{row.patientEmail || "-"}</Td>
-                <Td>{row.cnic || "-"}</Td>
-                <Td>
+                <Td data-label="Patient Name:">
+                  {row.patientName || "Unknown"}
+                </Td>
+                <Td data-label="Email:">{row.patientEmail || "-"}</Td>
+                <Td data-label="CNIC:">{row.cnic || "-"}</Td>
+                <Td data-label="Status:">
                   <Status $status={row.status}>{row.status}</Status>
                 </Td>
-                <Td>
+                <Td data-label="Action:">
                   <div
                     style={{
                       display: "flex",
                       gap: "8px",
                       alignItems: "center",
+                      flexWrap: "wrap",
                     }}
                   >
                     <StatusSelect
@@ -402,7 +503,7 @@ const AppointmentsTable = ({ data = [], onStatusUpdate }) => {
                       }
                     >
                       <option value="Pending">Pending</option>
-                      <option value="Accepted">Accepted</option>
+                      <option value="Accepted">Accepted</option>\n{" "}
                       <option value="Rejected">Rejected</option>
                     </StatusSelect>
                     <ActionButton onClick={() => setSelectedAppointment(row)}>

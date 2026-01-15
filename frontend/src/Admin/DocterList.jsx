@@ -37,9 +37,18 @@ const DoctorsGrid = styled.div`
   grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
   gap: 2rem;
 
+  @media (max-width: 1024px) {
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 1.5rem;
+  }
+
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
-    gap: 1.5rem;
+    gap: 1.25rem;
+  }
+
+  @media (max-width: 480px) {
+    gap: 1rem;
   }
 `;
 
@@ -69,6 +78,11 @@ const DoctorCard = styled.div`
 
   @media (max-width: 768px) {
     padding: 1.5rem;
+    border-radius: 12px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 1.25rem;
   }
 `;
 
@@ -77,6 +91,10 @@ const DoctorHeader = styled.div`
   align-items: center;
   gap: 1.5rem;
   margin-bottom: 1.5rem;
+
+  @media (max-width: 640px) {
+    gap: 1rem;
+  }
 `;
 
 const DoctorAvatar = styled.div`
@@ -169,6 +187,11 @@ const ActionButtons = styled.div`
   margin-top: 1rem;
   padding-top: 1rem;
   border-top: 1px solid #f3f4f6;
+
+  @media (max-width: 640px) {
+    flex-direction: column;
+    gap: 0.75rem;
+  }
 `;
 
 const ActionButton = styled.button`

@@ -14,11 +14,7 @@ const Navbar = styled.nav`
   justify-content: space-between;
   align-items: center;
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  z-index: 1000;
+  width: 100%;
   border-bottom: 1px solid #e2e8f0;
 
   @media (max-width: 1024px) {
