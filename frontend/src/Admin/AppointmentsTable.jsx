@@ -538,6 +538,12 @@ const AppointmentsTable = ({ data = [], onStatusUpdate }) => {
                 { label: "Gender", value: selectedAppointment.gender },
                 { label: "Department", value: selectedAppointment.department },
                 { label: "Doctor", value: selectedAppointment.doctor },
+                {
+                  label: "Appointment Date & Time",
+                  value: selectedAppointment.date
+                    ? new Date(selectedAppointment.date).toLocaleString()
+                    : "-",
+                },
                 { label: "Address", value: selectedAppointment.address },
                 { label: "Status", value: selectedAppointment.status },
               ].map((item) => (

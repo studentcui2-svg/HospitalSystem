@@ -241,20 +241,74 @@ exports.updateStatus = async (req, res) => {
             ? "PKR "
             : refundInfo.currency.toUpperCase() + " ";
         refundMessage = `
-          <div style="background: #d1fae5; border-radius: 8px; padding: 12px; margin: 16px 0;">
-            <p style="margin: 0; color: #065f46; font-weight: 600;">💰 Refund Processed</p>
-            <p style="margin: 8px 0 0 0; color: #047857;">Your payment of ${currencySymbol}${refundInfo.amount} has been refunded. It may take 5-10 business days to appear in your account.</p>
-            <p style="margin: 4px 0 0 0; color: #6b7280; font-size: 0.875rem;">Refund ID: ${refundInfo.refundId}</p>
+          <div style="background: #d1fae5; border-radius: 8px; padding: 16px; margin: 16px 0; border: 1px solid #10b981;">
+            <p style="margin: 0; color: #065f46; font-weight: 700; font-size: 1.1rem;">💰 Refund Processed Successfully</p>
+            <table style="margin-top: 12px; width: 100%; border-collapse: collapse;">
+              <tr>
+                <td style="padding: 6px 0; color: #374151; font-weight: 600;">Refund Amount:</td>
+                <td style="padding: 6px 0; color: #047857; font-weight: 700;">${currencySymbol}${
+          refundInfo.amount
+        }</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #374151; font-weight: 600;">Refund ID:</td>
+                <td style="padding: 6px 0; color: #6b7280;">${
+                  refundInfo.refundId
+                }</td>
+              </tr>
+              <tr>
+                <td style="padding: 6px 0; color: #374151; font-weight: 600;">Refund Date:</td>
+                <td style="padding: 6px 0; color: #6b7280;">${new Date().toLocaleString()}</td>
+              </tr>
+            </table>
+            <p style="margin: 12px 0 0 0; color: #047857; font-size: 0.9rem;">
+              ⏱️ Please allow 5-10 business days for the refund to appear in your account.
+            </p>
           </div>
         `;
       }
+
+      // Original appointment details for rejected appointments
+      const appointmentDetails = `
+        <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin: 16px 0;">
+          <p style="margin: 0 0 12px 0; color: #374151; font-weight: 600;">📋 Appointment Details:</p>
+          <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+              <td style="padding: 4px 0; color: #6b7280;">Department:</td>
+              <td style="padding: 4px 0; color: #111827;">${
+                appt.department || "N/A"
+              }</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #6b7280;">Doctor:</td>
+              <td style="padding: 4px 0; color: #111827;">${
+                appt.doctor || "N/A"
+              }</td>
+            </tr>
+            <tr>
+              <td style="padding: 4px 0; color: #6b7280;">Scheduled Date:</td>
+              <td style="padding: 4px 0; color: #111827;">${readableDate}</td>
+            </tr>
+          </table>
+        </div>
+      `;
 
       const html = `
         <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
           <h2 style="color: #4f46e5;">Hello ${patientName || "there"},</h2>
           <p>${statusMessage}</p>
-          <p><strong>Status:</strong> ${normalizedStatus}</p>
-          <p><strong>Scheduled Date:</strong> ${readableDate}</p>
+          <p><strong>Status:</strong> <span style="color: ${
+            normalizedStatus === "Accepted"
+              ? "#10b981"
+              : normalizedStatus === "Rejected"
+              ? "#ef4444"
+              : "#f59e0b"
+          }; font-weight: 600;">${normalizedStatus}</span></p>
+          ${
+            normalizedStatus === "Rejected"
+              ? appointmentDetails
+              : `<p><strong>Scheduled Date:</strong> ${readableDate}</p>`
+          }
           ${refundMessage}
           <p style="margin-top: 18px;">If you have any questions, please reply to this email or call our reception.</p>
           <p style="margin-top: 24px;">Best regards,<br/>The Clinic Team</p>
