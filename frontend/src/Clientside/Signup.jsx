@@ -10,6 +10,8 @@ import {
   FaIdCard,
   FaArrowLeft,
   FaSignOutAlt,
+  FaEye,
+  FaEyeSlash,
 } from "react-icons/fa";
 import { jsonFetch } from "../utils/api";
 import { NAV_HEIGHT } from "./NavBar";
@@ -431,6 +433,8 @@ const SignupPage = ({
     dateOfBirth: "",
     gender: "",
   });
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [otpSent, setOtpSent] = useState(false);
   const [otpInput, setOtpInput] = useState("");
@@ -678,14 +682,37 @@ const SignupPage = ({
                   <InputIcon>
                     <FaLock />
                   </InputIcon>
-                  <Input
-                    type="password"
-                    name="password"
-                    placeholder="1234567"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                  />
+                  <div style={{ position: "relative" }}>
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      placeholder="1234567"
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((s) => !s)}
+                      style={{
+                        position: "absolute",
+                        right: 12,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "none",
+                        border: "none",
+                        color: "#718096",
+                        cursor: "pointer",
+                        fontSize: 16,
+                        padding: 4,
+                      }}
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
+                    >
+                      {showPassword ? <FaEyeSlash /> : <FaEye />}
+                    </button>
+                  </div>
                 </InputGroup>
               </FormRow>
 
@@ -741,14 +768,37 @@ const SignupPage = ({
                   <InputIcon>
                     <FaLock />
                   </InputIcon>
-                  <Input
-                    type="password"
-                    name="confirmPassword"
-                    placeholder="Password"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    required
-                  />
+                  <div style={{ position: "relative" }}>
+                    <Input
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      placeholder="Password"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((s) => !s)}
+                      style={{
+                        position: "absolute",
+                        right: 12,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "none",
+                        border: "none",
+                        color: "#718096",
+                        cursor: "pointer",
+                        fontSize: 16,
+                        padding: 4,
+                      }}
+                      aria-label={
+                        showConfirmPassword ? "Hide password" : "Show password"
+                      }
+                    >
+                      {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                    </button>
+                  </div>
                 </InputGroup>
               </FormRow>
 
@@ -855,14 +905,37 @@ const SignupPage = ({
                   <InputIcon>
                     <FaLock />
                   </InputIcon>
-                  <Input
-                    type="password"
-                    name="password"
-                    placeholder="1234567"
-                    value={formData.password}
-                    onChange={handleChange}
-                    required
-                  />
+                  <div style={{ position: "relative" }}>
+                    <Input
+                      type={showPassword ? "text" : "password"}
+                      name="password"
+                      placeholder="1234567"
+                      value={formData.password}
+                      onChange={handleChange}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword((s) => !s)}
+                      style={{
+                        position: "absolute",
+                        right: 12,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "none",
+                        border: "none",
+                        color: "#718096",
+                        cursor: "pointer",
+                        fontSize: 16,
+                        padding: 4,
+                      }}
+                      aria-label={
+                        showPassword ? "Hide password" : "Show password"
+                      }
+                    >
+                      {showPassword ? <FaEyeSlash /> : <FaEye />}
+                    </button>
+                  </div>
                 </InputGroup>
               </FormRow>
 
@@ -918,14 +991,37 @@ const SignupPage = ({
                   <InputIcon>
                     <FaLock />
                   </InputIcon>
-                  <Input
-                    type="password"
-                    name="confirmPassword"
-                    placeholder="Password"
-                    value={formData.confirmPassword}
-                    onChange={handleChange}
-                    required
-                  />
+                  <div style={{ position: "relative" }}>
+                    <Input
+                      type={showConfirmPassword ? "text" : "password"}
+                      name="confirmPassword"
+                      placeholder="Password"
+                      value={formData.confirmPassword}
+                      onChange={handleChange}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword((s) => !s)}
+                      style={{
+                        position: "absolute",
+                        right: 12,
+                        top: "50%",
+                        transform: "translateY(-50%)",
+                        background: "none",
+                        border: "none",
+                        color: "#718096",
+                        cursor: "pointer",
+                        fontSize: 16,
+                        padding: 4,
+                      }}
+                      aria-label={
+                        showConfirmPassword ? "Hide password" : "Show password"
+                      }
+                    >
+                      {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
+                    </button>
+                  </div>
                 </InputGroup>
               </FormRow>
 

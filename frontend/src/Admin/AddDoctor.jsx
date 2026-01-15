@@ -9,6 +9,8 @@ import {
   FaVenusMars,
   FaStethoscope,
   FaLock,
+  FaEye,
+  FaEyeSlash,
   FaUpload,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
@@ -195,7 +197,10 @@ const AddDoctor = () => {
     dateOfBirth: "",
     gender: "",
     department: "",
+    password: "",
   });
+
+  const [showPassword, setShowPassword] = useState(false);
 
   const [selectedFile, setSelectedFile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -272,6 +277,7 @@ const AddDoctor = () => {
         bio: `Joined via admin portal on ${new Date().toLocaleDateString()}`,
         dateOfBirth: toIsoDate(formData.dateOfBirth),
         photo: photoData,
+        password: formData.password,
       };
 
       console.log("[ADD DOCTOR] Submitting payload", payload);
@@ -391,6 +397,40 @@ const AddDoctor = () => {
               />
             </InputGroup>
 
+            <InputGroup>
+              <InputIcon>
+                <FaLock />
+              </InputIcon>
+              <div style={{ position: "relative" }}>
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="Temporary Password (doctor will use to login)"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    color: "#718096",
+                    cursor: "pointer",
+                    fontSize: 16,
+                    padding: 4,
+                  }}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+              </div>
+            </InputGroup>
             <InputGroup>
               <InputIcon>
                 <FaCalendarAlt />

@@ -217,6 +217,8 @@ const NavBar = ({
   isLoggedIn,
   onLogout,
   onNavigateToHome,
+  userRole,
+  onNavigateToDoctor,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
 
@@ -271,11 +273,45 @@ const NavBar = ({
               onClick={(e) => {
                 e.preventDefault();
                 setMenuOpen(false);
-                onOpenAppointment?.();
+                if (!isLoggedIn) {
+                  onNavigateToLogin?.(true);
+                } else {
+                  onOpenAppointment?.();
+                }
               }}
             >
               Appointment
             </NavLink>
+            {isLoggedIn && userRole === "doctor" && (
+              <NavLink
+                href="/doctor"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMenuOpen(false);
+                  if (!isLoggedIn) onNavigateToLogin?.(true);
+                  else onNavigateToDoctor?.();
+                }}
+              >
+                Doctor Panel
+              </NavLink>
+            )}
+            {isLoggedIn && (
+              <NavLink
+                href="/my-appointments"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMenuOpen(false);
+                  // navigate to My Appointments
+                  try {
+                    window.__NAV_TO__ && window.__NAV_TO__("myappointments");
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }}
+              >
+                My Appointments
+              </NavLink>
+            )}
             <NavLink
               href="#about"
               onClick={(e) => {
@@ -337,7 +373,11 @@ const NavBar = ({
               onClick={(e) => {
                 e.preventDefault();
                 setMenuOpen(false);
-                onOpenAppointment?.();
+                if (!isLoggedIn) {
+                  onNavigateToLogin?.();
+                } else {
+                  onOpenAppointment?.();
+                }
               }}
             >
               Appointment

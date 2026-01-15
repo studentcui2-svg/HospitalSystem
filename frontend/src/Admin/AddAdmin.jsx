@@ -8,6 +8,8 @@ import {
   FaCalendarAlt,
   FaVenusMars,
   FaLock,
+  FaEye,
+  FaEyeSlash,
 } from "react-icons/fa";
 import { toast } from "react-toastify";
 
@@ -150,6 +152,7 @@ const AddAdmin = () => {
     gender: "",
     password: "",
   });
+  const [showPassword, setShowPassword] = useState(false);
 
   const [loading, setLoading] = useState(false);
 
@@ -308,14 +311,35 @@ const AddAdmin = () => {
               <InputIcon>
                 <FaLock />
               </InputIcon>
-              <Input
-                type="password"
-                name="password"
-                placeholder="Password"
-                value={formData.password}
-                onChange={handleChange}
-                required
-              />
+              <div style={{ position: "relative" }}>
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  name="password"
+                  placeholder="Password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  style={{
+                    position: "absolute",
+                    right: 12,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    color: "#718096",
+                    cursor: "pointer",
+                    fontSize: 16,
+                    padding: 4,
+                  }}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+              </div>
             </InputGroup>
           </FormRow>
 

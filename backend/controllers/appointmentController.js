@@ -74,6 +74,45 @@ exports.createAppointment = async (req, res) => {
         ? ["true", "yes", "1", "visited"].includes(visitedBefore.toLowerCase())
         : Boolean(visitedBefore);
 
+    const DEFAULT_FEE = Number(req.body.amount) || 50;
+
+    // Build a simple invoice snapshot (useful for pay-on-site flow)
+    const invoiceObj = {
+      invoiceNumber: `INV-${Date.now()}`,
+      amountDue: DEFAULT_FEE,
+      currency: "USD",
+      status: req.body.paymentPreference === "on-site" ? "unpaid" : "pending",
+      note:
+        req.body.paymentPreference === "on-site"
+          ? "Pay on-site. Not paid at booking."
+          : "Pending online payment.",
+      generatedAt: new Date(),
+      html: `
+        <html>
+          <head>
+            <meta charset="utf-8" />
+            <title>Invoice ${"INV-" + Date.now()}</title>
+            <style>body{font-family:Arial,sans-serif;color:#111;} .h{color:#4f46e5;font-weight:700}</style>
+          </head>
+          <body>
+            <h2 class="h">Clinic Invoice</h2>
+            <p><strong>Invoice:</strong> ${"INV-" + Date.now()}</p>
+            <p><strong>Patient:</strong> ${patientName || "-"}</p>
+            <p><strong>Doctor:</strong> ${doctor || "-"}</p>
+            <p><strong>Scheduled:</strong> ${appointmentDate.toLocaleString()}</p>
+            <hr />
+            <p><strong>Amount Due:</strong> USD ${DEFAULT_FEE.toFixed(2)}</p>
+            <p><em>${
+              req.body.paymentPreference === "on-site"
+                ? "Pay on-site. Not paid at booking."
+                : "Pending online payment."
+            }</em></p>
+            <p style="margin-top:20px;color:#6b7280;font-size:0.9rem">Please present this invoice at reception.</p>
+          </body>
+        </html>
+      `,
+    };
+
     const appt = new Appointment({
       patientName,
       patientEmail,
@@ -90,6 +129,9 @@ exports.createAppointment = async (req, res) => {
       end: endDate,
       durationMinutes: duration,
       timezone,
+      mode: req.body.mode || "physical",
+      paymentPreference: req.body.paymentPreference || "online",
+      invoice: invoiceObj,
       createdBy: req.userId,
     });
 
@@ -109,6 +151,10 @@ exports.getAppointments = async (req, res) => {
     if (req.query.status) q.status = req.query.status;
     if (req.query.search)
       q.patientName = { $regex: req.query.search, $options: "i" };
+    // allow filtering by doctor name
+    if (req.query.doctor) {
+      q.doctor = { $regex: `^${req.query.doctor}$`, $options: "i" };
+    }
 
     // allow admin to request full list when needed via query param `all=true`
     let queryExec = Appointment.find(q).sort({ date: -1 });

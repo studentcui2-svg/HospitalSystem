@@ -401,14 +401,14 @@ export const DepartmentAnalyticsChart = ({ data = [] }) => {
   );
 };
 
-export const AppointmentBreakdownChart = ({ data = [] }) => {
+export const PaymentStatusChart = ({ data = [] }) => {
   const chartData = data.length
     ? data
     : [
-        { name: "Online Consultation", value: 35, color: "#3b82f6" },
-        { name: "In-person Visit", value: 48, color: "#8b5cf6" },
-        { name: "Follow-up", value: 22, color: "#ec4899" },
-        { name: "Emergency", value: 8, color: "#f43f5e" },
+        { name: "completed", value: 0, color: "#10b981" },
+        { name: "pending", value: 0, color: "#f59e0b" },
+        { name: "refunded", value: 0, color: "#ef4444" },
+        { name: "failed", value: 0, color: "#6b7280" },
       ];
 
   const COLORS = chartData.map((item) => item.color);
@@ -416,8 +416,8 @@ export const AppointmentBreakdownChart = ({ data = [] }) => {
   return (
     <ChartCard>
       <ChartTitle>
-        <TitleIcon>🗓️</TitleIcon>
-        Appointment Breakdown
+        <TitleIcon>💳</TitleIcon>
+        Payment Status Distribution
       </ChartTitle>
       <ChartWrapper>
         <ResponsiveContainer width="100%" height="100%">
@@ -553,15 +553,148 @@ export const RevenueTrackingChart = ({ data = [] }) => {
 };
 
 // Main wrapper
-export const AdvancedChartsSection = () => {
+export const AdvancedChartsSection = ({
+  appointments = [],
+  chart = { labels: [], values: [] },
+}) => {
+  // Build trend data from `chart` and appointments
+  const trendData = (chart.labels || []).map((label, i) => ({
+    month: label,
+    appointments: chart.values?.[i] || 0,
+    accepted: 0,
+    pending: 0,
+  }));
+
+  // populate accepted/pending counts per bucket using appointment dates
+  if (appointments && appointments.length && chart.labels?.length) {
+    const now = new Date();
+    const buckets = [];
+    for (let i = 5; i >= 0; i -= 1) {
+      const cursor = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${cursor.getFullYear()}-${cursor.getMonth()}`;
+      buckets.push(key);
+    }
+
+    appointments.forEach((appt) => {
+      const raw = appt.date || appt.createdAt;
+      if (!raw) return;
+      const d = new Date(raw);
+      if (Number.isNaN(d.getTime())) return;
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      const idx = buckets.indexOf(key);
+      if (idx !== -1) {
+        trendData[idx].appointments += 0; // already seeded from chart.values
+        const st = (appt.status || "Pending").toLowerCase();
+        if (st === "accepted") trendData[idx].accepted += 1;
+        else if (st === "rejected") trendData[idx].pending += 0;
+        else trendData[idx].pending += 1;
+      }
+    });
+  }
+
+  // Status distribution from appointments
+  const statusMap = { Accepted: 0, Pending: 0, Rejected: 0, Cancelled: 0 };
+  (appointments || []).forEach((a) => {
+    const s = a.status || "Pending";
+    if (s === "Accepted") statusMap.Accepted += 1;
+    else if (s === "Rejected") statusMap.Rejected += 1;
+    else if (s === "Cancelled") statusMap.Cancelled += 1;
+    else statusMap.Pending += 1;
+  });
+  const statusData = Object.entries(statusMap).map(([name, value]) => ({
+    name,
+    value,
+    color:
+      name === "Accepted"
+        ? "#10b981"
+        : name === "Pending"
+        ? "#f59e0b"
+        : name === "Rejected"
+        ? "#ef4444"
+        : "#6b7280",
+  }));
+
+  // Doctor performance (top doctors by appointments)
+  const docMap = {};
+  (appointments || []).forEach((a) => {
+    const doc = a.doctor || "Unknown";
+    docMap[doc] = (docMap[doc] || 0) + 1;
+  });
+  const docData = Object.entries(docMap)
+    .map(([doctor, appointments]) => ({ doctor, appointments }))
+    .sort((a, b) => b.appointments - a.appointments)
+    .slice(0, 6);
+
+  // Department analytics
+  const deptMap = {};
+  (appointments || []).forEach((a) => {
+    const dept = a.department || "Unknown";
+    deptMap[dept] = deptMap[dept] || { patients: 0, revenue: 0 };
+    deptMap[dept].patients += 1;
+    if (a.payment && a.payment.status === "completed") {
+      deptMap[dept].revenue += a.payment.amount || 0;
+    }
+  });
+  const deptData = Object.entries(deptMap).map(([department, v]) => ({
+    department,
+    patients: v.patients,
+    revenue: v.revenue,
+  }));
+
+  // Payment status distribution (completed, pending, refunded, failed)
+  const paymentMap = {};
+  (appointments || []).forEach((a) => {
+    const p = (a.payment && a.payment.status) || "pending";
+    paymentMap[p] = (paymentMap[p] || 0) + 1;
+  });
+  const paymentStatusData = Object.entries(paymentMap).map(([name, value]) => ({
+    name,
+    value,
+    color:
+      name === "completed"
+        ? "#10b981"
+        : name === "pending"
+        ? "#f59e0b"
+        : name === "refunded"
+        ? "#ef4444"
+        : "#6b7280",
+  }));
+
+  // Revenue tracking per month (based on payment paidAt or createdAt)
+  const revenueBuckets = (chart.labels || []).map((label) => ({
+    month: label,
+    revenue: 0,
+  }));
+  if (appointments && appointments.length && chart.labels?.length) {
+    const now = new Date();
+    const buckets = [];
+    for (let i = 5; i >= 0; i -= 1) {
+      const cursor = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const key = `${cursor.getFullYear()}-${cursor.getMonth()}`;
+      buckets.push(key);
+    }
+    appointments.forEach((a) => {
+      if (!a.payment || a.payment.status !== "completed") return;
+      const raw = a.payment.paidAt || a.updatedAt || a.createdAt || a.date;
+      if (!raw) return;
+      const d = new Date(raw);
+      if (Number.isNaN(d.getTime())) return;
+      const key = `${d.getFullYear()}-${d.getMonth()}`;
+      const idx = buckets.indexOf(key);
+      if (idx !== -1) {
+        revenueBuckets[idx].revenue += a.payment.amount || 0;
+      }
+    });
+  }
+
   return (
     <ChartsContainer>
-      <AppointmentTrendChart />
-      <StatusDistributionChart />
-      <DoctorPerformanceChart />
-      <DepartmentAnalyticsChart />
-      <AppointmentBreakdownChart />
-      <RevenueTrackingChart />
+      <AppointmentTrendChart data={trendData} />
+      <StatusDistributionChart data={statusData} />
+      <DoctorPerformanceChart data={docData} />
+      <DepartmentAnalyticsChart data={deptData} />
+      <PaymentStatusChart data={paymentStatusData} />
+      <RevenueTrackingChart data={revenueBuckets} />
     </ChartsContainer>
   );
 };

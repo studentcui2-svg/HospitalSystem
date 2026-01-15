@@ -422,6 +422,8 @@ const DashboardHome = ({
   error,
   stats,
   chart,
+  appointments = [],
+  doctors = [],
   recentAppointments = [],
   user,
   onRefresh,
@@ -506,8 +508,6 @@ const DashboardHome = ({
         ))}
       </StatsGrid>
 
-      <AdvancedChartsSection />
-
       <ChartSection>
         <SectionTitle>Appointments in the Last 6 Months</SectionTitle>
         <SimpleChart
@@ -515,6 +515,13 @@ const DashboardHome = ({
           labels={chart?.labels || []}
           height={220}
           legend="Monthly total"
+        />
+
+        <AdvancedChartsSection
+          appointments={appointments}
+          doctors={doctors}
+          stats={stats}
+          chart={chart}
         />
       </ChartSection>
 
@@ -529,7 +536,6 @@ const DashboardHome = ({
               <TableHead>Doctor</TableHead>
               <TableHead>Department</TableHead>
               <TableHead>Status</TableHead>
-              <TableHead>Visit Type</TableHead>
             </TableRow>
           </TableHeader>
           <tbody>
@@ -548,9 +554,6 @@ const DashboardHome = ({
             ) : (
               recentAppointments.map((appointment) => {
                 const status = appointment.status || "Pending";
-                const visitText = appointment.visitedBefore
-                  ? "Returning"
-                  : "First time";
                 return (
                   <TableRow key={appointment._id}>
                     <TableCell data-label="Patient">
@@ -573,7 +576,6 @@ const DashboardHome = ({
                     <TableCell data-label="Status">
                       <StatusBadge $status={status}>{status}</StatusBadge>
                     </TableCell>
-                    <TableCell data-label="Visit Type">{visitText}</TableCell>
                   </TableRow>
                 );
               })

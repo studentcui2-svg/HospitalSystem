@@ -1,7 +1,13 @@
 import React, { useState } from "react";
 import styled from "styled-components";
 import { motion, AnimatePresence } from "framer-motion";
-import { FaTimes, FaLock, FaUserShield } from "react-icons/fa";
+import {
+  FaTimes,
+  FaLock,
+  FaUserShield,
+  FaEye,
+  FaEyeSlash,
+} from "react-icons/fa";
 import { jsonFetch } from "../utils/api";
 
 // --- Styled Components with 3D Depth ---
@@ -134,6 +140,7 @@ const CloseButton = styled.button`
 const AdminGate = ({ isOpen, onClose, onSuccess, showError, showSuccess }) => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
@@ -218,13 +225,34 @@ const AdminGate = ({ isOpen, onClose, onSuccess, showError, showSuccess }) => {
 
             <InputGroup>
               <Label>PASSWORD</Label>
-              <Input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-              />
+              <div style={{ position: "relative" }}>
+                <Input
+                  type={showPassword ? "text" : "password"}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  required
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((s) => !s)}
+                  style={{
+                    position: "absolute",
+                    right: 10,
+                    top: "50%",
+                    transform: "translateY(-50%)",
+                    background: "none",
+                    border: "none",
+                    color: "#64748b",
+                    cursor: "pointer",
+                    fontSize: 14,
+                    padding: 4,
+                  }}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                >
+                  {showPassword ? <FaEyeSlash /> : <FaEye />}
+                </button>
+              </div>
             </InputGroup>
 
             <Button

@@ -322,6 +322,7 @@ const CloseButton = styled.button`
 // ==================== Stripe Payment Form ====================
 
 const StripePaymentForm = ({
+  appointmentId,
   appointmentData,
   amount,
   onSuccess,
@@ -389,6 +390,7 @@ const StripePaymentForm = ({
       // Step 2: Create payment intent
       console.log("Creating payment intent with amount:", amount);
       const paymentPayload = {
+        appointmentId,
         amount: parseFloat(amount),
         patientName: appointmentData.patientName,
         patientEmail: appointmentData.patientEmail,
@@ -439,7 +441,7 @@ const StripePaymentForm = ({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             paymentIntentId: paymentIntent.id,
-            appointmentData,
+            appointmentId,
           }),
         });
 

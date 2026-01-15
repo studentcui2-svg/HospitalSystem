@@ -18,6 +18,7 @@ const messageRoutes = require("./routes/messages");
 const chatbotRoutes = require("./routes/chatbot");
 const siteContentRoutes = require("./routes/siteContent");
 const paymentRoutes = require("./routes/payments");
+const doctorPanelRoutes = require("./routes/doctorPanel");
 const Message = require("./models/Message");
 
 const app = express();
@@ -46,6 +47,7 @@ app.use("/api/messages", messageRoutes);
 app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/site-content", siteContentRoutes);
 app.use("/api/payments", paymentRoutes);
+app.use("/api/doctor", doctorPanelRoutes);
 
 app.get("/", (req, res) => {
   res.json({ ok: true, message: "Backend running" });

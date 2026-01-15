@@ -5,11 +5,14 @@ import {
   FaPhone,
   FaVenusMars,
   FaIdCard,
+  FaLock,
   FaEdit,
   FaTrash,
   FaSave,
   FaTimes,
   FaCamera,
+  FaEye,
+  FaEyeSlash,
 } from "react-icons/fa";
 
 const DoctorsContainer = styled.div`
@@ -290,6 +293,7 @@ const PhotoEditButton = styled.label`
 const DoctorsList = ({ doctors = [], onUpdateDoctor, onDeleteDoctor }) => {
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleEdit = (doctor) => {
     setEditingId(doctor._id);
@@ -301,6 +305,7 @@ const DoctorsList = ({ doctors = [], onUpdateDoctor, onDeleteDoctor }) => {
       nic: doctor.nic || "",
       gender: doctor.gender || "",
       photo: doctor.photo || "",
+      password: "",
     });
   };
 
@@ -443,6 +448,50 @@ const DoctorsList = ({ doctors = [], onUpdateDoctor, onDeleteDoctor }) => {
                         />
                       ) : (
                         <DetailValue>{doctor.email}</DetailValue>
+                      )}
+                    </DetailContent>
+                  </DetailItem>
+
+                  <DetailItem>
+                    <DetailIcon>
+                      <FaLock />
+                    </DetailIcon>
+                    <DetailContent>
+                      <DetailLabel>Set / Update Password</DetailLabel>
+                      {isEditing ? (
+                        <div style={{ position: "relative" }}>
+                          <EditInput
+                            type={showPassword ? "text" : "password"}
+                            value={editForm.password || ""}
+                            onChange={(e) =>
+                              handleInputChange("password", e.target.value)
+                            }
+                            placeholder="Leave blank to keep existing"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => setShowPassword((s) => !s)}
+                            style={{
+                              position: "absolute",
+                              right: 8,
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              background: "none",
+                              border: "none",
+                              color: "#6b7280",
+                              cursor: "pointer",
+                              fontSize: 14,
+                              padding: 4,
+                            }}
+                            aria-label={
+                              showPassword ? "Hide password" : "Show password"
+                            }
+                          >
+                            {showPassword ? <FaEyeSlash /> : <FaEye />}
+                          </button>
+                        </div>
+                      ) : (
+                        <DetailValue>********</DetailValue>
                       )}
                     </DetailContent>
                   </DetailItem>

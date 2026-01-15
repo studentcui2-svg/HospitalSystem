@@ -60,7 +60,7 @@ router.post("/create-payment-intent", async (req, res) => {
 // Confirm payment and save appointment
 router.post("/confirm-payment", async (req, res) => {
   try {
-    const { paymentIntentId, appointmentData } = req.body;
+    const { paymentIntentId, appointmentData, appointmentId } = req.body;
 
     if (!paymentIntentId) {
       return res.status(400).json({ error: "Payment Intent ID is required" });
@@ -76,7 +76,31 @@ router.post("/confirm-payment", async (req, res) => {
       });
     }
 
-    // Create appointment with payment info
+    // If an appointmentId was provided, update that appointment's payment info
+    if (appointmentId) {
+      const appt = await Appointment.findById(appointmentId);
+      if (!appt) {
+        return res.status(404).json({ error: "Appointment not found" });
+      }
+
+      appt.payment = {
+        status: "completed",
+        paymentIntentId: paymentIntentId,
+        amount: paymentIntent.amount / 100,
+        currency: paymentIntent.currency,
+        paidAt: new Date(),
+        receipt: paymentIntent.receipt_email,
+      };
+
+      await appt.save();
+
+      return res.status(200).json({
+        message: "Payment recorded and appointment updated",
+        appointment: appt,
+      });
+    }
+
+    // Fallback: create appointment with payment info (backwards compatibility)
     const appointment = new Appointment({
       ...appointmentData,
       payment: {

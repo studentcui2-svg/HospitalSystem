@@ -12,6 +12,8 @@ import AppointmentModal from "./Clientside/Appointement";
 import NavBar from "./Clientside/NavBar";
 import AdminDashboard from "./Admin/AdminDashboard";
 import AdminGate from "./Clientside/AdminGate";
+import DoctorPanel from "./Doctor/DoctorPanel";
+import MyAppointments from "./Clientside/MyAppointments";
 
 // --- 1. Global 3D & Glassmorphism Theme ---
 const GlobalStyle = createGlobalStyle`
@@ -99,6 +101,32 @@ const App = () => {
     setIsAppointmentModalOpen(true);
   };
 
+  const navigateToDoctorPanel = () => {
+    handleNavigation("doctor", "/doctor");
+  };
+
+  const navigateToMyAppointments = useCallback(() => {
+    handleNavigation("myappointments", "/my-appointments");
+  }, [handleNavigation]);
+
+  // expose a small global helper used by NavBar (mobile menu nav)
+  useEffect(() => {
+    try {
+      window.__NAV_TO__ = (key) => {
+        if (key === "myappointments") navigateToMyAppointments();
+      };
+    } catch (e) {
+      console.error(e);
+    }
+    return () => {
+      try {
+        delete window.__NAV_TO__;
+      } catch (e) {
+        console.error(e);
+      }
+    };
+  }, [navigateToMyAppointments]);
+
   // --- 4. Auth & State Handlers ---
   const handleLogin = (details) => {
     const role = details?.user?.role || details?.role || "user";
@@ -111,7 +139,9 @@ const App = () => {
     }
 
     toast.success(`Welcome back, ${role}!`);
-    setCurrentPage(role === "admin" ? "admin" : "home");
+    setCurrentPage(
+      role === "admin" ? "admin" : role === "doctor" ? "doctor" : "home"
+    );
   };
 
   const handleLogout = () => {
@@ -129,6 +159,7 @@ const App = () => {
       if (path === "/login") handleNavigation("login", "/login", true);
       else if (path === "/signup") handleNavigation("signup", "/signup", true);
       else if (path === "/admin") setIsAdminGateOpen(true);
+      else if (path === "/doctor") handleNavigation("doctor", "/doctor");
       else setCurrentPage("home");
     };
     window.addEventListener("popstate", syncRoute);
@@ -171,6 +202,7 @@ const App = () => {
               onNavigateToHome={navigateToHome}
               userRole={userRole}
               onNavigateToAdmin={navigateToAdmin}
+              onNavigateToDoctor={navigateToDoctorPanel}
             />
           </M.div>
         )}
@@ -194,6 +226,12 @@ const App = () => {
               isLoggedIn={isLoggedIn}
             />
           )}
+
+          {currentPage === "doctor" && (
+            <DoctorPanel onNavigateToHome={navigateToHome} />
+          )}
+
+          {currentPage === "myappointments" && <MyAppointments />}
 
           {currentPage === "login" && (
             <LoginPage

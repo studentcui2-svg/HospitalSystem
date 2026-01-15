@@ -16,9 +16,13 @@ import {
   FaMapMarkerAlt,
   FaHistory,
   FaCheck,
+  FaLock,
+  FaDownload,
 } from "react-icons/fa";
 import { Zap, Activity, ShieldCheck } from "lucide-react";
 import PaymentModal from "./PaymentModal";
+import { jsonFetch, getAuthToken } from "../utils/api";
+import { toast } from "react-toastify";
 
 // --- 1. Advanced Animations ---
 const pulse = keyframes`
@@ -150,42 +154,39 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
     timezone: Intl.DateTimeFormat().resolvedOptions().timeZone || "",
     address: "",
     visitedBefore: "",
+    // appointment mode: 'online' or 'physical'
+    mode: "online",
+    // for physical appointments: 'online' payment or 'on-site' pay at clinic
+    paymentPreference: "online",
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
+  const [createdAppointmentId, setCreatedAppointmentId] = useState(null);
   const [paymentAmount] = useState(50); // Default $50 for appointment
   const [allDoctors, setAllDoctors] = useState([]);
   const [loadingDoctors, setLoadingDoctors] = useState(false);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
+  const [invoiceHtml, setInvoiceHtml] = useState(null);
+  const [lockedAppointment, setLockedAppointment] = useState(false);
+
+  // derive unique departments from fetched doctors
+  const departments = useMemo(() => {
+    const set = new Set();
+    allDoctors.forEach((d) => {
+      if (d.department) set.add(d.department);
+    });
+    return Array.from(set);
+  }, [allDoctors]);
 
   // Fetch doctors from API
   useEffect(() => {
     const fetchDoctors = async () => {
       try {
         setLoadingDoctors(true);
-        const response = await fetch("/api/doctors");
-        console.log("[DOCTORS API] Response status:", response.status);
-
-        if (!response.ok) {
-          throw new Error(`API responded with status ${response.status}`);
-        }
-
-        const text = await response.text();
-        console.log("[DOCTORS API] Raw response:", text);
-
-        if (!text) {
-          console.error("[DOCTORS API] Empty response");
-          return;
-        }
-
-        const data = JSON.parse(text);
-        console.log("[DOCTORS API] Parsed response:", data);
-
-        if (data.ok && data.doctors) {
-          console.log("[DOCTORS API] Fetched doctors:", data.doctors);
-          setAllDoctors(data.doctors);
-        }
+        const data = await jsonFetch("/api/doctors");
+        if (data && data.doctors) setAllDoctors(data.doctors);
       } catch (error) {
-        console.error("Error fetching doctors:", error);
+        console.error("[DOCTORS API] Error fetching doctors:", error);
       } finally {
         setLoadingDoctors(false);
       }
@@ -195,6 +196,14 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
       fetchDoctors();
     }
   }, [isOpen]);
+  // when departments load, set default department if not already set
+  useEffect(() => {
+    if (departments.length > 0) {
+      setFormData((prev) =>
+        prev.department ? prev : { ...prev, department: departments[0] }
+      );
+    }
+  }, [departments]);
 
   // Filter doctors based on selected department
   const filteredDoctors = useMemo(() => {
@@ -225,6 +234,9 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
     }
   }, [formData.timezone]);
 
+  const isPhysicalOnSite =
+    formData.mode === "physical" && formData.paymentPreference === "on-site";
+
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
@@ -235,15 +247,171 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    // Show payment modal instead of direct submission
-    setShowPayment(true);
-    setIsSubmitting(false);
+    // Ensure user is authenticated before creating appointment
+    const token = getAuthToken();
+    if (!token) {
+      // Redirect to login if not authenticated
+      window.history.pushState({}, "", "/login");
+      window.location.reload();
+      return;
+    }
+
+    try {
+      const appointmentPayload = {
+        patientName: `${formData.firstName} ${formData.lastName}`,
+        patientEmail: formData.email,
+        phone: formData.mobileNumber,
+        cnic: formData.nic,
+        department: formData.department,
+        doctor: formData.doctor,
+        address: formData.address,
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender,
+        notes: `Duration: ${formData.durationMinutes} mins`,
+        visitedBefore: formData.visitedBefore === "yes",
+        date: new Date(formData.appointmentDateTime),
+        durationMinutes: formData.durationMinutes,
+        timezone: formData.timezone,
+        // persist the selected appointment type and payment preference
+        mode: formData.mode,
+        paymentPreference: formData.paymentPreference,
+        amount: paymentAmount,
+      };
+
+      const res = await jsonFetch("/api/appointments", {
+        method: "POST",
+        body: appointmentPayload,
+      });
+
+      if (res && res.appointment && res.appointment._id) {
+        setCreatedAppointmentId(res.appointment._id);
+        // Decide whether to show online payment modal:
+        // - Online appointments: require online payment
+        // - Physical appointments: only show payment modal if paymentPreference === 'online'
+        const needsPayment =
+          appointmentPayload.mode === "online" ||
+          appointmentPayload.paymentPreference === "online";
+
+        if (needsPayment) {
+          setShowPayment(true);
+          // Close the booking modal immediately when showing payment
+          // so the user focuses on the payment flow.
+          onClose();
+          setStep(1);
+          // notify other parts of the app that an appointment was created (pending payment)
+          try {
+            window.dispatchEvent(
+              new CustomEvent("appointments:changed", {
+                detail: { appointment: res.appointment, action: "create" },
+              })
+            );
+          } catch (e) {
+            console.log(e);
+          }
+        } else {
+          // No online payment required (pay on-site). Try to open invoice preview if provided.
+          try {
+            const invoice = res.appointment && res.appointment.invoice;
+            let html = invoice && invoice.html;
+            // If backend didn't provide full HTML, build a simple invoice matching PaymentModal style
+            if (!html) {
+              const ap = res.appointment;
+              const invNum =
+                invoice && invoice.invoiceNumber
+                  ? invoice.invoiceNumber
+                  : `INV-${Date.now()}`;
+              const amountText =
+                (invoice && invoice.amountDue) || paymentAmount;
+              html = `<!doctype html><html><head><meta charset="utf-8"><title>Invoice ${invNum}</title><style>body{font-family:Arial,sans-serif;color:#111;margin:24px} .h{color:#4f46e5;font-weight:700} .box{border:1px solid #e5e7eb;padding:16px;border-radius:8px}</style></head><body><h2 class="h">PAYMENT INVOICE</h2><p><strong>Invoice:</strong> ${invNum}</p><div class="box"><h3>Patient</h3><p><strong>Name:</strong> ${
+                ap.patientName || "-"
+              }<br/><strong>Email:</strong> ${
+                ap.patientEmail || "-"
+              }<br/><strong>Phone:</strong> ${
+                ap.phone || "-"
+              }</p><h3>Appointment</h3><p><strong>Department:</strong> ${
+                ap.department || "-"
+              }<br/><strong>Doctor:</strong> ${
+                ap.doctor || "-"
+              }<br/><strong>Scheduled:</strong> ${new Date(
+                ap.date
+              ).toLocaleString()}</p><h3>Payment</h3><p><strong>Amount Due:</strong> USD ${Number(
+                amountText
+              ).toFixed(2)}<br/><strong>Status:</strong> ${
+                invoice && invoice.status ? invoice.status : "unpaid"
+              }<br/><strong>Note:</strong> ${
+                invoice && invoice.note
+                  ? invoice.note
+                  : "Pay on-site. Not paid at booking."
+              }</p></div><p style="margin-top:18px;color:#6b7280">Please present this invoice at reception.</p></body></html>`;
+            }
+
+            // show invoice inside the app as a modal and mark appointment locked
+            setInvoiceHtml(html);
+            setLockedAppointment(true);
+            setShowInvoiceModal(true);
+            // notify other parts of the app that an appointment was created and locked
+            try {
+              window.dispatchEvent(
+                new CustomEvent("appointments:changed", {
+                  detail: { appointment: res.appointment, action: "create" },
+                })
+              );
+            } catch (e) {
+              console.error(e);
+            }
+          } catch (e) {
+            console.error("Failed to open invoice window", e);
+          }
+
+          if (typeof showSuccess === "function")
+            showSuccess("Appointment Booked — pay at clinic on arrival");
+          else toast.success("Appointment Booked — pay at clinic on arrival");
+        }
+      } else {
+        console.error("Failed to create appointment", res);
+      }
+    } catch (err) {
+      console.error("Create appointment error:", err);
+      if (err && err.status === 409) {
+        const msg = err.data?.message || "Selected slot is already booked";
+        toast.error(msg);
+        setLockedAppointment(false);
+        setShowInvoiceModal(false);
+      } else {
+        toast.error(err.message || "Failed to create appointment");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const handlePaymentSuccess = () => {
-    showSuccess("Appointment Booked & Payment Completed!");
+    if (typeof showSuccess === "function")
+      showSuccess("Appointment Booked & Payment Completed!");
+    else toast.success("Appointment Booked & Payment Completed!");
     setShowPayment(false);
     onClose();
+  };
+
+  const downloadInvoicePdf = () => {
+    if (!invoiceHtml) return;
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(invoiceHtml);
+    w.document.close();
+    // Give the window a moment to render, then trigger print dialog
+    setTimeout(() => {
+      try {
+        w.focus();
+        w.print();
+      } catch (e) {
+        console.error("Print failed", e);
+      }
+    }, 400);
+  };
+
+  const closeInvoice = () => {
+    setShowInvoiceModal(false);
   };
 
   if (!isOpen) return null;
@@ -301,7 +469,7 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
 
               <form onSubmit={handleSubmit}>
                 {/* STEP 1: PERSONAL DETAILS */}
-                {step === 1 && (
+                {step < 3 ? (
                   <motion.div
                     initial={{ x: 20, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
@@ -431,7 +599,7 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                       </div>
                     </div>
                   </motion.div>
-                )}
+                ) : null}
 
                 {/* STEP 2: CLINIC DETAILS */}
                 {step === 2 && (
@@ -439,6 +607,74 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                     initial={{ x: 20, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                   >
+                    <div style={{ marginBottom: "1rem" }}>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "8px",
+                          fontSize: "0.8rem",
+                          fontWeight: 800,
+                          color: "#94a3b8",
+                        }}
+                      >
+                        APPOINTMENT TYPE
+                      </label>
+                      <select
+                        name="mode"
+                        value={formData.mode}
+                        onChange={handleInputChange}
+                        style={{
+                          width: "100%",
+                          padding: "1.1rem",
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                          borderRadius: "16px",
+                          color: "white",
+                        }}
+                      >
+                        <option value="online">Online (Video)</option>
+                        <option value="physical">Physical (In-clinic)</option>
+                      </select>
+                    </div>
+
+                    {/* If physical, let patient choose payment preference */}
+                    {formData.mode === "physical" && (
+                      <div style={{ marginBottom: "1rem" }}>
+                        <label
+                          style={{
+                            display: "block",
+                            marginBottom: "8px",
+                            fontSize: "0.8rem",
+                            fontWeight: 800,
+                            color: "#94a3b8",
+                          }}
+                        >
+                          PAYMENT OPTION
+                        </label>
+                        <div style={{ display: "flex", gap: 12 }}>
+                          <label style={{ display: "flex", gap: 8 }}>
+                            <input
+                              type="radio"
+                              name="paymentPreference"
+                              value="online"
+                              checked={formData.paymentPreference === "online"}
+                              onChange={handleInputChange}
+                            />
+                            Pay Online
+                          </label>
+                          <label style={{ display: "flex", gap: 8 }}>
+                            <input
+                              type="radio"
+                              name="paymentPreference"
+                              value="on-site"
+                              checked={formData.paymentPreference === "on-site"}
+                              onChange={handleInputChange}
+                            />
+                            Pay On-site (at clinic)
+                          </label>
+                        </div>
+                      </div>
+                    )}
                     <div
                       style={{
                         display: "grid",
@@ -465,10 +701,24 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                           value={formData.department}
                           onChange={handleInputChange}
                         >
-                          <option value="Pediatrics">Pediatrics</option>
-                          <option value="Orthopedics">Orthopedics</option>
-                          <option value="Cardiology">Cardiology</option>
-                          <option value="Neurology">Neurology</option>
+                          {departments.length === 0 ? (
+                            <>
+                              <option value="">Select Department</option>
+                              <option value="Pediatrics">Pediatrics</option>
+                              <option value="Orthopedics">Orthopedics</option>
+                              <option value="Cardiology">Cardiology</option>
+                              <option value="Neurology">Neurology</option>
+                            </>
+                          ) : (
+                            <>
+                              <option value="">Select Department</option>
+                              {departments.map((dep) => (
+                                <option key={dep} value={dep}>
+                                  {dep}
+                                </option>
+                              ))}
+                            </>
+                          )}
                         </GlassInput>
                       </div>
                       <div>
@@ -630,10 +880,20 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                   ) : (
                     <ActionButton
                       type="submit"
-                      disabled={isSubmitting}
+                      disabled={isSubmitting || lockedAppointment}
                       style={{ width: "100%" }}
                     >
-                      {isSubmitting ? "Syncing Data..." : "Lock Appointment"}{" "}
+                      {isSubmitting ? (
+                        "Syncing Data..."
+                      ) : lockedAppointment ? (
+                        <>
+                          Locked <FaLock />
+                        </>
+                      ) : isPhysicalOnSite ? (
+                        "Lock Payment"
+                      ) : (
+                        "Lock Appointment"
+                      )}{" "}
                       <FaCheck />
                     </ActionButton>
                   )}
@@ -647,6 +907,7 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
       {showPayment && (
         <PaymentModal
           isOpen={showPayment}
+          appointmentId={createdAppointmentId}
           appointmentData={{
             patientName: `${formData.firstName} ${formData.lastName}`,
             patientEmail: formData.email,
@@ -672,6 +933,75 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
             setStep(1);
           }}
         />
+      )}
+
+      {showInvoiceModal && (
+        <AnimatePresence mode="wait">
+          <Overlay
+            key="invoice-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            onClick={closeInvoice}
+          >
+            <ModalBox
+              key="invoice-modal"
+              onClick={(e) => e.stopPropagation()}
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              transition={{ type: "spring", damping: 20 }}
+              style={{ maxWidth: 800 }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <h3 style={{ margin: 0 }}>Invoice Preview</h3>
+                <motion.button
+                  whileHover={{ rotate: 90 }}
+                  onClick={closeInvoice}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "white",
+                    cursor: "pointer",
+                    fontSize: "1.2rem",
+                  }}
+                >
+                  <FaTimes />
+                </motion.button>
+              </div>
+
+              <div
+                style={{ marginTop: 12, maxHeight: "60vh", overflow: "auto" }}
+              >
+                {invoiceHtml ? (
+                  <div
+                    dangerouslySetInnerHTML={{ __html: invoiceHtml }}
+                    style={{ background: "white", color: "#111", padding: 16 }}
+                  />
+                ) : (
+                  <div>No invoice available</div>
+                )}
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: 12,
+                  marginTop: 16,
+                }}
+              >
+                <ActionButton type="button" onClick={downloadInvoicePdf}>
+                  <FaDownload />
+                  &nbsp;Download PDF
+                </ActionButton>
+                <ActionButton type="button" onClick={closeInvoice}>
+                  Close
+                </ActionButton>
+              </div>
+            </ModalBox>
+          </Overlay>
+        </AnimatePresence>
       )}
     </>
   );
