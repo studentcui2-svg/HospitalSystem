@@ -256,86 +256,20 @@ const NavBar = ({
             </Logo>
           </Brand>
 
-          <NavLinks>
-            <NavLink
-              href="/"
-              onClick={(e) => {
-                e.preventDefault();
-                setMenuOpen(false);
-                onNavigateToHome?.();
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }}
-            >
-              Home
-            </NavLink>
-            <NavLink
-              href="/appointment"
-              onClick={(e) => {
-                e.preventDefault();
-                setMenuOpen(false);
-                if (!isLoggedIn) {
-                  onNavigateToLogin?.(true);
-                } else {
-                  onOpenAppointment?.();
-                }
-              }}
-            >
-              Appointment
-            </NavLink>
-            {isLoggedIn && userRole === "doctor" && (
+          {/* Minimal bar for doctors: only show quick actions + logout */}
+          {userRole === "doctor" ? (
+            <NavLinks style={{ justifyContent: "flex-end" }}>
               <NavLink
                 href="/doctor"
                 onClick={(e) => {
                   e.preventDefault();
                   setMenuOpen(false);
-                  if (!isLoggedIn) onNavigateToLogin?.(true);
-                  else onNavigateToDoctor?.();
-                }}
-              >
-                Doctor Panel
-              </NavLink>
-            )}
-            {isLoggedIn && (
-              <NavLink
-                href="/my-appointments"
-                onClick={(e) => {
-                  e.preventDefault();
-                  setMenuOpen(false);
-                  // navigate to My Appointments
-                  try {
-                    window.__NAV_TO__ && window.__NAV_TO__("myappointments");
-                  } catch (e) {
-                    console.error(e);
-                  }
+                  onNavigateToDoctor?.();
                 }}
               >
                 My Appointments
               </NavLink>
-            )}
-            <NavLink
-              href="#about"
-              onClick={(e) => {
-                e.preventDefault();
-                setMenuOpen(false);
-                document
-                  .getElementById("about")
-                  ?.scrollIntoView({ behavior: "smooth" });
-              }}
-            >
-              About Us
-            </NavLink>
-            <AuthButtons>
-              {!isLoggedIn ? (
-                <LoginButton
-                  href="/login"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onNavigateToLogin?.(true);
-                  }}
-                >
-                  Login
-                </LoginButton>
-              ) : (
+              <AuthButtons>
                 <LoginButton
                   as="button"
                   onClick={onLogout}
@@ -343,9 +277,99 @@ const NavBar = ({
                 >
                   <FaSignOutAlt style={{ marginRight: 8 }} /> Logout
                 </LoginButton>
+              </AuthButtons>
+            </NavLinks>
+          ) : (
+            <NavLinks>
+              <NavLink
+                href="/"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMenuOpen(false);
+                  onNavigateToHome?.();
+                  window.scrollTo({ top: 0, behavior: "smooth" });
+                }}
+              >
+                Home
+              </NavLink>
+              <NavLink
+                href="/appointment"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMenuOpen(false);
+                  if (!isLoggedIn) {
+                    onNavigateToLogin?.(true);
+                  } else {
+                    onOpenAppointment?.();
+                  }
+                }}
+              >
+                Appointment
+              </NavLink>
+              {isLoggedIn && userRole === "doctor" && (
+                <NavLink
+                  href="/doctor"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setMenuOpen(false);
+                    if (!isLoggedIn) onNavigateToLogin?.(true);
+                    else onNavigateToDoctor?.();
+                  }}
+                >
+                  Doctor Panel
+                </NavLink>
               )}
-            </AuthButtons>
-          </NavLinks>
+              {isLoggedIn && (
+                <NavLink
+                  href="/my-appointments"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setMenuOpen(false);
+                    try {
+                      window.__NAV_TO__ && window.__NAV_TO__("myappointments");
+                    } catch (e) {
+                      console.error(e);
+                    }
+                  }}
+                >
+                  My Appointments
+                </NavLink>
+              )}
+              <NavLink
+                href="#about"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMenuOpen(false);
+                  document
+                    .getElementById("about")
+                    ?.scrollIntoView({ behavior: "smooth" });
+                }}
+              >
+                About Us
+              </NavLink>
+              <AuthButtons>
+                {!isLoggedIn ? (
+                  <LoginButton
+                    href="/login"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      onNavigateToLogin?.(true);
+                    }}
+                  >
+                    Login
+                  </LoginButton>
+                ) : (
+                  <LoginButton
+                    as="button"
+                    onClick={onLogout}
+                    style={{ display: "inline-flex", alignItems: "center" }}
+                  >
+                    <FaSignOutAlt style={{ marginRight: 8 }} /> Logout
+                  </LoginButton>
+                )}
+              </AuthButtons>
+            </NavLinks>
+          )}
 
           <MenuButton
             aria-label="Toggle menu"
@@ -382,6 +406,39 @@ const NavBar = ({
             >
               Appointment
             </NavLink>
+            {isLoggedIn && userRole === "doctor" && (
+              <NavLink
+                href="/doctor"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMenuOpen(false);
+                  if (!isLoggedIn) onNavigateToLogin?.(true);
+                  else onNavigateToDoctor?.();
+                }}
+              >
+                Doctor Panel
+              </NavLink>
+            )}
+            {isLoggedIn && (
+              <NavLink
+                href={userRole === "doctor" ? "/doctor" : "/my-appointments"}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMenuOpen(false);
+                  if (userRole === "doctor") {
+                    onNavigateToDoctor?.();
+                  } else {
+                    try {
+                      window.__NAV_TO__ && window.__NAV_TO__("myappointments");
+                    } catch (err) {
+                      console.error(err);
+                    }
+                  }
+                }}
+              >
+                My Appointments
+              </NavLink>
+            )}
             <NavLink
               href="#about"
               onClick={(e) => {

@@ -136,6 +136,8 @@ const App = () => {
     if (details?.token) {
       localStorage.setItem("app_token", details.token);
       window.__APP_TOKEN__ = details.token;
+      // expose the user object globally for components that need name/email
+      window.__APP_USER__ = details.user || null;
     }
 
     toast.success(`Welcome back, ${role}!`);
@@ -237,6 +239,8 @@ const App = () => {
             <LoginPage
               onNavigateToHome={navigateToHome}
               onLogin={handleLogin}
+              onSwitchToSignup={navigateToSignup}
+              showError={(msg) => toast.error(msg)}
               standalone={isLoginStandalone}
             />
           )}
@@ -244,6 +248,10 @@ const App = () => {
           {currentPage === "signup" && (
             <SignupPage
               onNavigateToHome={navigateToHome}
+              onSwitchToLogin={navigateToLogin}
+              showError={(msg) => toast.error(msg)}
+              showSuccess={(msg) => toast.success(msg)}
+              showInfo={(msg) => toast.info(msg)}
               standalone={isSignupStandalone}
             />
           )}

@@ -156,6 +156,18 @@ exports.getAppointments = async (req, res) => {
       q.doctor = { $regex: `^${req.query.doctor}$`, $options: "i" };
     }
 
+    // Restrict non-admin users to see only their own appointments
+    // Admin can see all appointments (via ?all=true) or specific filtered results
+    // Doctor can see appointments by doctor name
+    // Regular users see only appointments they created
+    if (req.userRole !== "admin" && String(req.query.all) !== "true") {
+      q.createdBy = req.userId;
+      console.log(
+        "[GET APPOINTMENTS] Restricting to user appointments:",
+        req.userId
+      );
+    }
+
     // allow admin to request full list when needed via query param `all=true`
     let queryExec = Appointment.find(q).sort({ date: -1 });
     if (String(req.query.all) !== "true") {

@@ -19,6 +19,7 @@ const chatbotRoutes = require("./routes/chatbot");
 const siteContentRoutes = require("./routes/siteContent");
 const paymentRoutes = require("./routes/payments");
 const doctorPanelRoutes = require("./routes/doctorPanel");
+const { initializeWebRTC } = require("./utils/webrtc");
 const Message = require("./models/Message");
 
 const app = express();
@@ -193,6 +194,11 @@ try {
   } catch (err) {
     console.warn("⚠️ Could not set io on controllers:", err && err.message);
   }
+
+  // =====================
+  // Initialize WebRTC Signaling Server
+  // =====================
+  initializeWebRTC(io);
 } catch (err) {
   console.warn("⚠️ Socket.io not initialized:", err.message);
 }

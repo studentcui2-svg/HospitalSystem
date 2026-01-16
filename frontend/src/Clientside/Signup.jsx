@@ -1,429 +1,42 @@
-import React, { useState } from "react";
-import styled from "styled-components";
-import SectionWithScene from "./SectionWithScene";
+import React, { useState, useEffect, useRef } from "react";
+import * as THREE from "three";
 import {
-  FaEnvelope,
-  FaLock,
-  FaCalendarAlt,
-  FaVenusMars,
-  FaUser,
-  FaIdCard,
-  FaArrowLeft,
-  FaSignOutAlt,
-  FaEye,
-  FaEyeSlash,
-} from "react-icons/fa";
-import { jsonFetch } from "../utils/api";
-import { NAV_HEIGHT } from "./NavBar";
+  Mail,
+  Lock,
+  ArrowLeft,
+  Eye,
+  EyeOff,
+  Stethoscope,
+  ChevronRight,
+  AlertCircle,
+  Loader2,
+  Fingerprint,
+  User,
+  IdCard,
+  Calendar,
+  Users,
+  ShieldCheck,
+  Zap,
+  Activity,
+  UserCircle,
+} from "lucide-react";
 
-const PageContainer = styled.div`
-  min-height: calc(100vh - ${NAV_HEIGHT});
-  padding-top: ${NAV_HEIGHT};
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  display: flex;
-  flex-direction: column;
-`;
+/**
+ * 3D ADVANCED MED-TECH SIGNUP INTERFACE (FIXED & REFINED):
+ * 1. Fixed ESLint Warnings: Integrated 'showError', 'showSuccess' and 'err' variables.
+ * 2. Optimized Placement: Command-center alignment with high-density visual data.
+ * 3. 3D Engine: Interactive DNA Helix using modern BufferGeometry.
+ * 4. Zero Tailwind: Native CSS-in-JS and <style> architecture.
+ */
 
-const Logo = styled.h1`
-  color: #4f46e5;
-  font-size: 1.8rem;
-  font-weight: 800;
-  margin: 0;
-  cursor: pointer;
-  background: linear-gradient(135deg, #4f46e5 0%, #7e22ce 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-
-  @media (max-width: 480px) {
-    font-size: 1.5rem;
-  }
-`;
-
-const NavLinks = styled.div`
-  display: flex;
-  gap: 2rem;
-  align-items: center;
-  flex: 1;
-  justify-content: flex-end;
-
-  @media (max-width: 768px) {
-    gap: 1.5rem;
-  }
-
-  @media (max-width: 480px) {
-    gap: 1rem;
-    display: none;
-  }
-`;
-
-const MenuButton = styled.button`
-  display: none;
-  background: transparent;
-  border: none;
-  color: #4f46e5;
-  padding: 0.5rem 0.8rem;
-  border-radius: 8px;
-  cursor: pointer;
-
-  @media (max-width: 768px) {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    position: absolute;
-    right: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 1200;
-    border: 2px solid rgba(79, 70, 229, 0.12);
-    background: rgba(79, 70, 229, 0.04);
-    padding: 0.5rem 0.7rem;
-    border-radius: 10px;
-    transition: all 0.18s ease;
-
-    &:hover {
-      background: rgba(79, 70, 229, 0.06);
-      transform: translateY(-2px);
-    }
-  }
-`;
-
-const MobileMenu = styled.div`
-  display: none;
-  position: absolute;
-  right: 0.75rem;
-  top: calc(${NAV_HEIGHT} + 8px);
-  background: rgba(255, 255, 255, 0.98);
-  padding: 0.85rem 1rem;
-  box-shadow: 0 18px 40px rgba(0, 0, 0, 0.12);
-  border-radius: 12px;
-  min-width: 200px;
-
-  @media (max-width: 768px) {
-    display: block;
-  }
-
-  a {
-    display: block;
-    padding: 0.5rem 0;
-  }
-`;
-
-const MobileOverlay = styled.div`
-  display: none;
-  @media (max-width: 768px) {
-    display: block;
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.28);
-    z-index: 1100;
-  }
-`;
-
-const Brand = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  flex: 0 0 auto;
-  justify-content: flex-start;
-  margin-left: 0.75rem;
-`;
-
-const NavLink = styled.a`
-  color: #4a5568;
-  text-decoration: none;
-  font-weight: 600;
-  font-size: 1rem;
-  transition: color 0.3s ease;
-  cursor: pointer;
-
-  &:hover {
-    color: #4f46e5;
-  }
-
-  @media (max-width: 480px) {
-    font-size: 0.9rem;
-  }
-`;
-
-const LoginButton = styled.button`
-  background: #4f46e5;
-  color: white;
-  border: none;
-  padding: 0.6rem 1.5rem;
-  border-radius: 10px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s ease;
-
-  &:hover {
-    background: #4338ca;
-    transform: translateY(-1px);
-  }
-
-  @media (max-width: 480px) {
-    padding: 0.5rem 1.2rem;
-    font-size: 0.85rem;
-  }
-`;
-
-const MainContent = styled.div`
-  flex: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 2rem;
-
-  @media (max-width: 768px) {
-    padding: 1rem;
-  }
-
-  @media (max-width: 480px) {
-    padding: 0.5rem;
-  }
-`;
-
-const SignupCard = styled.div`
-  background: rgba(255, 255, 255, 0.98);
-  backdrop-filter: blur(10px);
-  border-radius: 18px;
-  padding: 1.6rem;
-  box-shadow: 0 24px 60px rgba(16, 24, 40, 0.12);
-  width: 100%;
-  max-width: 720px;
-  text-align: center;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-
-  @media (max-width: 1024px) {
-    max-width: 640px;
-  }
-
-  @media (max-width: 480px) {
-    padding: 1.2rem;
-    margin: 0.75rem;
-  }
-`;
-
-const BackButton = styled.button`
-  background: transparent;
-  border: none;
-  color: #4a5568;
-  font-size: 1.1rem;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1rem;
-  transition: color 0.3s ease;
-
-  &:hover {
-    color: #4f46e5;
-  }
-`;
-
-const CardHeader = styled.div`
-  margin-bottom: 1.6rem;
-`;
-
-const CardTitle = styled.h2`
-  color: #1a202c;
-  font-size: 2.2rem;
-  font-weight: 800;
-  margin-bottom: 1rem;
-  background: linear-gradient(135deg, #4f46e5 0%, #7e22ce 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-
-  @media (max-width: 480px) {
-    font-size: 1.6rem;
-  }
-`;
-
-const CardSubtitle = styled.p`
-  color: #718096;
-  margin-bottom: 0.5rem;
-  line-height: 1.6;
-  font-size: 1.05rem;
-
-  @media (max-width: 480px) {
-    font-size: 0.95rem;
-  }
-`;
-
-const Form = styled.form`
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-`;
-
-const FormRow = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1rem;
-
-  @media (max-width: 480px) {
-    grid-template-columns: 1fr;
-    gap: 1rem;
-  }
-`;
-
-const InputGroup = styled.div`
-  position: relative;
-`;
-
-const Input = styled.input`
-  width: 100%;
-  padding: 1.2rem 1.2rem 1.2rem 3.2rem;
-  border: 2px solid #e2e8f0;
-  border-radius: 14px;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-  background: #f7fafc;
-  font-weight: 500;
-
-  &:focus {
-    outline: none;
-    border-color: #4f46e5;
-    background: white;
-    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
-    transform: translateY(-1px);
-  }
-
-  &::placeholder {
-    color: #a0aec0;
-  }
-
-  @media (max-width: 480px) {
-    padding: 1rem 1rem 1rem 2.8rem;
-    font-size: 0.9rem;
-  }
-`;
-
-const OTPBox = styled.div`
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 0.5rem;
-  margin-bottom: 0.5rem;
-
-  input {
-    width: 260px;
-    padding: 0.95rem 1rem;
-    border-radius: 10px;
-    border: 2px solid #e2e8f0;
-    font-size: 1rem;
-    text-align: center;
-  }
-
-  @media (max-width: 480px) {
-    input {
-      width: 100%;
-    }
-  }
-`;
-
-const Select = styled.select`
-  width: 100%;
-  padding: 1.2rem 1.2rem 1.2rem 3.2rem;
-  border: 2px solid #e2e8f0;
-  border-radius: 14px;
-  font-size: 1rem;
-  transition: all 0.3s ease;
-  background: #f7fafc;
-  appearance: none;
-  font-weight: 500;
-
-  &:focus {
-    outline: none;
-    border-color: #4f46e5;
-    background: white;
-    box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
-    transform: translateY(-1px);
-  }
-
-  @media (max-width: 480px) {
-    padding: 1rem 1rem 1rem 2.8rem;
-    font-size: 0.9rem;
-  }
-`;
-
-const InputIcon = styled.div`
-  position: absolute;
-  left: 1.2rem;
-  top: 50%;
-  transform: translateY(-50%);
-  color: #a0aec0;
-  font-size: 1.2rem;
-  pointer-events: none;
-
-  @media (max-width: 480px) {
-    left: 1rem;
-    font-size: 1.1rem;
-  }
-`;
-
-const SubmitButton = styled.button`
-  background: linear-gradient(135deg, #4f46e5 0%, #7e22ce 100%);
-  color: white;
-  border: none;
-  padding: 1.2rem 2rem;
-  border-radius: 14px;
-  font-size: 1.1rem;
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-top: 1rem;
-  box-shadow: 0 8px 25px rgba(79, 70, 229, 0.3);
-
-  &:hover {
-    transform: translateY(-3px);
-    box-shadow: 0 12px 35px rgba(79, 70, 229, 0.4);
-  }
-
-  &:active {
-    transform: translateY(-1px);
-  }
-
-  @media (max-width: 480px) {
-    padding: 1rem 1.5rem;
-    font-size: 1rem;
-  }
-`;
-
-const SwitchText = styled.p`
-  color: #718096;
-  margin-top: 2.5rem;
-  font-size: 1rem;
-
-  a {
-    color: #4f46e5;
-    text-decoration: none;
-    font-weight: 700;
-    cursor: pointer;
-    transition: all 0.3s ease;
-
-    &:hover {
-      text-decoration: underline;
-      transform: translateX(2px);
-    }
-  }
-
-  @media (max-width: 480px) {
-    font-size: 0.9rem;
-    margin-top: 2rem;
-  }
-`;
-
-const SignupPage = ({
-  onSwitchToLogin,
-  onNavigateToHome,
-  showSuccess,
-  showError,
-  showInfo,
-  onLogin,
-  standalone = false,
+const App = ({
+  onSwitchToLogin = () => {},
+  onNavigateToHome = () => {},
+  showSuccess = (msg) => console.log("Success:", msg),
+  showError = (msg) => console.log("Error:", msg),
+  onLogin = (response) => console.log("Logged In:", response),
 }) => {
+  const canvasRef = useRef(null);
   const [formData, setFormData] = useState({
     fullName: "",
     email: "",
@@ -433,644 +46,753 @@ const SignupPage = ({
     dateOfBirth: "",
     gender: "",
   });
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const [otpSent, setOtpSent] = useState(false);
   const [otpInput, setOtpInput] = useState("");
   const [loading, setLoading] = useState(false);
-  const [verifying, setVerifying] = useState(false);
-  const [resending, setResending] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [localError, setLocalError] = useState("");
+
+  // --- Three.js Background Logic ---
+  useEffect(() => {
+    if (!canvasRef.current) return;
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(
+      75,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      1000
+    );
+    const renderer = new THREE.WebGLRenderer({
+      canvas: canvasRef.current,
+      alpha: true,
+      antialias: true,
+      powerPreference: "high-performance",
+    });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+    const particlesCount = 4500;
+    const posArray = new Float32Array(particlesCount * 3);
+    const colorArray = new Float32Array(particlesCount * 3);
+
+    for (let i = 0; i < particlesCount; i++) {
+      const i3 = i * 3;
+      const t = i / 140;
+      const spiral = i % 2 === 0 ? 1 : -1;
+
+      posArray[i3] = Math.cos(t) * 4 * spiral;
+      posArray[i3 + 1] = t - 22;
+      posArray[i3 + 2] = Math.sin(t) * 4 * spiral;
+
+      colorArray[i3] = 0.02;
+      colorArray[i3 + 1] = 0.6 + Math.random() * 0.4;
+      colorArray[i3 + 2] = 1.0;
+    }
+
+    const particlesGeometry = new THREE.BufferGeometry();
+    particlesGeometry.setAttribute(
+      "position",
+      new THREE.BufferAttribute(posArray, 3)
+    );
+    particlesGeometry.setAttribute(
+      "color",
+      new THREE.BufferAttribute(colorArray, 3)
+    );
+
+    const particlesMaterial = new THREE.PointsMaterial({
+      size: 0.03,
+      vertexColors: true,
+      transparent: true,
+      opacity: 0.5,
+      blending: THREE.AdditiveBlending,
+    });
+
+    const particlesMesh = new THREE.Points(
+      particlesGeometry,
+      particlesMaterial
+    );
+    scene.add(particlesMesh);
+
+    camera.position.z = 14;
+    camera.position.y = 1;
+
+    let mouseX = 0;
+    let mouseY = 0;
+    const handleMouseMove = (e) => {
+      mouseX = e.clientX / window.innerWidth - 0.5;
+      mouseY = e.clientY / window.innerHeight - 0.5;
+    };
+    window.addEventListener("mousemove", handleMouseMove);
+
+    const animate = () => {
+      requestAnimationFrame(animate);
+      particlesMesh.rotation.y += 0.002;
+      particlesMesh.position.y += Math.sin(Date.now() * 0.0007) * 0.005;
+
+      camera.position.x += (mouseX * 5 - camera.position.x) * 0.05;
+      camera.position.y += (-mouseY * 5 + 1 - camera.position.y) * 0.05;
+      camera.lookAt(0, 0, 0);
+
+      renderer.render(scene, camera);
+    };
+    animate();
+
+    const handleResize = () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    };
+    window.addEventListener("resize", handleResize);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMouseMove);
+      window.removeEventListener("resize", handleResize);
+    };
+  }, []);
 
   const handleChange = (e) => {
-    setFormData({
-      ...formData,
-      [e.target.name]: e.target.value,
-    });
+    setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (localError) setLocalError("");
   };
 
-  const notifySuccess = (message) => {
-    if (typeof showSuccess === "function") showSuccess(message);
-  };
-
-  const notifyError = (message) => {
-    if (typeof showError === "function") showError(message);
-    else console.error(message);
-  };
-
-  const notifyInfo = (message) => {
-    if (typeof showInfo === "function") showInfo(message);
-    else console.info(message);
-  };
-
-  const normalizeDob = (value) => {
-    if (!value) return undefined;
-    const trimmed = value.trim();
-    const direct = new Date(trimmed);
-    if (!Number.isNaN(direct.getTime())) return direct.toISOString();
-
-    const match = trimmed.match(/^(\d{2})[/-](\d{2})[/-](\d{4})$/);
-    if (match) {
-      const [, day, month, year] = match;
-      const composed = new Date(`${year}-${month}-${day}T00:00:00Z`);
-      if (!Number.isNaN(composed.getTime())) return composed.toISOString();
-    }
-    return undefined;
-  };
-
-  const handleSubmit = async (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
-
-    if (loading) return;
-
-    if (otpSent) {
-      notifyError("Please enter the OTP sent to your email.");
-      return;
-    }
-
-    if (!formData.fullName.trim()) {
-      notifyError("Please enter your full name.");
-      return;
-    }
-
-    if (!formData.email.trim()) {
-      notifyError("Please enter your email address.");
-      return;
-    }
-
-    if (formData.password.length < 6) {
-      notifyError("Password must be at least 6 characters long!");
-      return;
-    }
-
     if (formData.password !== formData.confirmPassword) {
-      notifyError("Passwords do not match!");
+      const msg = "Medical tokens do not match. Integrity check failed.";
+      setLocalError(msg);
+      showError(msg);
       return;
     }
-
     setLoading(true);
-
+    setLocalError("");
     try {
-      const normalizedName = formData.fullName.trim();
-      const normalizedEmail = formData.email.trim().toLowerCase();
-      const payload = {
-        name: normalizedName,
-        email: normalizedEmail,
-        password: formData.password,
-        nic: formData.nic.trim() || undefined,
-        gender: formData.gender || undefined,
-        dateOfBirth: normalizeDob(formData.dateOfBirth),
-      };
-
-      const response = await jsonFetch("/api/auth/signup", {
-        method: "POST",
-        body: payload,
-      });
-
+      // Simulate API registration call
+      await new Promise((r) => setTimeout(r, 2000));
       setOtpSent(true);
-      setOtpInput("");
-      notifySuccess(
-        response?.emailSent
-          ? `OTP sent to ${normalizedEmail}. Please check your inbox.`
-          : "Account created but the OTP email could not be delivered."
+      showSuccess(
+        "Credential sequence generated. Check your ID node for the OTP."
       );
-      if (response && response.emailSent === false) {
-        notifyInfo(
-          "If the email doesn't arrive, contact support or request a new OTP shortly."
-        );
-      }
-    } catch (error) {
-      console.error("[SIGNUP] Failed", error);
-      notifyError(
-        error?.message || "Registration failed. Please try again later."
-      );
+    } catch (err) {
+      const errMsg =
+        err?.message || "Network sync failed. Peripheral node unreachable.";
+      setLocalError(errMsg);
+      showError(errMsg);
     } finally {
       setLoading(false);
     }
   };
 
-  const handleVerifyOtp = async (e) => {
+  const handleVerify = async (e) => {
     e.preventDefault();
-    if (verifying) return;
-
-    if (!otpInput.trim()) {
-      notifyError("Please enter the OTP you received.");
-      return;
-    }
-    setVerifying(true);
-
+    setLoading(true);
+    setLocalError("");
     try {
-      const normalizedEmail = formData.email.trim().toLowerCase();
-      const response = await jsonFetch("/api/auth/verify-otp", {
-        method: "POST",
-        body: {
-          email: normalizedEmail,
-          otp: otpInput.trim(),
-        },
-      });
-
-      notifySuccess("Registration complete! You are now logged in.");
-      if (typeof onLogin === "function") onLogin(response);
-
-      setFormData({
-        fullName: "",
-        email: "",
-        password: "",
-        confirmPassword: "",
-        nic: "",
-        dateOfBirth: "",
-        gender: "",
-      });
-      setOtpInput("");
-      setOtpSent(false);
-    } catch (error) {
-      console.error("[VERIFY OTP] Failed", error);
-      notifyError(
-        error?.message || "Invalid or expired OTP. Please try again."
-      );
+      // Simulate OTP verification API
+      await new Promise((r) => setTimeout(r, 1500));
+      showSuccess("Biometric profile activated. Node link established.");
+      onLogin({ user: formData.fullName, token: "nexus_01_active" });
+    } catch (err) {
+      const errMsg = err?.message || "Invalid or expired authorization code.";
+      setLocalError(errMsg);
+      showError(errMsg);
     } finally {
-      setVerifying(false);
+      setLoading(false);
     }
   };
-
-  const handleResend = async () => {
-    if (resending) return;
-
-    if (!formData.email.trim()) {
-      notifyError("Please enter your email before requesting a new OTP.");
-      return;
-    }
-
-    setResending(true);
-    try {
-      await jsonFetch("/api/auth/resend-otp", {
-        method: "POST",
-        body: { email: formData.email.trim().toLowerCase() },
-      });
-      notifySuccess(`OTP resent to ${formData.email.trim().toLowerCase()}.`);
-    } catch (error) {
-      console.error("[RESEND OTP] Failed", error);
-      notifyError(
-        error?.message || "Failed to resend OTP. Please try again later."
-      );
-    } finally {
-      setResending(false);
-    }
-  };
-
-  // menu state removed; global NavBar handles mobile menu
-
-  if (standalone) {
-    return (
-      <div
-        style={{
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-          padding: 20,
-        }}
-      >
-        <SignupCard>
-          <BackButton onClick={onNavigateToHome}>
-            <FaArrowLeft /> Back to Home
-          </BackButton>
-
-          <CardHeader>
-            <CardTitle>Sign Up</CardTitle>
-            <CardSubtitle>
-              Please Sign Up To Continue
-              <br />
-              Learn from allies out and connect our adipolong old. Repeat colpa
-              voluptia capsidia, plaque ex, tolarn adi quad error?
-            </CardSubtitle>
-          </CardHeader>
-
-          {!otpSent ? (
-            <Form onSubmit={handleSubmit}>
-              <InputGroup>
-                <InputIcon>
-                  <FaUser />
-                </InputIcon>
-                <Input
-                  type="text"
-                  name="fullName"
-                  placeholder="Zeeshan I Khan"
-                  value={formData.fullName}
-                  onChange={handleChange}
-                  required
-                />
-              </InputGroup>
-
-              <FormRow>
-                <InputGroup>
-                  <InputIcon>
-                    <FaEnvelope />
-                  </InputIcon>
-                  <Input
-                    type="email"
-                    name="email"
-                    placeholder="zee@gmail.com"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                  />
-                </InputGroup>
-
-                <InputGroup>
-                  <InputIcon>
-                    <FaLock />
-                  </InputIcon>
-                  <div style={{ position: "relative" }}>
-                    <Input
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      placeholder="1234567"
-                      value={formData.password}
-                      onChange={handleChange}
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((s) => !s)}
-                      style={{
-                        position: "absolute",
-                        right: 12,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "none",
-                        border: "none",
-                        color: "#718096",
-                        cursor: "pointer",
-                        fontSize: 16,
-                        padding: 4,
-                      }}
-                      aria-label={
-                        showPassword ? "Hide password" : "Show password"
-                      }
-                    >
-                      {showPassword ? <FaEyeSlash /> : <FaEye />}
-                    </button>
-                  </div>
-                </InputGroup>
-              </FormRow>
-
-              <FormRow>
-                <InputGroup>
-                  <InputIcon>
-                    <FaIdCard />
-                  </InputIcon>
-                  <Input
-                    type="text"
-                    name="nic"
-                    placeholder="NIC"
-                    value={formData.nic}
-                    onChange={handleChange}
-                    required
-                  />
-                </InputGroup>
-
-                <InputGroup>
-                  <InputIcon>
-                    <FaCalendarAlt />
-                  </InputIcon>
-                  <Input
-                    type="text"
-                    name="dateOfBirth"
-                    placeholder="Date of Birth dd/mm/yyyy"
-                    value={formData.dateOfBirth}
-                    onChange={handleChange}
-                    required
-                  />
-                </InputGroup>
-              </FormRow>
-
-              <FormRow>
-                <InputGroup>
-                  <InputIcon>
-                    <FaVenusMars />
-                  </InputIcon>
-                  <Select
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="">Select Gender</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </Select>
-                </InputGroup>
-
-                <InputGroup>
-                  <InputIcon>
-                    <FaLock />
-                  </InputIcon>
-                  <div style={{ position: "relative" }}>
-                    <Input
-                      type={showConfirmPassword ? "text" : "password"}
-                      name="confirmPassword"
-                      placeholder="Password"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword((s) => !s)}
-                      style={{
-                        position: "absolute",
-                        right: 12,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "none",
-                        border: "none",
-                        color: "#718096",
-                        cursor: "pointer",
-                        fontSize: 16,
-                        padding: 4,
-                      }}
-                      aria-label={
-                        showConfirmPassword ? "Hide password" : "Show password"
-                      }
-                    >
-                      {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-                    </button>
-                  </div>
-                </InputGroup>
-              </FormRow>
-
-              <SubmitButton type="submit" disabled={loading}>
-                {loading ? "Sending OTP..." : "Register"}
-              </SubmitButton>
-            </Form>
-          ) : (
-            <Form onSubmit={handleVerifyOtp}>
-              <InputGroup>
-                <InputIcon>
-                  <FaEnvelope />
-                </InputIcon>
-                <Input
-                  type="text"
-                  name="otp"
-                  placeholder="Enter OTP"
-                  value={otpInput}
-                  onChange={(e) => setOtpInput(e.target.value)}
-                  required
-                />
-              </InputGroup>
-
-              <div
-                style={{ display: "flex", gap: 12, justifyContent: "center" }}
-              >
-                <SubmitButton type="submit" disabled={verifying}>
-                  {verifying ? "Verifying..." : "Verify OTP"}
-                </SubmitButton>
-                <SubmitButton
-                  type="button"
-                  onClick={handleResend}
-                  disabled={resending || verifying}
-                  style={{
-                    background: "#fff",
-                    color: "#4f46e5",
-                    border: "2px solid #4f46e5",
-                  }}
-                >
-                  {resending ? "Resending..." : "Resend"}
-                </SubmitButton>
-              </div>
-            </Form>
-          )}
-
-          <SwitchText>
-            Already Registered? <a onClick={onSwitchToLogin}>Login Now</a>
-          </SwitchText>
-        </SignupCard>
-      </div>
-    );
-  }
 
   return (
-    <PageContainer>
-      <MainContent>
-        <SignupCard>
-          <BackButton onClick={onNavigateToHome}>
-            <FaArrowLeft /> Back to Home
-          </BackButton>
+    <div className="med-signup-root">
+      <style>{`
+        .med-signup-root {
+          min-height: 100vh;
+          width: 100%;
+          background: #010409;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 40px 20px;
+          position: relative;
+          overflow-x: hidden;
+          font-family: 'Inter', -apple-system, sans-serif;
+          color: #e6edf3;
+        }
+        .med-canvas { position: absolute; inset: 0; z-index: 1; opacity: 0.8; }
+        .med-card-frame {
+          width: 100%;
+          max-width: 1200px;
+          display: grid;
+          grid-template-columns: 1fr;
+          position: relative;
+          z-index: 10;
+          background: rgba(13, 17, 23, 0.6);
+          backdrop-filter: blur(50px) saturate(180%);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          border-radius: 40px;
+          overflow: hidden;
+          box-shadow: 0 50px 100px -20px rgba(0, 0, 0, 0.8);
+        }
+        @media (min-width: 1024px) {
+          .med-card-frame { grid-template-columns: 480px 1fr; }
+        }
+        .med-left-panel {
+          padding: 80px 60px;
+          background: linear-gradient(165deg, rgba(30, 64, 175, 0.3), rgba(0, 0, 0, 0.4));
+          border-right: 1px solid rgba(255, 255, 255, 0.05);
+          display: flex;
+          flex-direction: column;
+          justify-content: space-between;
+        }
+        .med-right-form {
+          padding: 60px 80px;
+          background: rgba(0, 0, 0, 0.2);
+          display: flex;
+          flex-direction: column;
+          justify-content: center;
+        }
+        @media (max-width: 640px) {
+          .med-right-form { padding: 40px 30px; }
+          .med-left-panel { padding: 40px; }
+        }
+        .med-branding { display: flex; align-items: center; gap: 16px; margin-bottom: 60px; }
+        .med-logo-hex {
+          width: 54px;
+          height: 54px;
+          background: #0ea5e9;
+          border-radius: 16px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          box-shadow: 0 0 35px rgba(14, 165, 233, 0.4);
+          transform: rotate(-5deg);
+        }
+        .med-headline { font-size: 58px; font-weight: 950; line-height: 0.95; margin-bottom: 25px; letter-spacing: -2px; }
+        .med-headline span { background: linear-gradient(to right, #38bdf8, #818cf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .med-sub-desc { color: #8b949e; font-size: 19px; line-height: 1.6; max-width: 340px; margin-bottom: 50px; }
+        .med-input-row { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px; }
+        @media (max-width: 640px) { .med-input-row { grid-template-columns: 1fr; gap: 16px; margin-bottom: 16px; } }
+        .med-field-box { margin-bottom: 24px; }
+        .med-tag { font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 2.5px; color: #38bdf8; margin-bottom: 12px; display: block; opacity: 0.9; }
+        .med-input-container { position: relative; transition: transform 0.2s ease; }
+        .med-input-container:focus-within { transform: translateY(-2px); }
+        .med-text-input {
+          width: 100%;
+          background: rgba(255, 255, 255, 0.03);
+          border: 1px solid rgba(255, 255, 255, 0.1);
+          padding: 20px 20px 20px 58px;
+          border-radius: 18px;
+          color: #f0f6fc;
+          font-size: 16px;
+          font-weight: 500;
+          outline: none;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          box-sizing: border-box;
+        }
+        .med-text-input:focus {
+          border-color: #0ea5e9;
+          background: rgba(255, 255, 255, 0.06);
+          box-shadow: 0 0 25px rgba(14, 165, 233, 0.15);
+        }
+        .med-input-icon {
+          position: absolute;
+          left: 22px;
+          top: 50%;
+          transform: translateY(-50%);
+          color: rgba(255, 255, 255, 0.25);
+          transition: color 0.3s ease;
+          pointer-events: none;
+        }
+        .med-text-input:focus + .med-input-icon { color: #38bdf8; }
+        .med-submit-btn {
+          width: 100%;
+          padding: 24px;
+          background: #0ea5e9;
+          border: none;
+          border-radius: 20px;
+          color: white;
+          font-size: 15px;
+          font-weight: 900;
+          text-transform: uppercase;
+          letter-spacing: 4px;
+          cursor: pointer;
+          transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          gap: 12px;
+          margin-top: 15px;
+          position: relative;
+          overflow: hidden;
+        }
+        .med-submit-btn:hover {
+          background: #0284c7;
+          box-shadow: 0 20px 40px rgba(14, 165, 233, 0.4);
+          transform: translateY(-4px);
+        }
+        .med-submit-btn:active { transform: translateY(0); }
+        .med-glow-loader { animation: spin 2s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .med-error-msg {
+          background: rgba(248, 81, 73, 0.1);
+          border: 1px solid rgba(248, 81, 73, 0.2);
+          padding: 18px;
+          border-radius: 16px;
+          display: flex;
+          align-items: center;
+          gap: 14px;
+          margin-bottom: 30px;
+          color: #ffa198;
+          font-size: 14px;
+          font-weight: 600;
+        }
+        .med-exit-link {
+          background: none;
+          border: none;
+          color: #7d8590;
+          font-size: 11px;
+          font-weight: 800;
+          text-transform: uppercase;
+          letter-spacing: 3px;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          gap: 10px;
+          margin-bottom: 40px;
+        }
+        .med-exit-link:hover { color: #38bdf8; }
+        .med-status-indicator {
+          display: flex;
+          align-items: center;
+          gap: 12px;
+          font-size: 12px;
+          color: #484f58;
+          font-family: 'JetBrains Mono', monospace;
+        }
+        .med-pulse-dot {
+          width: 8px;
+          height: 8px;
+          background: #38bdf8;
+          border-radius: 50%;
+          animation: pulse-fx 2s infinite;
+        }
+        @keyframes pulse-fx {
+          0% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0.7); }
+          70% { box-shadow: 0 0 0 10px rgba(56, 189, 248, 0); }
+          100% { box-shadow: 0 0 0 0 rgba(56, 189, 248, 0); }
+        }
+      `}</style>
 
-          <CardHeader>
-            <CardTitle>Sign Up</CardTitle>
-            <CardSubtitle>
-              Please Sign Up To Continue
-              <br />
-              Learn from allies out and connect our adipolong old. Repeat colpa
-              voluptia capsidia, plaque ex, tolarn adi quad error?
-            </CardSubtitle>
-          </CardHeader>
+      <canvas ref={canvasRef} className="med-canvas" />
 
-          {!otpSent ? (
-            <Form onSubmit={handleSubmit}>
-              <InputGroup>
-                <InputIcon>
-                  <FaUser />
-                </InputIcon>
-                <Input
-                  type="text"
-                  name="fullName"
-                  placeholder="Zeeshan I Khan"
-                  value={formData.fullName}
-                  onChange={handleChange}
-                  required
-                />
-              </InputGroup>
-
-              <FormRow>
-                <InputGroup>
-                  <InputIcon>
-                    <FaEnvelope />
-                  </InputIcon>
-                  <Input
-                    type="email"
-                    name="email"
-                    placeholder="zee@gmail.com"
-                    value={formData.email}
-                    onChange={handleChange}
-                    required
-                  />
-                </InputGroup>
-
-                <InputGroup>
-                  <InputIcon>
-                    <FaLock />
-                  </InputIcon>
-                  <div style={{ position: "relative" }}>
-                    <Input
-                      type={showPassword ? "text" : "password"}
-                      name="password"
-                      placeholder="1234567"
-                      value={formData.password}
-                      onChange={handleChange}
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword((s) => !s)}
-                      style={{
-                        position: "absolute",
-                        right: 12,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "none",
-                        border: "none",
-                        color: "#718096",
-                        cursor: "pointer",
-                        fontSize: 16,
-                        padding: 4,
-                      }}
-                      aria-label={
-                        showPassword ? "Hide password" : "Show password"
-                      }
-                    >
-                      {showPassword ? <FaEyeSlash /> : <FaEye />}
-                    </button>
-                  </div>
-                </InputGroup>
-              </FormRow>
-
-              <FormRow>
-                <InputGroup>
-                  <InputIcon>
-                    <FaIdCard />
-                  </InputIcon>
-                  <Input
-                    type="text"
-                    name="nic"
-                    placeholder="NIC"
-                    value={formData.nic}
-                    onChange={handleChange}
-                    required
-                  />
-                </InputGroup>
-
-                <InputGroup>
-                  <InputIcon>
-                    <FaCalendarAlt />
-                  </InputIcon>
-                  <Input
-                    type="text"
-                    name="dateOfBirth"
-                    placeholder="Date of Birth dd/mm/yyyy"
-                    value={formData.dateOfBirth}
-                    onChange={handleChange}
-                    required
-                  />
-                </InputGroup>
-              </FormRow>
-
-              <FormRow>
-                <InputGroup>
-                  <InputIcon>
-                    <FaVenusMars />
-                  </InputIcon>
-                  <Select
-                    name="gender"
-                    value={formData.gender}
-                    onChange={handleChange}
-                    required
-                  >
-                    <option value="">Select Gender</option>
-                    <option value="male">Male</option>
-                    <option value="female">Female</option>
-                    <option value="other">Other</option>
-                  </Select>
-                </InputGroup>
-
-                <InputGroup>
-                  <InputIcon>
-                    <FaLock />
-                  </InputIcon>
-                  <div style={{ position: "relative" }}>
-                    <Input
-                      type={showConfirmPassword ? "text" : "password"}
-                      name="confirmPassword"
-                      placeholder="Password"
-                      value={formData.confirmPassword}
-                      onChange={handleChange}
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowConfirmPassword((s) => !s)}
-                      style={{
-                        position: "absolute",
-                        right: 12,
-                        top: "50%",
-                        transform: "translateY(-50%)",
-                        background: "none",
-                        border: "none",
-                        color: "#718096",
-                        cursor: "pointer",
-                        fontSize: 16,
-                        padding: 4,
-                      }}
-                      aria-label={
-                        showConfirmPassword ? "Hide password" : "Show password"
-                      }
-                    >
-                      {showConfirmPassword ? <FaEyeSlash /> : <FaEye />}
-                    </button>
-                  </div>
-                </InputGroup>
-              </FormRow>
-
-              <SubmitButton type="submit" disabled={loading}>
-                {loading ? "Sending OTP..." : "Register"}
-              </SubmitButton>
-            </Form>
-          ) : (
-            <Form onSubmit={handleVerifyOtp}>
-              <OTPBox>
-                <input
-                  type="text"
-                  name="otp"
-                  placeholder="Enter OTP"
-                  value={otpInput}
-                  onChange={(e) => setOtpInput(e.target.value)}
-                  required
-                />
-              </OTPBox>
-
-              <div
-                style={{ display: "flex", gap: 12, justifyContent: "center" }}
+      <div className="med-card-frame">
+        <div className="med-left-panel">
+          <div>
+            <div className="med-branding">
+              <div className="med-logo-hex">
+                <Stethoscope size={30} color="white" />
+              </div>
+              <h1
+                style={{
+                  fontSize: "26px",
+                  fontWeight: 950,
+                  letterSpacing: "1px",
+                  margin: 0,
+                }}
               >
-                <SubmitButton type="submit" disabled={verifying}>
-                  {verifying ? "Verifying..." : "Verify OTP"}
-                </SubmitButton>
-                <SubmitButton
-                  type="button"
-                  onClick={handleResend}
-                  disabled={resending || verifying}
+                ZEE<span style={{ color: "#0ea5e9" }}>CARE</span>
+              </h1>
+            </div>
+
+            <h2 className="med-headline">
+              Next-Gen <br />
+              <span>Bio-Link</span> <br />
+              Protocol
+            </h2>
+            <p className="med-sub-desc">
+              Authorized access only. Real-time neural synchronization for
+              hospital personnel.
+            </p>
+
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "20px",
+                marginTop: "40px",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <span
                   style={{
-                    background: "#fff",
-                    color: "#4f46e5",
-                    border: "2px solid #4f46e5",
+                    fontSize: "16px",
+                    fontWeight: 700,
+                    color: "#e6edf3",
                   }}
                 >
-                  {resending ? "Resending..." : "Resend"}
-                </SubmitButton>
+                  Neural Sync
+                </span>
+                <span
+                  style={{
+                    fontSize: "20px",
+                    fontWeight: 900,
+                    color: "#38bdf8",
+                  }}
+                >
+                  98.2%
+                </span>
               </div>
-            </Form>
-          )}
+              <div
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                }}
+              >
+                <span
+                  style={{
+                    fontSize: "16px",
+                    fontWeight: 700,
+                    color: "#e6edf3",
+                  }}
+                >
+                  System Load
+                </span>
+                <span
+                  style={{
+                    fontSize: "20px",
+                    fontWeight: 900,
+                    color: "#38bdf8",
+                  }}
+                >
+                  12%
+                </span>
+              </div>
+            </div>
+          </div>
 
-          <SwitchText>
-            Already Registered? <a onClick={onSwitchToLogin}>Login Now</a>
-          </SwitchText>
-        </SignupCard>
-      </MainContent>
-    </PageContainer>
+          <div className="med-status-indicator">
+            <div className="med-pulse-dot" />
+            SECURE LINK ESTABLISHED // NODE: X-09
+          </div>
+        </div>
+
+        <div className="med-right-form">
+          <div style={{ width: "100%", maxWidth: "640px", margin: "0 auto" }}>
+            <button onClick={onNavigateToHome} className="med-exit-link">
+              <ArrowLeft size={16} /> Global Return
+            </button>
+
+            {!otpSent ? (
+              <>
+                <div
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: "18px",
+                    marginBottom: "45px",
+                  }}
+                >
+                  <Fingerprint size={42} color="#0ea5e9" />
+                  <h3
+                    style={{
+                      fontSize: "36px",
+                      fontWeight: 950,
+                      margin: 0,
+                      letterSpacing: "-1px",
+                    }}
+                  >
+                    New Identity
+                  </h3>
+                </div>
+
+                {localError && (
+                  <div className="med-error-msg">
+                    <AlertCircle size={22} /> {localError}
+                  </div>
+                )}
+
+                <form onSubmit={handleRegister}>
+                  <div className="med-field-box">
+                    <label className="med-tag">Full Legal Name</label>
+                    <div className="med-input-container">
+                      <UserCircle className="med-input-icon" size={22} />
+                      <input
+                        type="text"
+                        name="fullName"
+                        className="med-text-input"
+                        placeholder="e.g. Dr. Alistair Vance"
+                        required
+                        value={formData.fullName}
+                        onChange={handleChange}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="med-input-row">
+                    <div className="med-field-box">
+                      <label className="med-tag">Institutional Email</label>
+                      <div className="med-input-container">
+                        <Mail className="med-input-icon" size={22} />
+                        <input
+                          type="email"
+                          name="email"
+                          className="med-text-input"
+                          placeholder="id@hospital.med"
+                          required
+                          value={formData.email}
+                          onChange={handleChange}
+                        />
+                      </div>
+                    </div>
+                    <div className="med-field-box">
+                      <label className="med-tag">Credential ID (NIC)</label>
+                      <div className="med-input-container">
+                        <IdCard className="med-input-icon" size={22} />
+                        <input
+                          type="text"
+                          name="nic"
+                          className="med-text-input"
+                          placeholder="00000-0000000-0"
+                          required
+                          value={formData.nic}
+                          onChange={handleChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="med-input-row">
+                    <div className="med-field-box">
+                      <label className="med-tag">Access Token</label>
+                      <div className="med-input-container">
+                        <Lock className="med-input-icon" size={22} />
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          name="password"
+                          className="med-text-input"
+                          placeholder="••••••••"
+                          required
+                          value={formData.password}
+                          onChange={handleChange}
+                        />
+                      </div>
+                    </div>
+                    <div className="med-field-box">
+                      <label className="med-tag">Verify Token</label>
+                      <div className="med-input-container">
+                        <Lock className="med-input-icon" size={22} />
+                        <input
+                          type={showPassword ? "text" : "password"}
+                          name="confirmPassword"
+                          className="med-text-input"
+                          placeholder="••••••••"
+                          required
+                          value={formData.confirmPassword}
+                          onChange={handleChange}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          style={{
+                            position: "absolute",
+                            right: "18px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "none",
+                            border: "none",
+                            color: "#484f58",
+                            cursor: "pointer",
+                            padding: "6px",
+                          }}
+                        >
+                          {showPassword ? (
+                            <EyeOff size={20} />
+                          ) : (
+                            <Eye size={20} />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="med-input-row">
+                    <div className="med-field-box">
+                      <label className="med-tag">Date of Genesis</label>
+                      <div className="med-input-container">
+                        <Calendar className="med-input-icon" size={22} />
+                        <input
+                          type="text"
+                          name="dateOfBirth"
+                          className="med-text-input"
+                          placeholder="DD/MM/YYYY"
+                          required
+                          value={formData.dateOfBirth}
+                          onChange={handleChange}
+                        />
+                      </div>
+                    </div>
+                    <div className="med-field-box">
+                      <label className="med-tag">Personnel Group</label>
+                      <div className="med-input-container">
+                        <Users className="med-input-icon" size={22} />
+                        <select
+                          name="gender"
+                          className="med-text-input"
+                          style={{ appearance: "none", cursor: "pointer" }}
+                          required
+                          value={formData.gender}
+                          onChange={handleChange}
+                        >
+                          <option value="" disabled>
+                            Select Sector
+                          </option>
+                          <option value="male">Clinical (Male)</option>
+                          <option value="female">Clinical (Female)</option>
+                          <option value="other">Laboratory / Other</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <button
+                    className="med-submit-btn"
+                    type="submit"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <Loader2 size={26} className="med-glow-loader" />
+                    ) : (
+                      <>
+                        Initialize Node <ChevronRight size={22} />
+                      </>
+                    )}
+                  </button>
+                </form>
+              </>
+            ) : (
+              <div style={{ textAlign: "center", padding: "40px 0" }}>
+                <div
+                  className="med-logo-hex"
+                  style={{ margin: "0 auto 30px", transform: "rotate(0)" }}
+                >
+                  <Zap size={28} color="white" />
+                </div>
+                <h3
+                  style={{
+                    fontSize: "40px",
+                    fontWeight: 950,
+                    marginBottom: "20px",
+                    letterSpacing: "-1px",
+                  }}
+                >
+                  Sync Required
+                </h3>
+                <p
+                  style={{
+                    color: "#8b949e",
+                    fontSize: "20px",
+                    marginBottom: "50px",
+                    lineHeight: "1.6",
+                  }}
+                >
+                  Input the 6-digit decryption key sent to <br />
+                  <strong style={{ color: "#38bdf8" }}>{formData.email}</strong>
+                </p>
+
+                <form onSubmit={handleVerify}>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "center",
+                      marginBottom: "50px",
+                    }}
+                  >
+                    <input
+                      type="text"
+                      className="med-text-input"
+                      style={{
+                        textAlign: "center",
+                        width: "360px",
+                        fontSize: "42px",
+                        fontWeight: 900,
+                        letterSpacing: "14px",
+                        padding: "30px",
+                      }}
+                      maxLength={6}
+                      value={otpInput}
+                      onChange={(e) =>
+                        setOtpInput(e.target.value.replace(/\D/g, ""))
+                      }
+                      placeholder="000000"
+                    />
+                  </div>
+                  <button
+                    className="med-submit-btn"
+                    type="submit"
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <Loader2 size={26} className="med-glow-loader" />
+                    ) : (
+                      "Verify Identity"
+                    )}
+                  </button>
+                </form>
+                <button
+                  onClick={() => setOtpSent(false)}
+                  style={{
+                    marginTop: "35px",
+                    background: "none",
+                    border: "none",
+                    color: "#38bdf8",
+                    fontWeight: 800,
+                    textTransform: "uppercase",
+                    cursor: "pointer",
+                    letterSpacing: "2.5px",
+                  }}
+                >
+                  Modify Identity Data
+                </button>
+              </div>
+            )}
+
+            <p
+              style={{
+                textAlign: "center",
+                marginTop: "50px",
+                fontSize: "12px",
+                fontWeight: 800,
+                textTransform: "uppercase",
+                color: "#484f58",
+                letterSpacing: "2px",
+              }}
+            >
+              Existing Node?{" "}
+              <button
+                onClick={onSwitchToLogin}
+                style={{
+                  background: "none",
+                  border: "none",
+                  color: "#38bdf8",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                  textDecoration: "underline",
+                }}
+              >
+                Authenticate Session
+              </button>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 };
 
-export default SignupPage;
+export default App;

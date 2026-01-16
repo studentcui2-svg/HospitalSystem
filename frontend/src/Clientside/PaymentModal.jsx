@@ -706,6 +706,7 @@ const StripePaymentForm = ({
 
 export const PaymentModal = ({
   isOpen,
+  appointmentId,
   appointmentData,
   amount,
   onSuccess,
@@ -726,6 +727,7 @@ export const PaymentModal = ({
 
         <Elements stripe={stripePromise}>
           <StripePaymentForm
+            appointmentId={appointmentId}
             appointmentData={appointmentData}
             amount={amount}
             onSuccess={onSuccess}

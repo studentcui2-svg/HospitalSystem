@@ -21,7 +21,7 @@ import {
 } from "react-icons/fa";
 import { Zap, Activity, ShieldCheck } from "lucide-react";
 import PaymentModal from "./PaymentModal";
-import { jsonFetch, getAuthToken } from "../utils/api";
+import { jsonFetch } from "../utils/api";
 import { toast } from "react-toastify";
 
 // --- 1. Advanced Animations ---
@@ -247,14 +247,6 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    // Ensure user is authenticated before creating appointment
-    const token = getAuthToken();
-    if (!token) {
-      // Redirect to login if not authenticated
-      window.history.pushState({}, "", "/login");
-      window.location.reload();
-      return;
-    }
 
     try {
       const appointmentPayload = {
@@ -294,10 +286,9 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
 
         if (needsPayment) {
           setShowPayment(true);
-          // Close the booking modal immediately when showing payment
-          // so the user focuses on the payment flow.
-          onClose();
-          setStep(1);
+          // Keep the booking modal open while payment is processed.
+          // The user can close the booking modal manually or it will
+          // be closed when the appointment is locked/completed.
           // notify other parts of the app that an appointment was created (pending payment)
           try {
             window.dispatchEvent(

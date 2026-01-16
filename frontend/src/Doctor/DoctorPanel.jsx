@@ -2,6 +2,9 @@ import React, { useEffect, useState } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import styled from "styled-components";
 import { jsonFetch } from "../utils/api";
+import VideoCall from "../Clientside/VideoCall";
+import IncomingCallModal from "../Clientside/IncomingCallModal";
+import io from "socket.io-client";
 
 const Container = styled.div`
   max-width: 1100px;
@@ -20,6 +23,20 @@ const Table = styled.table`
   border-radius: 8px;
   overflow: hidden;
   box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+
+  @media (max-width: 767px) {
+    display: block;
+    border: none;
+
+    thead {
+      display: none;
+    }
+
+    tbody {
+      display: block;
+      gap: 1rem;
+    }
+  }
 `;
 
 const Th = styled.th`
@@ -29,11 +46,25 @@ const Th = styled.th`
   font-weight: 700;
   color: #111827;
   font-size: 0.95rem;
+
+  @media (max-width: 767px) {
+    display: none;
+  }
 `;
 
 const Tr = styled.tr`
   &:nth-child(even) {
     background: #fbfbfd;
+  }
+
+  @media (max-width: 767px) {
+    display: block;
+    background: #f9fafb;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    border-bottom: none;
   }
 `;
 
@@ -42,6 +73,31 @@ const Td = styled.td`
   vertical-align: middle;
   color: #111827;
   font-size: 0.95rem;
+
+  @media (max-width: 767px) {
+    display: block;
+    padding: 0.5rem 0;
+    text-align: left;
+    border-bottom: none;
+
+    &::before {
+      content: attr(data-label);
+      font-weight: 700;
+      color: #374151;
+      margin-right: 0.5rem;
+      display: inline-block;
+      width: 120px;
+    }
+
+    &:last-child {
+      text-align: left;
+      margin-top: 0.5rem;
+
+      &::before {
+        display: none;
+      }
+    }
+  }
 `;
 
 const Badge = styled.span`
@@ -51,7 +107,7 @@ const Badge = styled.span`
   font-weight: 700;
   font-size: 0.82rem;
   color: #fff;
-  background: ${(p) => p.bg || "#6b7280"};
+  background: ${(p) => p.$bg || "#6b7280"};
 `;
 
 const ActionButton = styled.button`
@@ -62,9 +118,16 @@ const ActionButton = styled.button`
   cursor: pointer;
   color: white;
   margin-left: 8px;
-  background: ${(p) => p.bg || "#4f46e5"};
+  background: ${(p) => p.$bg || "#4f46e5"};
   opacity: ${(p) => (p.disabled ? 0.6 : 1)};
   cursor: ${(p) => (p.disabled ? "not-allowed" : "pointer")};
+
+  @media (max-width: 767px) {
+    display: block;
+    width: 100%;
+    margin-left: 0;
+    margin-top: 8px;
+  }
 `;
 
 const Small = styled.div`
@@ -79,6 +142,17 @@ const ProfileBox = styled.div`
   border-radius: 8px;
   box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
   margin-bottom: 12px;
+
+  form {
+    @media (max-width: 767px) {
+      flex-direction: column !important;
+      align-items: stretch !important;
+
+      > div {
+        width: 100%;
+      }
+    }
+  }
 `;
 
 const DoctorPanel = () => {
@@ -91,6 +165,9 @@ const DoctorPanel = () => {
   const [changing, setChanging] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
+  const [activeCall, setActiveCall] = useState(null);
+  const [incomingCall, setIncomingCall] = useState(null);
+  const [socket, setSocket] = useState(null);
 
   useEffect(() => {
     const load = async () => {
@@ -117,6 +194,58 @@ const DoctorPanel = () => {
     };
     load();
   }, []);
+
+  // Separate useEffect for socket setup that depends on appointments and doctorName
+  useEffect(() => {
+    console.log(
+      "[DoctorPanel] Socket setup useEffect triggered, appointments:",
+      appointments.length,
+      "doctorName:",
+      doctorName
+    );
+
+    if (appointments.length === 0 || !doctorName) {
+      console.log("[DoctorPanel] Missing data, skipping socket setup");
+      return;
+    }
+
+    // Setup socket for incoming calls from patients
+    const newSocket = io("http://localhost:5000", {
+      path: "/socket.io",
+      transports: ["websocket", "polling"],
+    });
+
+    console.log("[DoctorPanel] Socket created for incoming patient calls");
+    setSocket(newSocket);
+
+    // DON'T join rooms here - only join in VideoCall when actually in a call
+    // This prevents receiving your own call notifications
+
+    // Listen for incoming calls from patients only
+    newSocket.on(
+      "incoming-call",
+      ({ appointmentId, callerRole, callerName }) => {
+        // Only show incoming calls from patients, not from ourselves
+        if (callerRole === "patient") {
+          console.log(
+            "[DoctorPanel] Incoming call from patient:",
+            callerName,
+            "for appointment:",
+            appointmentId
+          );
+          setIncomingCall({
+            appointmentId,
+            callerRole,
+            callerName,
+          });
+        }
+      }
+    );
+
+    return () => {
+      if (newSocket) newSocket.disconnect();
+    };
+  }, [appointments, doctorName]);
 
   const handleChangePassword = async (e) => {
     e && e.preventDefault && e.preventDefault();
@@ -159,20 +288,53 @@ const DoctorPanel = () => {
   };
 
   const startMeeting = (appt) => {
-    alert(
-      `Starting meeting for ${appt.patientName} at ${new Date(
-        appt.date
-      ).toLocaleString()}`
-    );
+    setActiveCall({
+      appointmentId: appt._id,
+      patientName: appt.patientName,
+      isInitiator: true, // Doctor is initiating the call
+    });
   };
 
-  // Helper to check if meeting can start (3 minutes before appointment time)
+  const handleAcceptCall = () => {
+    if (!incomingCall) return;
+
+    // Accept the call via socket
+    if (socket) {
+      socket.emit("accept-call", {
+        appointmentId: incomingCall.appointmentId,
+        accepterRole: "doctor",
+      });
+    }
+
+    setActiveCall({
+      appointmentId: incomingCall.appointmentId,
+      patientName: incomingCall.callerName,
+      isInitiator: false, // Doctor is accepting, not initiating
+    });
+    setIncomingCall(null);
+  };
+
+  const handleDeclineCall = () => {
+    if (!incomingCall) return;
+
+    // Decline the call via socket
+    if (socket) {
+      socket.emit("decline-call", {
+        appointmentId: incomingCall.appointmentId,
+        declinerRole: "doctor",
+      });
+    }
+
+    setIncomingCall(null);
+  };
+
+  // Helper to check if meeting can start (only during appointment time)
   const canStartMeeting = (appt) => {
     const now = new Date().getTime();
     const apptTime = new Date(appt.date).getTime();
-    const diff = apptTime - now;
-    // Allow starting 3 minutes before appointment
-    return diff <= 3 * 60 * 1000 && diff >= -60 * 60 * 1000; // up to 1 hour after
+    const apptEndTime = apptTime + (appt.durationMinutes || 30) * 60 * 1000;
+    // Only allow during appointment window
+    return now >= apptTime && now <= apptEndTime;
   };
 
   return (
@@ -267,7 +429,7 @@ const DoctorPanel = () => {
               as="button"
               type="submit"
               disabled={changing}
-              bg="#2563eb"
+              $bg="#2563eb"
             >
               {changing ? "Saving..." : profile.hasPassword ? "Change" : "Set"}
             </ActionButton>
@@ -303,29 +465,29 @@ const DoctorPanel = () => {
 
               return (
                 <Tr key={a._id}>
-                  <Td>
+                  <Td data-label="Patient:">
                     <div style={{ fontWeight: 800 }}>{a.patientName}</div>
                     <Small>{a.patientEmail}</Small>
                   </Td>
-                  <Td>
+                  <Td data-label="Date / Time:">
                     <div style={{ fontWeight: 700 }}>
                       {new Date(a.date).toLocaleString()}
                     </div>
                     <Small>{a.durationMinutes || 30} mins</Small>
                   </Td>
-                  <Td>
+                  <Td data-label="Contact:">
                     <div>{a.phone || a.patientPhone || "-"}</div>
                     <Small>{a.gender || ""}</Small>
                   </Td>
-                  <Td>
-                    <Badge bg={badgeColor}>
+                  <Td data-label="Status:">
+                    <Badge $bg={badgeColor}>
                       {(a.status || "Pending").toUpperCase()}
                     </Badge>
                   </Td>
-                  <Td style={{ textAlign: "right" }}>
+                  <Td data-label="Actions:" style={{ textAlign: "right" }}>
                     {isPending && (
                       <ActionButton
-                        bg="#2563eb"
+                        $bg="#2563eb"
                         onClick={() => acceptAppointment(a._id)}
                       >
                         Accept
@@ -337,20 +499,34 @@ const DoctorPanel = () => {
                       !isDone &&
                       (a.mode === "online" ? (
                         <ActionButton
-                          bg="#7c3aed"
-                          onClick={() => startMeeting(a)}
+                          $bg="#7c3aed"
+                          onClick={() => canStartMeeting(a) && startMeeting(a)}
                           disabled={!canStartMeeting(a)}
+                          title={
+                            canStartMeeting(a)
+                              ? "Click to start the meeting"
+                              : (() => {
+                                  const now = new Date().getTime();
+                                  const apptTime = new Date(a.date).getTime();
+                                  const minutesUntil = Math.floor(
+                                    (apptTime - now) / (1000 * 60)
+                                  );
+                                  return minutesUntil > 2
+                                    ? `Meeting available in ${minutesUntil} minutes`
+                                    : "Meeting time has passed";
+                                })()
+                          }
                         >
                           Start Meeting
                         </ActionButton>
                       ) : (
-                        <ActionButton bg="#6b7280" disabled>
+                        <ActionButton $bg="#6b7280" disabled>
                           On Clinic
                         </ActionButton>
                       ))}
 
                     {isDone && (
-                      <ActionButton bg="#10b981" disabled>
+                      <ActionButton $bg="#10b981" disabled>
                         Done
                       </ActionButton>
                     )}
@@ -360,6 +536,26 @@ const DoctorPanel = () => {
             })}
           </tbody>
         </Table>
+      )}
+
+      {activeCall && (
+        <VideoCall
+          appointmentId={activeCall.appointmentId}
+          userRole="doctor"
+          userName={`Dr. ${doctorName}`}
+          isInitiator={activeCall.isInitiator}
+          onEnd={() => setActiveCall(null)}
+          socket={socket}
+        />
+      )}
+
+      {incomingCall && (
+        <IncomingCallModal
+          callerName={incomingCall.callerName}
+          callerRole={incomingCall.callerRole}
+          onAccept={handleAcceptCall}
+          onDecline={handleDeclineCall}
+        />
       )}
     </Container>
   );

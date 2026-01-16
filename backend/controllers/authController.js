@@ -239,3 +239,43 @@ exports.resendOtp = async (req, res) => {
     res.status(500).json({ message: "Server error", error: err.message });
   }
 };
+
+exports.verifyReset = async (req, res) => {
+  try {
+    const { email, otp } = req.body;
+    if (!email || !otp)
+      return res.status(400).json({ message: "Email and OTP required" });
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user.otp || user.otp !== otp || user.otpExpires < Date.now()) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+    }
+    return res.json({ ok: true, message: "OTP verified" });
+  } catch (err) {
+    console.error("[VERIFY RESET]", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};
+
+exports.resetPassword = async (req, res) => {
+  try {
+    const { email, otp, password } = req.body;
+    if (!email || !otp || !password)
+      return res
+        .status(400)
+        .json({ message: "Email, OTP and new password required" });
+    const user = await User.findOne({ email });
+    if (!user) return res.status(404).json({ message: "User not found" });
+    if (!user.otp || user.otp !== otp || user.otpExpires < Date.now()) {
+      return res.status(400).json({ message: "Invalid or expired OTP" });
+    }
+    user.password = password;
+    user.otp = undefined;
+    user.otpExpires = undefined;
+    await user.save();
+    return res.json({ ok: true, message: "Password updated" });
+  } catch (err) {
+    console.error("[RESET PASSWORD]", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};

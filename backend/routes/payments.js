@@ -62,6 +62,12 @@ router.post("/confirm-payment", async (req, res) => {
   try {
     const { paymentIntentId, appointmentData, appointmentId } = req.body;
 
+    console.log("[CONFIRM PAYMENT] Request received:", {
+      paymentIntentId,
+      appointmentId,
+      hasAppointmentData: !!appointmentData,
+    });
+
     if (!paymentIntentId) {
       return res.status(400).json({ error: "Payment Intent ID is required" });
     }
@@ -78,10 +84,21 @@ router.post("/confirm-payment", async (req, res) => {
 
     // If an appointmentId was provided, update that appointment's payment info
     if (appointmentId) {
+      console.log(
+        "[CONFIRM PAYMENT] Updating existing appointment:",
+        appointmentId
+      );
+
       const appt = await Appointment.findById(appointmentId);
       if (!appt) {
+        console.error(
+          "[CONFIRM PAYMENT] Appointment not found:",
+          appointmentId
+        );
         return res.status(404).json({ error: "Appointment not found" });
       }
+
+      console.log("[CONFIRM PAYMENT] Found appointment, updating payment info");
 
       appt.payment = {
         status: "completed",
@@ -94,6 +111,8 @@ router.post("/confirm-payment", async (req, res) => {
 
       await appt.save();
 
+      console.log("[CONFIRM PAYMENT] Appointment updated successfully");
+
       return res.status(200).json({
         message: "Payment recorded and appointment updated",
         appointment: appt,
@@ -101,6 +120,19 @@ router.post("/confirm-payment", async (req, res) => {
     }
 
     // Fallback: create appointment with payment info (backwards compatibility)
+    console.log(
+      "[CONFIRM PAYMENT] No appointmentId provided, attempting to create new appointment"
+    );
+
+    if (!appointmentData) {
+      console.error(
+        "[CONFIRM PAYMENT] No appointmentData provided for new appointment creation"
+      );
+      return res.status(400).json({
+        error: "Either appointmentId or complete appointmentData is required",
+      });
+    }
+
     const appointment = new Appointment({
       ...appointmentData,
       payment: {
@@ -120,7 +152,7 @@ router.post("/confirm-payment", async (req, res) => {
       appointment: savedAppointment,
     });
   } catch (error) {
-    console.error("Confirm Payment Error:", error);
+    console.error("[CONFIRM PAYMENT] Error:", error);
     res.status(500).json({ error: error.message });
   }
 });
