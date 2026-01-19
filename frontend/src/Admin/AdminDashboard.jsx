@@ -11,6 +11,7 @@ import Messages from "./Messages";
 import AppointmentsTable from "./AppointmentsTable";
 import LandingPageEditor from "./LandingPageEditor";
 import { jsonFetch } from "../utils/api";
+import io from "socket.io-client";
 
 const DashboardContainer = styled.div`
   display: flex;
@@ -72,6 +73,19 @@ const AdminDashboard = ({ onLogout }) => {
     }
   }, []);
 
+  // Listen for payment updates via socket to refresh dashboard data
+  useEffect(() => {
+    const socket = io("http://localhost:5000", {
+      path: "/socket.io",
+      transports: ["websocket", "polling"],
+    });
+    socket.on("payment-updated", (payload) => {
+      console.log("[ADMIN DASHBOARD] payment-updated", payload);
+      fetchDashboardData();
+    });
+    return () => socket.disconnect();
+  }, [fetchDashboardData]);
+
   const handleReply = async (messageId, replyText) => {
     try {
       console.log("[ADMIN] Replying to message", messageId);
@@ -82,7 +96,7 @@ const AdminDashboard = ({ onLogout }) => {
       const updated = res?.message;
       if (updated) {
         setMessages((prev) =>
-          prev.map((m) => (m._id === updated._id ? updated : m))
+          prev.map((m) => (m._id === updated._id ? updated : m)),
         );
         // show immediate toast depending on delivery status
         if (updated.status === "delivered") {
@@ -103,8 +117,8 @@ const AdminDashboard = ({ onLogout }) => {
   const handleStatusUpdate = useCallback((appointmentId, status) => {
     setAppointments((prev) =>
       prev.map((appt) =>
-        appt._id === appointmentId ? { ...appt, status } : appt
-      )
+        appt._id === appointmentId ? { ...appt, status } : appt,
+      ),
     );
   }, []);
 
@@ -117,7 +131,7 @@ const AdminDashboard = ({ onLogout }) => {
       });
       if (res?.doctor) {
         setDoctors((prev) =>
-          prev.map((doc) => (doc._id === doctorId ? res.doctor : doc))
+          prev.map((doc) => (doc._id === doctorId ? res.doctor : doc)),
         );
         toast.success("Doctor updated successfully");
       }
@@ -216,7 +230,7 @@ const AdminDashboard = ({ onLogout }) => {
 
   const stats = useMemo(() => {
     const completedPayments = appointments.filter(
-      (appt) => appt.payment?.status === "completed"
+      (appt) => appt.payment?.status === "completed",
     );
 
     // Group payments by currency

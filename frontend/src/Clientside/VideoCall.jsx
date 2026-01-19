@@ -26,9 +26,12 @@ const VideoGrid = styled.div`
   gap: 10px;
   padding: 10px;
   position: relative;
+  height: calc(100vh - 96px);
+  min-height: 400px;
 
   @media (max-width: 768px) {
     grid-template-columns: 1fr;
+    height: calc(100vh - 96px);
   }
 `;
 
@@ -40,26 +43,42 @@ const VideoBox = styled.div`
   display: flex;
   align-items: center;
   justify-content: center;
+  min-height: 300px;
+  height: 100%;
+  width: 100%;
 
   video {
     width: 100%;
     height: 100%;
     object-fit: cover;
+    display: block;
   }
 `;
 
 const LocalVideoBox = styled(VideoBox)`
   ${(p) =>
-    p.$pip &&
-    `
+    p.$pip
+      ? `
     position: absolute;
-    bottom: 20px;
+    bottom: 80px;
     right: 20px;
-    width: 200px;
-    height: 150px;
+    width: 280px;
+    height: 210px;
+    min-height: 210px;
     z-index: 10;
-    border: 2px solid #4f46e5;
+    border: 3px solid #4f46e5;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  `
+      : `
+    min-height: 300px;
   `}
+
+  video {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important;
+    display: block !important;
+  }
 `;
 
 const Label = styled.div`
@@ -135,7 +154,7 @@ const VideoCall = ({
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [peerConnectionReady, setPeerConnectionReady] = useState(false);
   const [connectionStatus, setConnectionStatus] = useState(
-    isInitiator ? "Calling..." : "Connecting..."
+    isInitiator ? "Calling..." : "Connecting...",
   );
 
   const localVideoRef = useRef(null);
@@ -272,7 +291,7 @@ const VideoCall = ({
       console.log("[VideoCall] Received offer, creating answer");
       try {
         await peerConnection.current.setRemoteDescription(
-          new RTCSessionDescription(offer)
+          new RTCSessionDescription(offer),
         );
         const answer = await peerConnection.current.createAnswer();
         await peerConnection.current.setLocalDescription(answer);
@@ -288,7 +307,7 @@ const VideoCall = ({
       console.log("[VideoCall] Received answer");
       try {
         await peerConnection.current.setRemoteDescription(
-          new RTCSessionDescription(answer)
+          new RTCSessionDescription(answer),
         );
         console.log("[VideoCall] Answer set, waiting for ICE candidates");
       } catch (err) {
@@ -302,7 +321,7 @@ const VideoCall = ({
         if (candidate) {
           console.log("[VideoCall] Adding ICE candidate");
           await peerConnection.current.addIceCandidate(
-            new RTCIceCandidate(candidate)
+            new RTCIceCandidate(candidate),
           );
         }
       } catch (err) {
@@ -360,7 +379,7 @@ const VideoCall = ({
         appointmentId,
         "as",
         userRole,
-        userName
+        userName,
       );
       socketToUse.emit("join-room", { appointmentId, userRole, userName });
 
@@ -368,7 +387,7 @@ const VideoCall = ({
       if (isInitiator) {
         console.log(
           "[VideoCall] Initiating call to appointment:",
-          appointmentId
+          appointmentId,
         );
         socketToUse.emit("initiate-call", {
           appointmentId,
@@ -424,7 +443,7 @@ const VideoCall = ({
       console.error("Failed to initialize call:", error);
       setConnectionStatus("Failed to access camera/microphone");
       alert(
-        "Could not access camera or microphone. Please check permissions and try again."
+        "Could not access camera or microphone. Please check permissions and try again.",
       );
     }
   };

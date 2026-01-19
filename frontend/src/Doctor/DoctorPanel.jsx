@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { FaEye, FaEyeSlash } from "react-icons/fa";
 import styled from "styled-components";
 import { jsonFetch } from "../utils/api";
@@ -168,6 +168,8 @@ const DoctorPanel = () => {
   const [activeCall, setActiveCall] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
   const [socket, setSocket] = useState(null);
+  const [patientResponses, setPatientResponses] = useState({});
+  const callTimeoutRef = useRef(null);
 
   useEffect(() => {
     const load = async () => {
@@ -182,7 +184,7 @@ const DoctorPanel = () => {
         if (profileRes && profileRes.profile) {
           setProfile(profileRes.profile);
           setDoctorName(
-            profileRes.profile.name || profileRes.profile.email || ""
+            profileRes.profile.name || profileRes.profile.email || "",
           );
         }
         setAppointments((apptRes && apptRes.appointments) || []);
@@ -201,7 +203,7 @@ const DoctorPanel = () => {
       "[DoctorPanel] Socket setup useEffect triggered, appointments:",
       appointments.length,
       "doctorName:",
-      doctorName
+      doctorName,
     );
 
     if (appointments.length === 0 || !doctorName) {
@@ -231,7 +233,7 @@ const DoctorPanel = () => {
             "[DoctorPanel] Incoming call from patient:",
             callerName,
             "for appointment:",
-            appointmentId
+            appointmentId,
           );
           setIncomingCall({
             appointmentId,
@@ -239,13 +241,57 @@ const DoctorPanel = () => {
             callerName,
           });
         }
-      }
+      },
     );
 
+    // When a call is accepted by patient (for calls we initiate)
+    newSocket.on("call-accepted", ({ appointmentId, accepterRole }) => {
+      console.log("[DoctorPanel] call-accepted", appointmentId, accepterRole);
+      // clear any pending timeout for this call
+      if (callTimeoutRef.current) {
+        clearTimeout(callTimeoutRef.current);
+        callTimeoutRef.current = null;
+      }
+    });
+
+    // Quick-response from patient for missed-call auto prompt
+    newSocket.on("quick-response", ({ appointmentId, response }) => {
+      console.log("[DoctorPanel] quick-response", appointmentId, response);
+      setPatientResponses((s) => ({ ...s, [appointmentId]: response }));
+    });
+
+    // Listen for payment status updates so doctor UI updates in real-time
+    newSocket.on("payment-updated", ({ appointmentId, paymentStatus }) => {
+      console.log(
+        "[DoctorPanel] payment-updated",
+        appointmentId,
+        paymentStatus,
+      );
+      // refresh appointments list to reflect new payment status
+      refreshAppointments().catch((err) =>
+        console.error(
+          "[DoctorPanel] failed to refresh after payment update",
+          err,
+        ),
+      );
+    });
+
     return () => {
+      if (callTimeoutRef.current) {
+        clearTimeout(callTimeoutRef.current);
+        callTimeoutRef.current = null;
+      }
       if (newSocket) newSocket.disconnect();
     };
   }, [appointments, doctorName]);
+
+  // Clear pending call timeout when activeCall ends (doctor stopped/call ended)
+  useEffect(() => {
+    if (!activeCall && callTimeoutRef.current) {
+      clearTimeout(callTimeoutRef.current);
+      callTimeoutRef.current = null;
+    }
+  }, [activeCall]);
 
   const handleChangePassword = async (e) => {
     e && e.preventDefault && e.preventDefault();
@@ -279,12 +325,40 @@ const DoctorPanel = () => {
       });
       if (res && res.appointment) {
         setAppointments((s) =>
-          s.map((a) => (a._id === id ? res.appointment : a))
+          s.map((a) => (a._id === id ? res.appointment : a)),
         );
       }
     } catch (err) {
       console.error("[DoctorPanel] Accept failed", err);
     }
+  };
+
+  const refreshAppointments = async () => {
+    try {
+      const res = await jsonFetch(`/api/doctor/appointments`);
+      if (res && res.appointments) setAppointments(res.appointments);
+    } catch (err) {
+      console.error("[DoctorPanel] Failed to refresh appointments", err);
+    }
+  };
+
+  const downloadInvoice = (appt) => {
+    if (!appt.invoice || !appt.invoice.html) {
+      alert("No invoice available");
+      return;
+    }
+    const w = window.open("", "_blank");
+    if (!w) return;
+    w.document.write(appt.invoice.html);
+    w.document.close();
+    setTimeout(() => {
+      try {
+        w.focus();
+        w.print();
+      } catch (e) {
+        console.error(e);
+      }
+    }, 300);
   };
 
   const startMeeting = (appt) => {
@@ -293,6 +367,48 @@ const DoctorPanel = () => {
       patientName: appt.patientName,
       isInitiator: true, // Doctor is initiating the call
     });
+
+    // emit initiate event so the patient gets called
+    if (socket) {
+      socket.emit("initiate-call", {
+        appointmentId: appt._id,
+        callerRole: "doctor",
+        callerName: `Dr. ${doctorName}`,
+      });
+    }
+
+    // start a 1 minute timeout. If patient doesn't accept, cut the call
+    if (callTimeoutRef.current) {
+      clearTimeout(callTimeoutRef.current);
+      callTimeoutRef.current = null;
+    }
+
+    callTimeoutRef.current = setTimeout(() => {
+      console.log(
+        "[DoctorPanel] call timeout, marking missed and sending auto-prompt",
+        appt._id,
+      );
+
+      // End the local active call state
+      setActiveCall(null);
+
+      // Emit missed-call so server can record/notify
+      if (socket) {
+        socket.emit("missed-call", {
+          appointmentId: appt._id,
+          callerRole: "doctor",
+        });
+
+        // Send auto prompt with quick-reply options
+        socket.emit("auto-prompt", {
+          appointmentId: appt._id,
+          message: "Please pickup call",
+          options: ["Ok now", "I am busy", "After 5 minutes"],
+        });
+      }
+
+      callTimeoutRef.current = null;
+    }, 60 * 1000);
   };
 
   const handleAcceptCall = () => {
@@ -445,18 +561,77 @@ const DoctorPanel = () => {
             <Tr>
               <Th>Patient</Th>
               <Th>Date / Time</Th>
+              <Th>Mode</Th>
+              <Th>Time Remaining</Th>
               <Th>Contact</Th>
               <Th>Status</Th>
+              <Th>Remarks</Th>
               <Th style={{ textAlign: "right" }}>Actions</Th>
             </Tr>
           </thead>
           <tbody>
             {appointments.map((a) => {
+              // Determine if online payment is pending using normalized fields
+              const invoicePending =
+                a.invoice &&
+                (a.invoice.status === "pending" ||
+                  a.invoice.status === "unpaid");
+              const paymentPending =
+                a.payment && a.payment.status === "pending";
+              const needsPayment = paymentPending || invoicePending;
               const status = (a.status || "Pending").toLowerCase();
-              const isDone = status === "completed" || status === "done";
+
+              // Calculate time-related values first
+              const now = new Date();
+              const appointmentDate = new Date(a.date);
+              const appointmentEndDate = new Date(
+                appointmentDate.getTime() +
+                  (a.durationMinutes || 30) * 60 * 1000,
+              );
+              const appointmentTimePassed = now > appointmentEndDate;
+              const isMeetingTimeNear =
+                now >= appointmentDate && now <= appointmentEndDate;
+              const minutesUntilAppointment =
+                (appointmentDate - now) / (1000 * 60);
+
+              // Auto-mark as done if accepted and time has passed
+              const isDone =
+                status === "completed" ||
+                status === "done" ||
+                (status === "accepted" && appointmentTimePassed);
               const isRejected = status === "rejected";
               const isPending = status === "pending";
-              const isAccepted = status === "accepted";
+              const isAccepted =
+                status === "accepted" && !appointmentTimePassed;
+              const isOnline = a.mode === "online";
+
+              let timeRemaining = "-";
+              let remarks = "-";
+
+              if (isDone) {
+                remarks = "Successful Done";
+                timeRemaining = "Completed";
+              } else if (isRejected) {
+                remarks = "Rejected";
+                timeRemaining = "N/A";
+              } else if (isPending) {
+                remarks = needsPayment
+                  ? "Payment Pending"
+                  : "Waiting for Approval";
+                timeRemaining = "Pending";
+              } else if (isMeetingTimeNear) {
+                remarks = "In Meeting";
+                timeRemaining = "Now";
+              } else if (
+                minutesUntilAppointment > 0 &&
+                minutesUntilAppointment <= 5
+              ) {
+                timeRemaining = `${Math.floor(minutesUntilAppointment)} min`;
+                remarks = "Starting Soon";
+              } else if (minutesUntilAppointment > 0) {
+                timeRemaining = `${Math.floor(minutesUntilAppointment)} min`;
+                remarks = "Upcoming";
+              }
 
               let badgeColor = "#f59e0b"; // amber for pending
               if (isAccepted) badgeColor = "#10b981"; // green
@@ -475,17 +650,52 @@ const DoctorPanel = () => {
                     </div>
                     <Small>{a.durationMinutes || 30} mins</Small>
                   </Td>
+                  <Td data-label="Mode:">
+                    <Badge $bg={isOnline ? "#7c3aed" : "#f59e0b"}>
+                      {isOnline ? "ONLINE" : "CLINIC"}
+                    </Badge>
+                  </Td>
+                  <Td data-label="Time Remaining:">
+                    <div
+                      style={{
+                        fontWeight: 700,
+                        color: isMeetingTimeNear ? "#ef4444" : "#111827",
+                      }}
+                    >
+                      {timeRemaining}
+                    </div>
+                  </Td>
                   <Td data-label="Contact:">
                     <div>{a.phone || a.patientPhone || "-"}</div>
                     <Small>{a.gender || ""}</Small>
+                    {patientResponses[a._id] && (
+                      <Small style={{ marginTop: 6 }}>
+                        Response: {patientResponses[a._id]}
+                      </Small>
+                    )}
                   </Td>
                   <Td data-label="Status:">
                     <Badge $bg={badgeColor}>
                       {(a.status || "Pending").toUpperCase()}
                     </Badge>
                   </Td>
+                  <Td data-label="Remarks:">
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        color:
+                          remarks === "In Meeting"
+                            ? "#10b981"
+                            : remarks === "Missed"
+                              ? "#ef4444"
+                              : "#6b7280",
+                      }}
+                    >
+                      {remarks}
+                    </div>
+                  </Td>
                   <Td data-label="Actions:" style={{ textAlign: "right" }}>
-                    {isPending && (
+                    {isPending && !needsPayment && (
                       <ActionButton
                         $bg="#2563eb"
                         onClick={() => acceptAppointment(a._id)}
@@ -494,27 +704,47 @@ const DoctorPanel = () => {
                       </ActionButton>
                     )}
 
+                    {needsPayment &&
+                      (a.invoice && a.invoice.html ? (
+                        <ActionButton
+                          $bg="#2563eb"
+                          onClick={() => downloadInvoice(a)}
+                        >
+                          Invoice
+                        </ActionButton>
+                      ) : (
+                        <ActionButton $bg="#9ca3af" disabled>
+                          Payment Pending
+                        </ActionButton>
+                      ))}
+
                     {isAccepted &&
                       !isRejected &&
                       !isDone &&
                       (a.mode === "online" ? (
                         <ActionButton
                           $bg="#7c3aed"
-                          onClick={() => canStartMeeting(a) && startMeeting(a)}
-                          disabled={!canStartMeeting(a)}
+                          onClick={() =>
+                            !needsPayment &&
+                            canStartMeeting(a) &&
+                            startMeeting(a)
+                          }
+                          disabled={!canStartMeeting(a) || needsPayment}
                           title={
-                            canStartMeeting(a)
-                              ? "Click to start the meeting"
-                              : (() => {
-                                  const now = new Date().getTime();
-                                  const apptTime = new Date(a.date).getTime();
-                                  const minutesUntil = Math.floor(
-                                    (apptTime - now) / (1000 * 60)
-                                  );
-                                  return minutesUntil > 2
-                                    ? `Meeting available in ${minutesUntil} minutes`
-                                    : "Meeting time has passed";
-                                })()
+                            needsPayment
+                              ? "Payment pending — please complete payment first"
+                              : canStartMeeting(a)
+                                ? "Click to start the meeting"
+                                : (() => {
+                                    const now = new Date().getTime();
+                                    const apptTime = new Date(a.date).getTime();
+                                    const minutesUntil = Math.floor(
+                                      (apptTime - now) / (1000 * 60),
+                                    );
+                                    return minutesUntil > 2
+                                      ? `Meeting available in ${minutesUntil} minutes`
+                                      : "Meeting time has passed";
+                                  })()
                           }
                         >
                           Start Meeting

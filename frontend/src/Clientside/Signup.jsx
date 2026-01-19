@@ -52,8 +52,19 @@ const App = ({
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState("");
+  const [resendCooldown, setResendCooldown] = useState(0);
 
   // --- Three.js Background Logic ---
+  useEffect(() => {
+    if (resendCooldown > 0) {
+      const timer = setTimeout(
+        () => setResendCooldown(resendCooldown - 1),
+        1000,
+      );
+      return () => clearTimeout(timer);
+    }
+  }, [resendCooldown]);
+
   useEffect(() => {
     if (!canvasRef.current) return;
     const scene = new THREE.Scene();
@@ -61,7 +72,7 @@ const App = ({
       75,
       window.innerWidth / window.innerHeight,
       0.1,
-      1000
+      1000,
     );
     const renderer = new THREE.WebGLRenderer({
       canvas: canvasRef.current,
@@ -93,11 +104,11 @@ const App = ({
     const particlesGeometry = new THREE.BufferGeometry();
     particlesGeometry.setAttribute(
       "position",
-      new THREE.BufferAttribute(posArray, 3)
+      new THREE.BufferAttribute(posArray, 3),
     );
     particlesGeometry.setAttribute(
       "color",
-      new THREE.BufferAttribute(colorArray, 3)
+      new THREE.BufferAttribute(colorArray, 3),
     );
 
     const particlesMaterial = new THREE.PointsMaterial({
@@ -110,7 +121,7 @@ const App = ({
 
     const particlesMesh = new THREE.Points(
       particlesGeometry,
-      particlesMaterial
+      particlesMaterial,
     );
     scene.add(particlesMesh);
 
@@ -159,7 +170,7 @@ const App = ({
   const handleRegister = async (e) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
-      const msg = "Medical tokens do not match. Integrity check failed.";
+      const msg = "Passwords do not match. Please check and try again.";
       setLocalError(msg);
       showError(msg);
       return;
@@ -167,15 +178,38 @@ const App = ({
     setLoading(true);
     setLocalError("");
     try {
-      // Simulate API registration call
-      await new Promise((r) => setTimeout(r, 2000));
-      setOtpSent(true);
-      showSuccess(
-        "Credential sequence generated. Check your ID node for the OTP."
-      );
+      // Call actual signup API
+      const response = await fetch("http://localhost:5000/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: formData.fullName,
+          email: formData.email,
+          password: formData.password,
+          nic: formData.nic,
+          gender: formData.gender,
+          dateOfBirth: formData.dateOfBirth,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Signup failed");
+      }
+
+      if (data.emailSent) {
+        setOtpSent(true);
+        showSuccess(
+          "OTP sent to your email. Please check your inbox (and spam folder).",
+        );
+      } else {
+        showError(
+          "Account created but email could not be sent. Please contact support.",
+        );
+      }
     } catch (err) {
-      const errMsg =
-        err?.message || "Network sync failed. Peripheral node unreachable.";
+      const errMsg = err?.message || "Network error. Please try again.";
       setLocalError(errMsg);
       showError(errMsg);
     } finally {
@@ -188,12 +222,70 @@ const App = ({
     setLoading(true);
     setLocalError("");
     try {
-      // Simulate OTP verification API
-      await new Promise((r) => setTimeout(r, 1500));
-      showSuccess("Biometric profile activated. Node link established.");
-      onLogin({ user: formData.fullName, token: "nexus_01_active" });
+      // Call actual OTP verification API
+      const response = await fetch(
+        "http://localhost:5000/api/auth/verify-otp",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: formData.email,
+            otp: otpInput,
+          }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "OTP verification failed");
+      }
+
+      // Store token and user info
+      if (data.token) {
+        localStorage.setItem("app_token", data.token);
+        window.__APP_TOKEN__ = data.token;
+        if (data.user) {
+          window.__APP_USER__ = data.user;
+        }
+      }
+
+      showSuccess("Account verified successfully! Logging you in...");
+      onLogin(data);
     } catch (err) {
-      const errMsg = err?.message || "Invalid or expired authorization code.";
+      const errMsg = err?.message || "Invalid or expired OTP.";
+      setLocalError(errMsg);
+      showError(errMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    if (resendCooldown > 0) return;
+
+    setLoading(true);
+    setLocalError("");
+    try {
+      const response = await fetch(
+        "http://localhost:5000/api/auth/resend-otp",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: formData.email }),
+        },
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.message || "Failed to resend OTP");
+      }
+
+      setResendCooldown(60); // 60 second cooldown
+      showSuccess("New OTP sent to your email. Please check your inbox.");
+    } catch (err) {
+      const errMsg = err?.message || "Failed to resend OTP. Please try again.";
       setLocalError(errMsg);
       showError(errMsg);
     } finally {
@@ -744,10 +836,32 @@ const App = ({
                     )}
                   </button>
                 </form>
+
+                <div style={{ marginTop: "30px", textAlign: "center" }}>
+                  <button
+                    onClick={handleResendOtp}
+                    disabled={resendCooldown > 0 || loading}
+                    style={{
+                      background: "none",
+                      border: "none",
+                      color: resendCooldown > 0 ? "#6b7280" : "#38bdf8",
+                      fontWeight: 700,
+                      cursor: resendCooldown > 0 ? "not-allowed" : "pointer",
+                      fontSize: "14px",
+                      textDecoration: "underline",
+                      opacity: resendCooldown > 0 ? 0.5 : 1,
+                    }}
+                  >
+                    {resendCooldown > 0
+                      ? `Resend OTP in ${resendCooldown}s`
+                      : "Didn't receive OTP? Resend Email"}
+                  </button>
+                </div>
+
                 <button
                   onClick={() => setOtpSent(false)}
                   style={{
-                    marginTop: "35px",
+                    marginTop: "20px",
                     background: "none",
                     border: "none",
                     color: "#38bdf8",

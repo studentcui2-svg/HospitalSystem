@@ -14,10 +14,13 @@ const TableWrap = styled.div`
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.06);
   overflow-x: auto;
   color: #111827;
+  max-width: 100%;
+  width: 100%;
 
   @media (max-width: 767px) {
     padding: 0.75rem;
     border-radius: 8px;
+    overflow-x: visible;
   }
 `;
 
@@ -94,7 +97,11 @@ const ClearButton = styled.button`
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  min-width: 800px;
+  table-layout: auto;
+
+  @media (min-width: 768px) {
+    min-width: 900px;
+  }
 
   @media (max-width: 767px) {
     display: block;
@@ -128,10 +135,12 @@ const Tr = styled.tr`
 
 const Th = styled.th`
   text-align: left;
-  padding: 0.75rem;
+  padding: 0.75rem 0.5rem;
   background: #f3f4f6;
   font-weight: 700;
   color: #374151;
+  font-size: 0.875rem;
+  white-space: nowrap;
 
   @media (max-width: 767px) {
     display: none;
@@ -139,15 +148,22 @@ const Th = styled.th`
 `;
 
 const Td = styled.td`
-  padding: 0.75rem;
-  font-size: 0.95rem;
+  padding: 0.75rem 0.5rem;
+  font-size: 0.875rem;
   color: #111827;
+  vertical-align: middle;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
 
   @media (max-width: 767px) {
     display: block;
     padding: 0.5rem 0;
     text-align: left;
     border-bottom: none;
+    max-width: 100%;
+    white-space: normal;
+    word-break: break-word;
 
     &::before {
       content: attr(data-label);
@@ -155,43 +171,68 @@ const Td = styled.td`
       color: #374151;
       margin-right: 0.5rem;
       display: inline-block;
-      width: 120px;
+      min-width: 120px;
     }
   }
 `;
 
 const Status = styled.span`
-  font-weight: 600;
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  white-space: nowrap;
   color: ${({ $status }) =>
     $status === "Accepted"
-      ? "green"
+      ? "#10b981"
       : $status === "Rejected"
-      ? "red"
-      : "#6b7280"};
+        ? "#ef4444"
+        : "#6b7280"};
+  background: ${({ $status }) =>
+    $status === "Accepted"
+      ? "#d1fae5"
+      : $status === "Rejected"
+        ? "#fee2e2"
+        : "#f3f4f6"};
 `;
 
 const StatusSelect = styled.select`
-  padding: 0.4rem 0.8rem;
+  padding: 0.4rem 0.6rem;
   border-radius: 8px;
   border: 1px solid #d1d5db;
+  font-size: 0.875rem;
+  max-width: 120px;
 
   &:disabled {
     opacity: 0.6;
     cursor: not-allowed;
   }
+
+  @media (max-width: 767px) {
+    width: 100%;
+    max-width: 100%;
+  }
 `;
 
 const ActionButton = styled.button`
-  padding: 0.4rem 0.9rem;
+  padding: 0.4rem 0.8rem;
   border-radius: 8px;
   background: #4f46e5;
   color: white;
   border: none;
   cursor: pointer;
   font-weight: 600;
+  font-size: 0.875rem;
+  white-space: nowrap;
 
   &:hover {
     background: #4338ca;
+  }
+
+  @media (max-width: 767px) {
+    width: 100%;
+    margin-top: 0.5rem;
   }
 `;
 
@@ -343,7 +384,7 @@ const AppointmentsTable = ({ data = [], onStatusUpdate }) => {
       (data || []).map((r) => ({
         ...r,
         status: r.status || "Pending",
-      }))
+      })),
     );
   }, [data]);
 
@@ -355,14 +396,14 @@ const AppointmentsTable = ({ data = [], onStatusUpdate }) => {
         {
           method: "PATCH",
           body: { status },
-        }
+        },
       );
 
       const updated = response?.appointment;
       setRows((prev) =>
         prev.map((row) =>
-          row._id === appointmentId ? { ...row, status: updated.status } : row
-        )
+          row._id === appointmentId ? { ...row, status: updated.status } : row,
+        ),
       );
 
       if (typeof onStatusUpdate === "function") {
@@ -402,7 +443,7 @@ const AppointmentsTable = ({ data = [], onStatusUpdate }) => {
     if (!modalContentRef.current) return;
     const printWindow = window.open("", "_blank", "width=800,height=900");
     printWindow.document.write(
-      `<html><body>${modalContentRef.current.innerHTML}</body></html>`
+      `<html><body>${modalContentRef.current.innerHTML}</body></html>`,
     );
     printWindow.print();
     printWindow.close();
@@ -455,8 +496,11 @@ const AppointmentsTable = ({ data = [], onStatusUpdate }) => {
           <Tr>
             <Th>Patient Name</Th>
             <Th>Email</Th>
+            <Th>Mode</Th>
+            <Th>Time Remaining</Th>
             <Th>CNIC</Th>
             <Th>Status</Th>
+            <Th>Remarks</Th>
             <Th>Action</Th>
           </Tr>
         </thead>
@@ -468,51 +512,133 @@ const AppointmentsTable = ({ data = [], onStatusUpdate }) => {
               </Td>
             </Tr>
           ) : (
-            visibleRows.map((row) => (
-              <Tr key={row._id || row.id}>
-                <Td data-label="Patient Name:">
-                  {row.patientName || "Unknown"}
-                </Td>
-                <Td data-label="Email:">{row.patientEmail || "-"}</Td>
-                <Td data-label="CNIC:">{row.cnic || "-"}</Td>
-                <Td data-label="Status:">
-                  <Status $status={row.status}>{row.status}</Status>
-                </Td>
-                <Td data-label="Action:">
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: "8px",
-                      alignItems: "center",
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    <StatusSelect
-                      value={row.status}
-                      onChange={(e) =>
-                        updateStatus(row._id || row.id, e.target.value)
-                      }
-                      disabled={
-                        updatingId === (row._id || row.id) ||
-                        row.status !== "Pending"
-                      }
-                      title={
-                        row.status !== "Pending"
-                          ? "Status already finalised"
-                          : undefined
-                      }
+            visibleRows.map((row) => {
+              // Calculate time remaining and remarks for admin view
+              const now = new Date();
+              const appointmentDate = new Date(row.date);
+              const appointmentEndDate = new Date(
+                appointmentDate.getTime() +
+                  (row.durationMinutes || 30) * 60 * 1000,
+              );
+              const appointmentTimePassed = now > appointmentEndDate;
+              const isMeetingTimeNear =
+                now >= appointmentDate && now <= appointmentEndDate;
+              const minutesUntilAppointment =
+                (appointmentDate - now) / (1000 * 60);
+              const status = (row.status || "Pending").toLowerCase();
+              const isOnline = row.mode === "online";
+
+              // Auto-mark as done if accepted and time has passed
+              const isDone =
+                status === "completed" ||
+                status === "done" ||
+                (status === "accepted" && appointmentTimePassed);
+
+              let timeRemaining = "-";
+              let remarks = "-";
+
+              if (isDone) {
+                remarks = "Successful Done";
+                timeRemaining = "Completed";
+              } else if (status === "rejected") {
+                remarks = "Rejected";
+                timeRemaining = "N/A";
+              } else if (status === "pending") {
+                remarks = "Waiting for Approval";
+                timeRemaining = "Pending";
+              } else if (isMeetingTimeNear) {
+                remarks = "In Meeting";
+                timeRemaining = "Now";
+              } else if (
+                minutesUntilAppointment > 0 &&
+                minutesUntilAppointment <= 5
+              ) {
+                timeRemaining = `${Math.floor(minutesUntilAppointment)} min`;
+                remarks = "Starting Soon";
+              } else if (minutesUntilAppointment > 0) {
+                timeRemaining = `${Math.floor(minutesUntilAppointment)} min`;
+                remarks = "Upcoming";
+              }
+
+              return (
+                <Tr key={row._id || row.id}>
+                  <Td data-label="Patient Name:">
+                    {row.patientName || "Unknown"}
+                  </Td>
+                  <Td data-label="Email:">{row.patientEmail || "-"}</Td>
+                  <Td data-label="Mode:">
+                    <Status
+                      $status={isOnline ? "Online" : "Clinic"}
+                      style={{ background: isOnline ? "#7c3aed" : "#f59e0b" }}
                     >
-                      <option value="Pending">Pending</option>
-                      <option value="Accepted">Accepted</option>\n{" "}
-                      <option value="Rejected">Rejected</option>
-                    </StatusSelect>
-                    <ActionButton onClick={() => setSelectedAppointment(row)}>
-                      View
-                    </ActionButton>
-                  </div>
-                </Td>
-              </Tr>
-            ))
+                      {isOnline ? "ONLINE" : "CLINIC"}
+                    </Status>
+                  </Td>
+                  <Td data-label="Time Remaining:">
+                    <div
+                      style={{
+                        fontWeight: 700,
+                        color: isMeetingTimeNear ? "#ef4444" : "#111827",
+                      }}
+                    >
+                      {timeRemaining}
+                    </div>
+                  </Td>
+                  <Td data-label="CNIC:">{row.cnic || "-"}</Td>
+                  <Td data-label="Status:">
+                    <Status $status={row.status}>{row.status}</Status>
+                  </Td>
+                  <Td data-label="Remarks:">
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        color:
+                          remarks === "In Meeting"
+                            ? "#10b981"
+                            : remarks === "Missed"
+                              ? "#ef4444"
+                              : "#6b7280",
+                      }}
+                    >
+                      {remarks}
+                    </div>
+                  </Td>
+                  <Td data-label="Action:">
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "6px",
+                        alignItems: "center",
+                        flexWrap: "nowrap",
+                      }}
+                    >
+                      <StatusSelect
+                        value={row.status}
+                        onChange={(e) =>
+                          updateStatus(row._id || row.id, e.target.value)
+                        }
+                        disabled={
+                          updatingId === (row._id || row.id) ||
+                          row.status !== "Pending"
+                        }
+                        title={
+                          row.status !== "Pending"
+                            ? "Status already finalised"
+                            : undefined
+                        }
+                      >
+                        <option value="Pending">Pending</option>
+                        <option value="Accepted">Accepted</option>
+                        <option value="Rejected">Rejected</option>
+                      </StatusSelect>
+                      <ActionButton onClick={() => setSelectedAppointment(row)}>
+                        View
+                      </ActionButton>
+                    </div>
+                  </Td>
+                </Tr>
+              );
+            })
           )}
         </tbody>
       </Table>

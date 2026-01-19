@@ -1,6 +1,7 @@
 const express = require("express");
 const Stripe = require("stripe");
 const Appointment = require("../models/Appointment");
+const messageController = require("../controllers/messageController");
 
 const router = express.Router();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
@@ -86,14 +87,14 @@ router.post("/confirm-payment", async (req, res) => {
     if (appointmentId) {
       console.log(
         "[CONFIRM PAYMENT] Updating existing appointment:",
-        appointmentId
+        appointmentId,
       );
 
       const appt = await Appointment.findById(appointmentId);
       if (!appt) {
         console.error(
           "[CONFIRM PAYMENT] Appointment not found:",
-          appointmentId
+          appointmentId,
         );
         return res.status(404).json({ error: "Appointment not found" });
       }
@@ -109,9 +110,41 @@ router.post("/confirm-payment", async (req, res) => {
         receipt: paymentIntent.receipt_email,
       };
 
+      // If an invoice object exists, mark it paid and clear amountDue
+      try {
+        if (appt.invoice) {
+          appt.invoice.status = "paid";
+          appt.invoice.amountDue = 0;
+          appt.invoice.paidAt = new Date();
+        }
+      } catch (e) {
+        console.warn(
+          "[CONFIRM PAYMENT] could not update invoice fields",
+          e && e.message,
+        );
+      }
+
+      // ensure appointment status is at least Pending so it can be processed by staff
+      if (!appt.status || appt.status === "") appt.status = "Pending";
+
       await appt.save();
 
       console.log("[CONFIRM PAYMENT] Appointment updated successfully");
+
+      // emit payment update so connected clients (doctors, admins, patient UIs) refresh
+      try {
+        if (
+          messageController &&
+          typeof messageController.emitPaymentUpdated === "function"
+        ) {
+          messageController.emitPaymentUpdated(appt);
+        }
+      } catch (e) {
+        console.warn(
+          "[CONFIRM PAYMENT] emitPaymentUpdated failed",
+          e && e.message,
+        );
+      }
 
       return res.status(200).json({
         message: "Payment recorded and appointment updated",
@@ -121,12 +154,12 @@ router.post("/confirm-payment", async (req, res) => {
 
     // Fallback: create appointment with payment info (backwards compatibility)
     console.log(
-      "[CONFIRM PAYMENT] No appointmentId provided, attempting to create new appointment"
+      "[CONFIRM PAYMENT] No appointmentId provided, attempting to create new appointment",
     );
 
     if (!appointmentData) {
       console.error(
-        "[CONFIRM PAYMENT] No appointmentData provided for new appointment creation"
+        "[CONFIRM PAYMENT] No appointmentData provided for new appointment creation",
       );
       return res.status(400).json({
         error: "Either appointmentId or complete appointmentData is required",
@@ -146,6 +179,21 @@ router.post("/confirm-payment", async (req, res) => {
     });
 
     const savedAppointment = await appointment.save();
+
+    // emit payment update for newly created appointment
+    try {
+      if (
+        messageController &&
+        typeof messageController.emitPaymentUpdated === "function"
+      ) {
+        messageController.emitPaymentUpdated(savedAppointment);
+      }
+    } catch (e) {
+      console.warn(
+        "[CONFIRM PAYMENT] emitPaymentUpdated failed for new appointment",
+        e && e.message,
+      );
+    }
 
     res.status(201).json({
       message: "Appointment booked successfully with payment received",
@@ -168,7 +216,7 @@ router.post(
       const event = stripe.webhooks.constructEvent(
         req.body,
         sig,
-        process.env.STRIPE_WEBHOOK_SECRET
+        process.env.STRIPE_WEBHOOK_SECRET,
       );
 
       if (event.type === "payment_intent.succeeded") {
@@ -181,7 +229,7 @@ router.post(
       console.error("Webhook Error:", error);
       res.status(400).send(`Webhook Error: ${error.message}`);
     }
-  }
+  },
 );
 
 // Refund payment for an appointment
@@ -224,7 +272,7 @@ router.post("/refund", async (req, res) => {
     await appointment.save();
 
     console.log(
-      `[REFUND] Appointment ${appointmentId} refunded. Refund ID: ${refund.id}`
+      `[REFUND] Appointment ${appointmentId} refunded. Refund ID: ${refund.id}`,
     );
 
     res.json({

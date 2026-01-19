@@ -6,6 +6,27 @@ function setIo(serverIo) {
   io = serverIo;
 }
 
+function emitPaymentUpdated(appointment) {
+  try {
+    if (io && appointment) {
+      io.emit("payment-updated", {
+        appointmentId: appointment._id,
+        paymentStatus: appointment.payment && appointment.payment.status,
+        appointment,
+      });
+      console.log(
+        "[messageController] Emitted payment-updated for",
+        appointment._id,
+      );
+    }
+  } catch (err) {
+    console.error(
+      "[messageController] emitPaymentUpdated failed",
+      err && err.message,
+    );
+  }
+}
+
 async function createMessage(req, res) {
   try {
     console.log("[CREATE MESSAGE] Payload received:", req.body);
@@ -13,7 +34,7 @@ async function createMessage(req, res) {
       "[CREATE MESSAGE] req.userId:",
       req.userId,
       "req.userRole:",
-      req.userRole
+      req.userRole,
     );
     const { firstName, lastName, email, phone, message } = req.body;
 
@@ -47,7 +68,7 @@ async function createMessage(req, res) {
         // Inform sender/clients that the message was created
         io.emit("message_sent", msg);
         console.log(
-          "[CREATE MESSAGE] Emitted new_message (admins) and message_sent via socket"
+          "[CREATE MESSAGE] Emitted new_message (admins) and message_sent via socket",
         );
       }
     } catch (e) {
@@ -119,7 +140,7 @@ async function replyToMessage(req, res) {
     try {
       console.log(
         "[REPLY] Auth header (server):",
-        req.headers.authorization ? "present" : "missing"
+        req.headers.authorization ? "present" : "missing",
       );
     } catch (err) {
       // log minor error while checking headers to help debug auth issues
@@ -174,7 +195,7 @@ async function replyToMessage(req, res) {
     } catch (emailErr) {
       console.error(
         "[REPLY] Failed to send reply email",
-        emailErr && emailErr.message
+        emailErr && emailErr.message,
       );
     }
 
@@ -196,6 +217,7 @@ async function replyToMessage(req, res) {
 
 module.exports = {
   setIo,
+  emitPaymentUpdated,
   createMessage,
   getMessages,
   deleteMessage,

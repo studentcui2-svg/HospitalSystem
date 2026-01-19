@@ -11,6 +11,7 @@ import {
 } from "react-icons/fa";
 import VideoCall from "./VideoCall";
 import IncomingCallModal from "./IncomingCallModal";
+import PaymentModal from "./PaymentModal";
 import io from "socket.io-client";
 
 const Container = styled.div`
@@ -139,6 +140,9 @@ export default function MyAppointments() {
   const [activeCall, setActiveCall] = useState(null);
   const [incomingCall, setIncomingCall] = useState(null);
   const [socket, setSocket] = useState(null);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [paymentAppt, setPaymentAppt] = useState(null);
+  const [paymentAmount, setPaymentAmount] = useState(0);
   const appointmentsRef = useRef([]);
 
   const getRoleFromToken = () => {
@@ -156,7 +160,7 @@ export default function MyAppointments() {
           .map(function (c) {
             return "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2);
           })
-          .join("")
+          .join(""),
       );
       const obj = JSON.parse(json);
       return obj || null;
@@ -226,7 +230,7 @@ export default function MyAppointments() {
     const joinRooms = () => {
       console.log(
         "[MyAppointments] Joining rooms, socket connected:",
-        newSocket.connected
+        newSocket.connected,
       );
 
       // Join rooms for all accepted online appointments
@@ -239,7 +243,7 @@ export default function MyAppointments() {
 
       console.log(
         "[MyAppointments] Found accepted online appointments:",
-        acceptedOnlineAppts.length
+        acceptedOnlineAppts.length,
       );
 
       acceptedOnlineAppts.forEach((appt) => {
@@ -261,7 +265,7 @@ export default function MyAppointments() {
     // If already connected, join immediately
     if (newSocket.connected) {
       console.log(
-        "[MyAppointments] Socket already connected, joining rooms immediately"
+        "[MyAppointments] Socket already connected, joining rooms immediately",
       );
       joinRooms();
     }
@@ -275,20 +279,26 @@ export default function MyAppointments() {
           "[MyAppointments] INCOMING CALL RECEIVED from:",
           callerName,
           "for appointment:",
-          appointmentId
+          appointmentId,
         );
         setIncomingCall({
           appointmentId,
           callerRole,
           callerName,
         });
-      }
+      },
     );
+
+    // Refresh when payment status updates
+    newSocket.on("payment-updated", (payload) => {
+      console.log("[MyAppointments] payment-updated", payload);
+      load();
+    });
 
     return () => {
       if (newSocket) newSocket.disconnect();
     };
-  }, []); // Empty dependency - only run once on mount
+  }, [load]); // Include load dependency
 
   // Separate effect to handle re-joining when appointments change
   useEffect(() => {
@@ -335,6 +345,33 @@ export default function MyAppointments() {
         console.error(e);
       }
     }, 300);
+  };
+
+  const openPayment = (appt) => {
+    setPaymentAppt(appt);
+    const amt =
+      (appt.payment && appt.payment.amount) ||
+      appt.invoice?.amountDue ||
+      appt.amount ||
+      appt.fee ||
+      0;
+    setPaymentAmount(parseFloat(amt) || 0);
+    setPaymentModalOpen(true);
+  };
+
+  const handlePaymentSuccess = async () => {
+    setPaymentModalOpen(false);
+    setPaymentAppt(null);
+    try {
+      await load();
+    } catch (err) {
+      console.error("[MyAppointments] Error refreshing after payment", err);
+    }
+  };
+
+  const handlePaymentCancel = () => {
+    setPaymentModalOpen(false);
+    setPaymentAppt(null);
   };
 
   const startMeeting = () => {
@@ -391,17 +428,35 @@ export default function MyAppointments() {
             <Tr>
               <Th>Doctor</Th>
               <Th>Date / Time</Th>
+              <Th>Mode</Th>
+              <Th>Time Remaining</Th>
               <Th>Contact</Th>
               <Th>Status</Th>
+              <Th>Remarks</Th>
               <Th style={{ textAlign: "right" }}>Actions</Th>
             </Tr>
           </thead>
           <tbody>
             {appointments.map((a) => {
               const status = (a.status || "pending").toLowerCase();
-              const isDone = status === "completed" || status === "done";
+
+              // Check if appointment time has passed
+              const appointmentDate = new Date(a.date);
+              const appointmentEndDate = new Date(
+                appointmentDate.getTime() +
+                  (a.durationMinutes || 30) * 60 * 1000,
+              );
+              const now = new Date();
+              const appointmentTimePassed = now > appointmentEndDate;
+
+              // Auto-mark as done if accepted and time has passed
+              const isDone =
+                status === "completed" ||
+                status === "done" ||
+                (status === "accepted" && appointmentTimePassed);
               const isRejected = status === "rejected";
-              const isAccepted = status === "accepted";
+              const isAccepted =
+                status === "accepted" && !appointmentTimePassed;
               const isOnline = a.mode === "online";
 
               let badgeColor = "#f59e0b"; // amber for pending
@@ -409,17 +464,40 @@ export default function MyAppointments() {
               if (isRejected) badgeColor = "#ef4444"; // red
               if (isDone) badgeColor = "#6b7280"; // gray
 
-              // Check if appointment is currently active (during meeting time only)
-              const appointmentDate = new Date(a.date);
-              const appointmentEndDate = new Date(
-                appointmentDate.getTime() +
-                  (a.durationMinutes || 30) * 60 * 1000
-              );
-              const now = new Date();
               const isMeetingTimeNear =
                 now >= appointmentDate && now <= appointmentEndDate; // Only during appointment window
               const minutesUntilAppointment =
                 (appointmentDate - now) / (1000 * 60);
+
+              // Calculate time remaining and remarks
+              let timeRemaining = "-";
+              let remarks = "-";
+
+              if (isDone) {
+                remarks = "Successful Done";
+                timeRemaining = "Completed";
+              } else if (isRejected) {
+                remarks = "Rejected";
+                timeRemaining = "N/A";
+              } else if (status === "pending") {
+                remarks = "Waiting for Approval";
+                timeRemaining = "Pending";
+              } else if (isMeetingTimeNear) {
+                remarks = "In Meeting";
+                timeRemaining = "Now";
+              } else if (appointmentTimePassed) {
+                remarks = "Missed";
+                timeRemaining = "Expired";
+              } else if (
+                minutesUntilAppointment > 0 &&
+                minutesUntilAppointment <= 5
+              ) {
+                timeRemaining = `${Math.floor(minutesUntilAppointment)} min`;
+                remarks = "Starting Soon";
+              } else if (minutesUntilAppointment > 5) {
+                timeRemaining = `${Math.floor(minutesUntilAppointment)} min`;
+                remarks = "Upcoming";
+              }
 
               return (
                 <Tr key={a._id}>
@@ -437,6 +515,21 @@ export default function MyAppointments() {
                       {a.durationMinutes || 30} mins
                     </div>
                   </Td>
+                  <Td data-label="Mode:">
+                    <Badge $bg={isOnline ? "#7c3aed" : "#f59e0b"}>
+                      {isOnline ? "ONLINE" : "CLINIC"}
+                    </Badge>
+                  </Td>
+                  <Td data-label="Time Remaining:">
+                    <div
+                      style={{
+                        fontWeight: 700,
+                        color: isMeetingTimeNear ? "#ef4444" : "#111827",
+                      }}
+                    >
+                      {timeRemaining}
+                    </div>
+                  </Td>
                   <Td data-label="Contact:">
                     <div>
                       {a.phone || a.doctorPhone || a.patientPhone || "-"}
@@ -447,8 +540,23 @@ export default function MyAppointments() {
                   </Td>
                   <Td data-label="Status:">
                     <Badge $bg={badgeColor}>
-                      {(a.status || "Pending").toUpperCase()}
+                      {isDone ? "DONE" : (a.status || "Pending").toUpperCase()}
                     </Badge>
+                  </Td>
+                  <Td data-label="Remarks:">
+                    <div
+                      style={{
+                        fontWeight: 600,
+                        color:
+                          remarks === "In Meeting"
+                            ? "#10b981"
+                            : remarks === "Missed"
+                              ? "#ef4444"
+                              : "#6b7280",
+                      }}
+                    >
+                      {remarks}
+                    </div>
                   </Td>
                   <Td data-label="Actions:" style={{ textAlign: "right" }}>
                     {isAccepted &&
@@ -463,10 +571,10 @@ export default function MyAppointments() {
                             isMeetingTimeNear
                               ? "Join meeting now"
                               : minutesUntilAppointment > 0
-                              ? `Meeting available at appointment time (in ${Math.floor(
-                                  minutesUntilAppointment
-                                )} min)`
-                              : "Meeting time has ended"
+                                ? `Meeting available at appointment time (in ${Math.floor(
+                                    minutesUntilAppointment,
+                                  )} min)`
+                                : "Meeting time has ended"
                           }
                         >
                           Get in touch
@@ -492,6 +600,51 @@ export default function MyAppointments() {
                         Invoice
                       </ActionButton>
                     )}
+
+                    {(() => {
+                      // Check if payment is actually pending (not completed or paid)
+                      const paymentCompleted =
+                        a.payment &&
+                        (a.payment.status === "completed" ||
+                          a.payment.status === "paid");
+                      const invoicePaid =
+                        a.invoice && a.invoice.status === "paid";
+
+                      // Only show payment button if payment is explicitly pending
+                      const invoicePending =
+                        a.invoice &&
+                        (a.invoice.status === "pending" ||
+                          a.invoice.status === "unpaid");
+                      const paymentPending =
+                        a.payment && a.payment.status === "pending";
+
+                      // Don't show payment if already completed/paid
+                      if (paymentCompleted || invoicePaid) return null;
+
+                      const needsPayment = paymentPending || invoicePending;
+                      const amt =
+                        (a.payment && a.payment.amount) ||
+                        a.invoice?.amountDue ||
+                        a.amount ||
+                        a.fee ||
+                        0;
+                      if (!needsPayment) return null;
+                      if (!amt || amt <= 0) {
+                        return (
+                          <ActionButton $bg="#9ca3af" disabled>
+                            Payment Pending
+                          </ActionButton>
+                        );
+                      }
+                      return (
+                        <ActionButton
+                          $bg="#059669"
+                          onClick={() => openPayment(a)}
+                        >
+                          Pay ${amt.toFixed(2)}
+                        </ActionButton>
+                      );
+                    })()}
                   </Td>
                 </Tr>
               );
@@ -517,6 +670,16 @@ export default function MyAppointments() {
           callerRole={incomingCall.callerRole}
           onAccept={handleAcceptCall}
           onDecline={handleDeclineCall}
+        />
+      )}
+      {paymentModalOpen && paymentAppt && (
+        <PaymentModal
+          isOpen={paymentModalOpen}
+          appointmentId={paymentAppt._id}
+          appointmentData={paymentAppt}
+          amount={paymentAmount}
+          onSuccess={handlePaymentSuccess}
+          onCancel={handlePaymentCancel}
         />
       )}
     </Container>
