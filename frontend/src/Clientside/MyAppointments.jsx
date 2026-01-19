@@ -115,22 +115,41 @@ const Badge = styled.span`
 `;
 
 const ActionButton = styled.button`
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 10px 16px;
+  border-radius: 12px;
   border: none;
   font-weight: 700;
+  font-size: 0.875rem;
   cursor: pointer;
   color: white;
   margin-left: 8px;
-  background: ${(p) => p.$bg || "#4f46e5"};
+  background: ${(p) =>
+    p.$bg || "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"};
   opacity: ${(p) => (p.disabled ? 0.6 : 1)};
   cursor: ${(p) => (p.disabled ? "not-allowed" : "pointer")};
+  transition: all 0.3s ease;
+  box-shadow: ${(p) =>
+    p.disabled ? "none" : "0 4px 12px rgba(0, 0, 0, 0.15)"};
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(0);
+  }
 
   @media (max-width: 767px) {
-    display: block;
+    display: flex;
     width: 100%;
     margin-left: 0;
     margin-top: 8px;
+    justify-content: center;
   }
 `;
 
@@ -564,9 +583,14 @@ export default function MyAppointments() {
                       !isDone &&
                       (isOnline ? (
                         <ActionButton
-                          $bg="#7c3aed"
+                          $bg="linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)"
                           onClick={() => isMeetingTimeNear && startMeeting(a)}
                           disabled={!isMeetingTimeNear}
+                          style={{
+                            border: !isMeetingTimeNear
+                              ? "2px solid rgba(139, 92, 246, 0.2)"
+                              : "2px solid rgba(139, 92, 246, 0.4)",
+                          }}
                           title={
                             isMeetingTimeNear
                               ? "Join meeting now"
@@ -577,17 +601,30 @@ export default function MyAppointments() {
                                 : "Meeting time has ended"
                           }
                         >
-                          Get in touch
+                          📞 Get in touch
                         </ActionButton>
                       ) : (
-                        <ActionButton $bg="#6b7280" disabled>
-                          On Clinic
+                        <ActionButton
+                          $bg="linear-gradient(135deg, #6b7280 0%, #4b5563 100%)"
+                          disabled
+                          style={{
+                            border: "2px solid rgba(255, 255, 255, 0.1)",
+                            backdropFilter: "blur(10px)",
+                          }}
+                        >
+                          🏥 On Clinic
                         </ActionButton>
                       ))}
 
                     {isRejected && (
-                      <ActionButton $bg="#ef4444" disabled>
-                        Rejected
+                      <ActionButton
+                        $bg="linear-gradient(135deg, #ef4444 0%, #dc2626 100%)"
+                        disabled
+                        style={{
+                          border: "2px solid rgba(255, 255, 255, 0.15)",
+                        }}
+                      >
+                        ❌ Rejected
                       </ActionButton>
                     )}
 
@@ -595,9 +632,12 @@ export default function MyAppointments() {
                       <ActionButton
                         type="button"
                         onClick={() => downloadInvoice(a)}
-                        $bg="#2563eb"
+                        $bg="linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)"
+                        style={{
+                          border: "2px solid rgba(59, 130, 246, 0.3)",
+                        }}
                       >
-                        Invoice
+                        📄 Invoice
                       </ActionButton>
                     )}
 
@@ -631,17 +671,28 @@ export default function MyAppointments() {
                       if (!needsPayment) return null;
                       if (!amt || amt <= 0) {
                         return (
-                          <ActionButton $bg="#9ca3af" disabled>
-                            Payment Pending
+                          <ActionButton
+                            $bg="linear-gradient(135deg, #9ca3af 0%, #6b7280 100%)"
+                            disabled
+                            style={{
+                              border: "2px solid rgba(156, 163, 175, 0.3)",
+                            }}
+                          >
+                            ⏳ Payment Pending
                           </ActionButton>
                         );
                       }
                       return (
                         <ActionButton
-                          $bg="#059669"
+                          $bg="linear-gradient(135deg, #10b981 0%, #059669 100%)"
                           onClick={() => openPayment(a)}
+                          style={{
+                            border: "2px solid rgba(16, 185, 129, 0.3)",
+                            fontWeight: 800,
+                            fontSize: "0.9rem",
+                          }}
                         >
-                          Pay ${amt.toFixed(2)}
+                          💳 Pay ${amt.toFixed(2)}
                         </ActionButton>
                       );
                     })()}
