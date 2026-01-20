@@ -22,6 +22,9 @@ import {
 import { jsonFetch } from "../utils/api";
 import { toast } from "react-toastify";
 
+const GOOGLE_CLIENT_ID =
+  "35647668228-lot2tsnrosci6ldh48t949pj9o0nn9rm.apps.googleusercontent.com";
+
 /**
  * 3D ADVANCED MED-TECH INTERFACE (ZERO EXTERNAL CSS DEPENDENCIES):
  * 1. Three.js Engine: Optimized BufferGeometry DNA helix with dynamic vertex shaders.
@@ -58,7 +61,7 @@ const App = ({
       75,
       window.innerWidth / window.innerHeight,
       0.1,
-      1000
+      1000,
     );
     const renderer = new THREE.WebGLRenderer({
       canvas: canvasRef.current,
@@ -91,11 +94,11 @@ const App = ({
     const particlesGeometry = new THREE.BufferGeometry();
     particlesGeometry.setAttribute(
       "position",
-      new THREE.BufferAttribute(posArray, 3)
+      new THREE.BufferAttribute(posArray, 3),
     );
     particlesGeometry.setAttribute(
       "color",
-      new THREE.BufferAttribute(colorArray, 3)
+      new THREE.BufferAttribute(colorArray, 3),
     );
 
     const particlesMaterial = new THREE.PointsMaterial({
@@ -108,7 +111,7 @@ const App = ({
 
     const particlesMesh = new THREE.Points(
       particlesGeometry,
-      particlesMaterial
+      particlesMaterial,
     );
     scene.add(particlesMesh);
 
@@ -181,6 +184,53 @@ const App = ({
       setLoading(false);
     }
   };
+
+  // Google sign-in callback
+  const handleGoogleResponse = async (response, createIfMissing = false) => {
+    if (!response || !response.credential) return;
+    setLoading(true);
+    try {
+      const payload = await jsonFetch("/api/auth/google", {
+        method: "POST",
+        body: { idToken: response.credential, createIfMissing },
+      });
+      if (typeof onLogin === "function") onLogin(payload);
+    } catch (err) {
+      console.error("Google sign-in error", err);
+      const msg =
+        err?.message || err?.details?.message || "Google sign-in failed";
+      if (err && err.status === 404) {
+        toast.error(
+          "No account found for this Google account. Please sign up first.",
+        );
+        onSwitchToSignup?.();
+      } else {
+        toast.error(msg);
+      }
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.google) return;
+    try {
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: (res) => handleGoogleResponse(res, false),
+      });
+      // render a compact button inside this component
+      const el = document.getElementById("google-signin-button");
+      if (el) {
+        window.google.accounts.id.renderButton(el, {
+          theme: "outline",
+          size: "large",
+        });
+      }
+    } catch (e) {
+      console.warn("Google Identity not available", e);
+    }
+  }, []);
 
   const sendForgotEmail = async () => {
     if (!fpEmail) {
@@ -773,6 +823,16 @@ const App = ({
                 Request Credentials
               </button>
             </p>
+
+            <div style={{ marginTop: 16, textAlign: "center" }}>
+              <div
+                id="google-signin-button"
+                style={{ display: "inline-block" }}
+              />
+              <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
+                Or sign in with Google
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -982,7 +1042,7 @@ const App = ({
                     value={fpOtp}
                     onChange={(e) =>
                       setFpOtp(
-                        e.target.value.replace(/[^0-9]/g, "").slice(0, 4)
+                        e.target.value.replace(/[^0-9]/g, "").slice(0, 4),
                       )
                     }
                     placeholder="0000"

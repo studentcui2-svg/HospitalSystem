@@ -9,5 +9,6 @@ router.post("/forgot", authController.resendOtp);
 router.post("/verify-reset", authController.verifyReset);
 router.post("/reset-password", authController.resetPassword);
 router.post("/login", authController.login);
+router.post("/google", authController.googleAuth);
 
 module.exports = router;

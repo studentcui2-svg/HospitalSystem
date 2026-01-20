@@ -57,7 +57,7 @@ exports.createAppointment = async (req, res) => {
           "[CREATE APPOINTMENT] Slot conflict for doctor",
           doctor,
           appointmentDate,
-          endDate
+          endDate,
         );
         return res.status(409).json({
           message:
@@ -164,7 +164,7 @@ exports.getAppointments = async (req, res) => {
       q.createdBy = req.userId;
       console.log(
         "[GET APPOINTMENTS] Restricting to user appointments:",
-        req.userId
+        req.userId,
       );
     }
 
@@ -183,7 +183,7 @@ exports.getAppointments = async (req, res) => {
     console.log(
       "[GET APPOINTMENTS] Found",
       appointments.length,
-      "appointments"
+      "appointments",
     );
     res.json({ ok: true, appointments });
   } catch (err) {
@@ -204,7 +204,7 @@ exports.updateStatus = async (req, res) => {
     if (!allowedStatuses.includes(normalizedStatus)) {
       console.warn(
         "[UPDATE APPOINTMENT] Invalid status received:",
-        normalizedStatus
+        normalizedStatus,
       );
       return res.status(400).json({ message: "Invalid status provided" });
     }
@@ -221,7 +221,7 @@ exports.updateStatus = async (req, res) => {
         "from",
         appt.status,
         "to",
-        normalizedStatus
+        normalizedStatus,
       );
       return res.status(400).json({
         message:
@@ -286,8 +286,8 @@ exports.updateStatus = async (req, res) => {
         normalizedStatus === "Accepted"
           ? "We're happy to let you know that your appointment has been approved."
           : normalizedStatus === "Rejected"
-          ? "We're sorry to inform you that we cannot accommodate your appointment at this time."
-          : "Your appointment status has been updated.";
+            ? "We're sorry to inform you that we cannot accommodate your appointment at this time."
+            : "Your appointment status has been updated.";
 
       // Add refund information if applicable
       let refundMessage = "";
@@ -296,8 +296,8 @@ exports.updateStatus = async (req, res) => {
           refundInfo.currency === "usd"
             ? "$"
             : refundInfo.currency === "pkr"
-            ? "PKR "
-            : refundInfo.currency.toUpperCase() + " ";
+              ? "PKR "
+              : refundInfo.currency.toUpperCase() + " ";
         refundMessage = `
           <div style="background: #d1fae5; border-radius: 8px; padding: 16px; margin: 16px 0; border: 1px solid #10b981;">
             <p style="margin: 0; color: #065f46; font-weight: 700; font-size: 1.1rem;">💰 Refund Processed Successfully</p>
@@ -305,8 +305,8 @@ exports.updateStatus = async (req, res) => {
               <tr>
                 <td style="padding: 6px 0; color: #374151; font-weight: 600;">Refund Amount:</td>
                 <td style="padding: 6px 0; color: #047857; font-weight: 700;">${currencySymbol}${
-          refundInfo.amount
-        }</td>
+                  refundInfo.amount
+                }</td>
               </tr>
               <tr>
                 <td style="padding: 6px 0; color: #374151; font-weight: 600;">Refund ID:</td>
@@ -359,8 +359,8 @@ exports.updateStatus = async (req, res) => {
             normalizedStatus === "Accepted"
               ? "#10b981"
               : normalizedStatus === "Rejected"
-              ? "#ef4444"
-              : "#f59e0b"
+                ? "#ef4444"
+                : "#f59e0b"
           }; font-weight: 600;">${normalizedStatus}</span></p>
           ${
             normalizedStatus === "Rejected"
@@ -395,13 +395,13 @@ exports.updateStatus = async (req, res) => {
         console.error(
           "[UPDATE APPOINTMENT] Failed to send status email for",
           appt._id,
-          emailError
+          emailError,
         );
       }
     } else {
       console.warn(
         "[UPDATE APPOINTMENT] No patient email available for notification",
-        appt._id
+        appt._id,
       );
     }
 

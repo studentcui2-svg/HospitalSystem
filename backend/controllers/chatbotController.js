@@ -119,9 +119,68 @@ Please provide a helpful response based ONLY on the information provided above.`
 
     return res.json({ reply: String(text) });
   } catch (err) {
-    console.error("chatbot error:", err && err.message);
+    // Enhanced debugging: log full response/error details for diagnosis
+    console.error("chatbot error message:", err && err.message);
+    if (err.response) {
+      console.error("chatbot error response status:", err.response.status);
+      console.error("chatbot error response headers:", err.response.headers);
+      try {
+        console.error(
+          "chatbot error response data:",
+          JSON.stringify(err.response.data),
+        );
+      } catch (e) {
+        console.error("chatbot error response data (raw):", err.response.data);
+      }
+    } else if (err.request) {
+      console.error("chatbot no response received, request made:", err.request);
+    } else {
+      console.error("chatbot unexpected error:", err);
+    }
+
     const status = err.response?.status || 500;
     const data = err.response?.data || { message: err.message };
     return res.status(status).json({ error: true, details: data });
+  }
+};
+
+// Dev-only debug endpoint: POST /api/chatbot/debug
+// Returns full provider response or error details. Only enabled when DEBUG_GEMINI=true
+exports.debug = async (req, res) => {
+  if (process.env.NODE_ENV === "production" && !process.env.DEBUG_GEMINI) {
+    return res
+      .status(403)
+      .json({ error: true, message: "Debug disabled in production" });
+  }
+
+  try {
+    const sample = req.body?.sample || "Hello";
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey)
+      return res
+        .status(500)
+        .json({ error: true, message: "GEMINI_API_KEY missing" });
+    const model = process.env.GEMINI_MODEL || DEFAULT_MODEL;
+    const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+    const body = {
+      contents: [{ parts: [{ text: sample }] }],
+      generationConfig: { temperature: 0.2, maxOutputTokens: 200 },
+    };
+
+    const resp = await axios.post(endpoint, body, {
+      headers: { "Content-Type": "application/json" },
+      timeout: 20000,
+    });
+    return res.json({ ok: true, status: resp.status, data: resp.data });
+  } catch (err) {
+    console.error("chatbot debug error:", err?.message);
+    if (err.response) {
+      console.error("debug response status:", err.response.status);
+      console.error("debug response data:", err.response.data);
+      return res
+        .status(err.response.status)
+        .json({ error: true, details: err.response.data });
+    }
+    return res.status(500).json({ error: true, message: err.message });
   }
 };

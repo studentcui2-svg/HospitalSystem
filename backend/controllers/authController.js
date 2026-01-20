@@ -2,6 +2,10 @@ const User = require("../models/User");
 const { generateOTP } = require("../utils/otp");
 const sendEmail = require("../utils/email");
 const jwt = require("jsonwebtoken");
+const { OAuth2Client } = require("google-auth-library");
+
+const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID;
+const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET;
 
 const createToken = (user) => {
   return jwt.sign(
@@ -9,7 +13,7 @@ const createToken = (user) => {
     process.env.JWT_SECRET || "devsecret",
     {
       expiresIn: "7d",
-    }
+    },
   );
 };
 
@@ -84,7 +88,7 @@ exports.signup = async (req, res) => {
       "[SIGNUP] SMTP Config - Host:",
       process.env.SMTP_HOST,
       "User:",
-      process.env.SMTP_USER
+      process.env.SMTP_USER,
     );
 
     let emailSent = false;
@@ -277,5 +281,66 @@ exports.resetPassword = async (req, res) => {
   } catch (err) {
     console.error("[RESET PASSWORD]", err);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Google Sign-In endpoint — verifies ID tokens with google-auth-library
+exports.googleAuth = async (req, res) => {
+  try {
+    const { idToken, createIfMissing } = req.body || {};
+    if (!idToken) return res.status(400).json({ message: "idToken required" });
+
+    if (!GOOGLE_CLIENT_ID) {
+      console.warn(
+        "[GOOGLE AUTH] GOOGLE_CLIENT_ID not set. Set GOOGLE_CLIENT_ID in environment.",
+      );
+    }
+
+    let payload;
+    try {
+      const client = new OAuth2Client(GOOGLE_CLIENT_ID);
+      const ticket = await client.verifyIdToken({
+        idToken,
+        audience: GOOGLE_CLIENT_ID,
+      });
+      payload = ticket.getPayload();
+    } catch (err) {
+      console.error("[GOOGLE AUTH] verifyIdToken failed:", err && err.message);
+      return res.status(400).json({ message: "Invalid Google ID token" });
+    }
+
+    const email =
+      payload && (payload.email || (payload.emails && payload.emails[0]));
+    if (!email)
+      return res
+        .status(400)
+        .json({ message: "Google token did not include email" });
+
+    let user = await User.findOne({ email });
+    if (!user) {
+      if (!createIfMissing) {
+        return res.status(404).json({
+          message: "No account for this Google email. Please sign up first.",
+        });
+      }
+
+      user = new User({
+        name: payload.name || String(email).split("@")[0],
+        email,
+        isVerified: true,
+        password: undefined,
+      });
+      await user.save();
+    }
+
+    const token = createToken(user);
+    return res.json({
+      ok: true,
+      token,
+      user: { name: user.name, email: user.email, role: user.role },
+    });
+  } catch (err) {
+    console.error("[GOOGLE AUTH ERROR]", err && err.message);
+    return res.status(500).json({ message: "Server error" });
   }
 };

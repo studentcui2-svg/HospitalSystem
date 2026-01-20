@@ -162,6 +162,56 @@ const App = ({
     };
   }, []);
 
+  const GOOGLE_CLIENT_ID =
+    "35647668228-lot2tsnrosci6ldh48t949pj9o0nn9rm.apps.googleusercontent.com";
+
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.google) return;
+    try {
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: async (res) => {
+          if (!res || !res.credential) return;
+          setLoading(true);
+          try {
+            const resp = await fetch("/api/auth/google", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                idToken: res.credential,
+                createIfMissing: true,
+              }),
+            });
+            const data = await resp.json();
+            if (!resp.ok)
+              throw new Error(data.message || "Google signup failed");
+            // store token and call onLogin
+            if (data.token) {
+              localStorage.setItem("app_token", data.token);
+              window.__APP_TOKEN__ = data.token;
+            }
+            if (data.user) window.__APP_USER__ = data.user;
+            showSuccess("Signed up and logged in with Google");
+            onLogin(data);
+          } catch (err) {
+            console.error("Google signup error", err);
+            showError(err?.message || "Google signup failed");
+          } finally {
+            setLoading(false);
+          }
+        },
+      });
+      const el = document.getElementById("google-signup-button");
+      if (el)
+        window.google.accounts.id.renderButton(el, {
+          theme: "outline",
+          size: "large",
+        });
+    } catch (e) {
+      console.warn("Google Identity not available", e);
+    }
+  }, []);
+
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
     if (localError) setLocalError("");
@@ -749,6 +799,18 @@ const App = ({
                           <option value="other">Laboratory / Other</option>
                         </select>
                       </div>
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: "center", marginBottom: 12 }}>
+                    <div
+                      id="google-signup-button"
+                      style={{ display: "inline-block" }}
+                    />
+                    <div
+                      style={{ marginTop: 8, fontSize: 12, color: "#8b949e" }}
+                    >
+                      Or sign up with Google
                     </div>
                   </div>
 
