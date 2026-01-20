@@ -138,11 +138,13 @@ const App = () => {
       window.__APP_TOKEN__ = details.token;
       // expose the user object globally for components that need name/email
       window.__APP_USER__ = details.user || null;
+      // Dispatch custom event so other components can react to user data changes
+      window.dispatchEvent(new Event("userDataUpdated"));
     }
 
     toast.success(`Welcome back, ${role}!`);
     setCurrentPage(
-      role === "admin" ? "admin" : role === "doctor" ? "doctor" : "home"
+      role === "admin" ? "admin" : role === "doctor" ? "doctor" : "home",
     );
   };
 

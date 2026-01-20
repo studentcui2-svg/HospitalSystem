@@ -18,8 +18,9 @@ const userSchema = new mongoose.Schema(
       trim: true,
     },
     dateOfBirth: { type: Date },
+    avatarUrl: { type: String },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 userSchema.pre("save", async function (next) {

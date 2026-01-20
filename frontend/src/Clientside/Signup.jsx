@@ -210,7 +210,7 @@ const App = ({
     } catch (e) {
       console.warn("Google Identity not available", e);
     }
-  }, []);
+  }, [onLogin, showError, showSuccess]);
 
   const handleChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });

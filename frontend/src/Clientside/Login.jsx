@@ -186,31 +186,34 @@ const App = ({
   };
 
   // Google sign-in callback
-  const handleGoogleResponse = async (response, createIfMissing = false) => {
-    if (!response || !response.credential) return;
-    setLoading(true);
-    try {
-      const payload = await jsonFetch("/api/auth/google", {
-        method: "POST",
-        body: { idToken: response.credential, createIfMissing },
-      });
-      if (typeof onLogin === "function") onLogin(payload);
-    } catch (err) {
-      console.error("Google sign-in error", err);
-      const msg =
-        err?.message || err?.details?.message || "Google sign-in failed";
-      if (err && err.status === 404) {
-        toast.error(
-          "No account found for this Google account. Please sign up first.",
-        );
-        onSwitchToSignup?.();
-      } else {
-        toast.error(msg);
+  const handleGoogleResponse = React.useCallback(
+    async (response, createIfMissing = false) => {
+      if (!response || !response.credential) return;
+      setLoading(true);
+      try {
+        const payload = await jsonFetch("/api/auth/google", {
+          method: "POST",
+          body: { idToken: response.credential, createIfMissing },
+        });
+        if (typeof onLogin === "function") onLogin(payload);
+      } catch (err) {
+        console.error("Google sign-in error", err);
+        const msg =
+          err?.message || err?.details?.message || "Google sign-in failed";
+        if (err && err.status === 404) {
+          toast.error(
+            "No account found for this Google account. Please sign up first.",
+          );
+          onSwitchToSignup?.();
+        } else {
+          toast.error(msg);
+        }
+      } finally {
+        setLoading(false);
       }
-    } finally {
-      setLoading(false);
-    }
-  };
+    },
+    [onLogin, onSwitchToSignup],
+  );
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.google) return;
@@ -230,7 +233,7 @@ const App = ({
     } catch (e) {
       console.warn("Google Identity not available", e);
     }
-  }, []);
+  }, [handleGoogleResponse]);
 
   const sendForgotEmail = async () => {
     if (!fpEmail) {

@@ -1,6 +1,11 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
-import { FaSignOutAlt } from "react-icons/fa";
+import {
+  FaSignOutAlt,
+  FaUserCircle,
+  FaTrashAlt,
+  FaCamera,
+} from "react-icons/fa";
 import BrandLogo from "../components/BrandLogo";
 import ThreeScene from "./Home/ThreeScene.jsx";
 
@@ -73,34 +78,6 @@ const MobileMenu = styled.div`
     display: block;
     padding: 0.65rem 0.25rem;
     font-size: 1rem;
-  }
-`;
-
-const Logo = styled.div`
-  display: inline-flex;
-  align-items: center;
-  cursor: pointer;
-`;
-
-const NavLinks = styled.div`
-  display: flex;
-  gap: 2.5rem;
-  align-items: center;
-  flex: 1;
-  justify-content: flex-end;
-
-  @media (max-width: 1024px) {
-    gap: 2rem;
-  }
-
-  @media (max-width: 768px) {
-    gap: 1rem;
-    display: none;
-  }
-
-  @media (max-width: 480px) {
-    gap: 1rem;
-    width: 100%;
   }
 `;
 
@@ -198,6 +175,34 @@ const SignupButton = styled.a`
   }
 `;
 
+const Logo = styled.div`
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+`;
+
+const NavLinks = styled.div`
+  display: flex;
+  gap: 2.5rem;
+  align-items: center;
+  flex: 1;
+  justify-content: flex-end;
+
+  @media (max-width: 1024px) {
+    gap: 2rem;
+  }
+
+  @media (max-width: 768px) {
+    gap: 1rem;
+    display: none;
+  }
+
+  @media (max-width: 480px) {
+    gap: 1rem;
+    width: 100%;
+  }
+`;
+
 const NavBar = ({
   onNavigateToLogin,
   onOpenAppointment,
@@ -208,6 +213,42 @@ const NavBar = ({
   onNavigateToDoctor,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [avatarOpen, setAvatarOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState(null); // 'logout' | 'delete'
+  const avatarRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const [avatarUrl, setAvatarUrl] = useState(
+    (typeof window !== "undefined" &&
+      window.__APP_USER__ &&
+      window.__APP_USER__.avatarUrl) ||
+      null,
+  );
+  const [toast, setToast] = useState(null); // { message, type: 'success' | 'error' }
+
+  // Sync avatarUrl from window.__APP_USER__ when it changes (e.g., after login)
+  useEffect(() => {
+    const syncAvatar = () => {
+      if (window.__APP_USER__ && window.__APP_USER__.avatarUrl) {
+        setAvatarUrl(window.__APP_USER__.avatarUrl);
+      }
+    };
+    // Initial sync
+    syncAvatar();
+    // Listen for custom event when user data updates
+    window.addEventListener("userDataUpdated", syncAvatar);
+    return () => window.removeEventListener("userDataUpdated", syncAvatar);
+  }, [isLoggedIn]);
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (avatarRef.current && !avatarRef.current.contains(e.target)) {
+        setAvatarOpen(false);
+      }
+    }
+    window.addEventListener("click", handleClickOutside);
+    return () => window.removeEventListener("click", handleClickOutside);
+  }, []);
 
   return (
     <>
@@ -259,10 +300,19 @@ const NavBar = ({
               <AuthButtons>
                 <LoginButton
                   as="button"
-                  onClick={onLogout}
-                  style={{ display: "inline-flex", alignItems: "center" }}
+                  onClick={() => {
+                    setConfirmAction("logout");
+                    setConfirmOpen(true);
+                  }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    color: "#0ea5e9",
+                    borderColor: "#0ea5e9",
+                  }}
                 >
-                  <FaSignOutAlt style={{ marginRight: 8 }} /> Logout
+                  <FaSignOutAlt style={{ marginRight: 8, color: "#0ea5e9" }} />
+                  <span style={{ color: "#0ea5e9" }}>Logout</span>
                 </LoginButton>
               </AuthButtons>
             </NavLinks>
@@ -346,13 +396,224 @@ const NavBar = ({
                     Login
                   </LoginButton>
                 ) : (
-                  <LoginButton
-                    as="button"
-                    onClick={onLogout}
-                    style={{ display: "inline-flex", alignItems: "center" }}
-                  >
-                    <FaSignOutAlt style={{ marginRight: 8 }} /> Logout
-                  </LoginButton>
+                  <div style={{ position: "relative" }} ref={avatarRef}>
+                    <button
+                      onClick={() => setAvatarOpen((v) => !v)}
+                      style={{
+                        width: 42,
+                        height: 42,
+                        borderRadius: 999,
+                        background:
+                          "linear-gradient(135deg,#0ea5e9 0%,#4f46e5 100%)",
+                        color: "white",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        fontWeight: 800,
+                        boxShadow: "0 6px 18px rgba(79,70,229,0.28)",
+                        border: "2px solid rgba(255,255,255,0.06)",
+                        cursor: "pointer",
+                      }}
+                      aria-label="User menu"
+                    >
+                      {avatarUrl ? (
+                        <img
+                          src={
+                            avatarUrl.startsWith("http")
+                              ? avatarUrl
+                              : `http://localhost:5000${avatarUrl}`
+                          }
+                          alt="avatar"
+                          style={{
+                            width: 40,
+                            height: 40,
+                            borderRadius: 999,
+                            objectFit: "cover",
+                          }}
+                        />
+                      ) : (
+                        <>
+                          <FaUserCircle size={18} style={{ marginRight: 6 }} />
+                          <span style={{ fontSize: 12, fontWeight: 800 }}>
+                            {(() => {
+                              try {
+                                const u = (window && window.__APP_USER__) || {};
+                                if (u && u.name)
+                                  return u.name
+                                    .split(" ")
+                                    .map((n) => n[0])
+                                    .slice(0, 2)
+                                    .join("");
+                              } catch (e) {
+                                console.error(e);
+                              }
+                              return "U";
+                            })()}
+                          </span>
+                        </>
+                      )}
+                    </button>
+
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="user"
+                      ref={fileInputRef}
+                      style={{ display: "none" }}
+                      onChange={async (e) => {
+                        const f = e.target.files && e.target.files[0];
+                        if (!f) return;
+                        const reader = new FileReader();
+                        reader.onload = async () => {
+                          try {
+                            const dataUrl = reader.result;
+                            const token = window.__APP_TOKEN__;
+                            const resp = await fetch("/api/auth/avatar", {
+                              method: "POST",
+                              headers: {
+                                "Content-Type": "application/json",
+                                Authorization: token ? `Bearer ${token}` : "",
+                              },
+                              body: JSON.stringify({ image: dataUrl }),
+                            });
+                            const body = await resp.json().catch(() => ({}));
+                            if (!resp.ok) {
+                              const reason =
+                                body && body.message
+                                  ? body.message
+                                  : "Upload failed";
+                              setToast({
+                                message: `Upload failed: ${reason}`,
+                                type: "error",
+                              });
+                              setTimeout(() => setToast(null), 4000);
+                              throw new Error(reason);
+                            }
+                            setAvatarUrl(body.avatarUrl);
+                            window.__APP_USER__ = window.__APP_USER__ || {};
+                            window.__APP_USER__.avatarUrl = body.avatarUrl;
+                            window.dispatchEvent(new Event("userDataUpdated"));
+                            setToast({
+                              message: "Photo uploaded successfully",
+                              type: "success",
+                            });
+                            setTimeout(() => setToast(null), 3000);
+                          } catch (err) {
+                            console.error(err);
+                          }
+                        };
+                        reader.readAsDataURL(f);
+                      }}
+                    />
+
+                    {avatarOpen && (
+                      <div
+                        style={{
+                          position: "absolute",
+                          right: 0,
+                          marginTop: 8,
+                          background: "white",
+                          color: "#111827",
+                          boxShadow: "0 8px 24px rgba(2,6,23,0.16)",
+                          borderRadius: 10,
+                          overflow: "hidden",
+                          minWidth: 180,
+                        }}
+                      >
+                        <button
+                          onClick={() => {
+                            setConfirmAction("delete");
+                            setConfirmOpen(true);
+                            setAvatarOpen(false);
+                          }}
+                          style={{
+                            display: "block",
+                            width: "100%",
+                            padding: "10px 14px",
+                            border: "none",
+                            background: "transparent",
+                            textAlign: "left",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 8,
+                            }}
+                          >
+                            <FaTrashAlt style={{ color: "#0ea5e9" }} />
+                            <span style={{ color: "#0ea5e9" }}>
+                              {" "}
+                              Delete Account
+                            </span>
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            setAvatarOpen(false);
+                            try {
+                              fileInputRef.current &&
+                                fileInputRef.current.click();
+                            } catch (e) {
+                              console.error(e);
+                            }
+                          }}
+                          style={{
+                            display: "block",
+                            width: "100%",
+                            padding: "10px 14px",
+                            border: "none",
+                            background: "transparent",
+                            textAlign: "left",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 8,
+                            }}
+                          >
+                            <FaCamera style={{ color: "#0ea5e9" }} />
+                            <span style={{ color: "#0ea5e9" }}>
+                              Change Photo
+                            </span>
+                          </span>
+                        </button>
+                        <hr style={{ margin: 0 }} />
+                        <button
+                          onClick={() => {
+                            setConfirmAction("logout");
+                            setConfirmOpen(true);
+                            setAvatarOpen(false);
+                          }}
+                          style={{
+                            display: "block",
+                            width: "100%",
+                            padding: "10px 14px",
+                            border: "none",
+                            background: "transparent",
+                            textAlign: "left",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 8,
+                            }}
+                          >
+                            <FaSignOutAlt style={{ color: "#0ea5e9" }} />
+                            <span style={{ color: "#0ea5e9" }}> Logout</span>
+                          </span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 )}
               </AuthButtons>
             </NavLinks>
@@ -451,20 +712,182 @@ const NavBar = ({
                   Login
                 </LoginButton>
               ) : (
-                <LoginButton
-                  as="button"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    onLogout?.();
-                  }}
-                >
-                  <FaSignOutAlt style={{ marginRight: 8 }} /> Logout
-                </LoginButton>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setConfirmAction("delete");
+                      setConfirmOpen(true);
+                    }}
+                    style={{
+                      padding: "8px 12px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(0,0,0,0.06)",
+                      background: "white",
+                      cursor: "pointer",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        color: "#0ea5e9",
+                        fontWeight: 700,
+                      }}
+                    >
+                      <FaTrashAlt style={{ color: "#0ea5e9" }} /> Delete Account
+                    </span>
+                  </button>
+                  <LoginButton
+                    as="button"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setConfirmAction("logout");
+                      setConfirmOpen(true);
+                    }}
+                    style={{ color: "#0ea5e9", borderColor: "#0ea5e9" }}
+                  >
+                    <FaSignOutAlt
+                      style={{ marginRight: 8, color: "#0ea5e9" }}
+                    />
+                    <span style={{ color: "#0ea5e9" }}>Logout</span>
+                  </LoginButton>
+                </div>
               )}
             </div>
           </MobileMenu>
         )}
       </Navbar>
+
+      {/* Confirmation modal */}
+      {confirmOpen && (
+        <div
+          style={{
+            position: "fixed",
+            left: 0,
+            right: 0,
+            top: 0,
+            bottom: 0,
+            background: "rgba(0,0,0,0.6)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            zIndex: 12000,
+          }}
+          onClick={() => setConfirmOpen(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: "white",
+              padding: 24,
+              borderRadius: 12,
+              width: 420,
+              maxWidth: "90%",
+            }}
+          >
+            <h3 style={{ marginTop: 0 }}>
+              {confirmAction === "delete" ? "Delete account?" : "Logout?"}
+            </h3>
+            <p style={{ color: "#374151" }}>
+              {confirmAction === "delete"
+                ? "Are you sure you want to permanently delete your account? This action cannot be undone."
+                : "Are you sure you want to logout?"}
+            </p>
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 12,
+                marginTop: 18,
+              }}
+            >
+              <button
+                onClick={() => setConfirmOpen(false)}
+                style={{
+                  padding: "8px 12px",
+                  borderRadius: 8,
+                  background: "transparent",
+                  border: "1px solid #0ea5e9",
+                  color: "#0ea5e9",
+                  fontWeight: 700,
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={async () => {
+                  try {
+                    if (confirmAction === "logout") {
+                      // call logout handler
+                      onLogout?.();
+                    } else if (confirmAction === "delete") {
+                      // call delete account API then logout
+                      const token = window.__APP_TOKEN__;
+                      const resp = await fetch("/api/auth/delete", {
+                        method: "DELETE",
+                        headers: {
+                          Authorization: token ? `Bearer ${token}` : "",
+                        },
+                      });
+                      if (!resp.ok) {
+                        const body = await resp
+                          .json()
+                          .catch(() => ({ message: "Delete failed" }));
+                        throw new Error(body.message || "Delete failed");
+                      }
+                      // success, call onLogout to clear client state
+                      onLogout?.();
+                    }
+                  } catch (err) {
+                    console.error("Account action failed", err);
+                    alert(err?.message || "Action failed");
+                  } finally {
+                    setConfirmOpen(false);
+                  }
+                }}
+                style={{
+                  padding: "8px 14px",
+                  borderRadius: 8,
+                  background: "#0ea5e9",
+                  color: "white",
+                  border: "none",
+                  fontWeight: 700,
+                }}
+              >
+                {confirmAction === "delete" ? "Delete Account" : "Logout"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Toast notifications */}
+      {toast && (
+        <div
+          style={{
+            position: "fixed",
+            right: 20,
+            bottom: 24,
+            zIndex: 13000,
+            display: "flex",
+            gap: 12,
+            alignItems: "center",
+            background: toast.type === "success" ? "#ecfdf5" : "#fff1f2",
+            border: `1px solid ${toast.type === "success" ? "#34d399" : "#f87171"}`,
+            color: toast.type === "success" ? "#065f46" : "#7f1d1d",
+            padding: "10px 14px",
+            borderRadius: 10,
+            boxShadow: "0 8px 20px rgba(2,6,23,0.12)",
+            minWidth: 220,
+          }}
+        >
+          <div style={{ fontWeight: 800, fontSize: 16 }}>
+            {toast.type === "success" ? "✓" : "⚠"}
+          </div>
+          <div style={{ fontSize: 14 }}>{toast.message}</div>
+        </div>
+      )}
     </>
   );
 };

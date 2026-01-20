@@ -141,7 +141,12 @@ exports.verifyOtp = async (req, res) => {
     res.json({
       ok: true,
       token,
-      user: { name: user.name, email: user.email, role: user.role },
+      user: {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatarUrl: user.avatarUrl || null,
+      },
     });
   } catch (err) {
     console.error(err);
@@ -181,7 +186,12 @@ exports.login = async (req, res) => {
       return res.json({
         ok: true,
         token,
-        user: { name: admin.name, email: admin.email, role: admin.role },
+        user: {
+          name: admin.name,
+          email: admin.email,
+          role: admin.role,
+          avatarUrl: admin.avatarUrl || null,
+        },
       });
     }
 
@@ -198,7 +208,12 @@ exports.login = async (req, res) => {
     res.json({
       ok: true,
       token,
-      user: { name: user.name, email: user.email, role: user.role },
+      user: {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatarUrl: user.avatarUrl || null,
+      },
     });
   } catch (err) {
     console.error(err);
@@ -337,10 +352,87 @@ exports.googleAuth = async (req, res) => {
     return res.json({
       ok: true,
       token,
-      user: { name: user.name, email: user.email, role: user.role },
+      user: {
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatarUrl: user.avatarUrl || null,
+      },
     });
   } catch (err) {
     console.error("[GOOGLE AUTH ERROR]", err && err.message);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Update avatar for authenticated user. Accepts { image: '<dataURL or base64>' }
+exports.updateAvatar = async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+
+    const { image } = req.body || {};
+    if (!image) return res.status(400).json({ message: "Image required" });
+
+    // decode data URL or raw base64
+    let base64Data = image;
+    let ext = "jpg";
+    const match = String(image || "").match(
+      /^data:(image\/(\w+));base64,(.+)$/,
+    );
+    if (match) {
+      const mimeExt = match[2];
+      ext = mimeExt === "jpeg" ? "jpg" : mimeExt;
+      base64Data = match[3];
+    }
+
+    const buffer = Buffer.from(base64Data, "base64");
+    const fs = require("fs");
+    const path = require("path");
+    const uploadDir = path.join(__dirname, "..", "uploads", "avatars");
+    fs.mkdirSync(uploadDir, { recursive: true });
+    const filename = `${userId}.${ext}`;
+    const filePath = path.join(uploadDir, filename);
+    fs.writeFileSync(filePath, buffer);
+
+    const publicPath = `/uploads/avatars/${filename}`;
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+    user.avatarUrl = publicPath;
+    await user.save();
+
+    return res.json({ ok: true, avatarUrl: publicPath });
+  } catch (err) {
+    console.error("[UPDATE AVATAR]", err && err.message);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Delete current user's account
+exports.deleteAccount = async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    // Remove associated doctor record if exists
+    try {
+      const Doctor = require("../models/Doctor");
+      await Doctor.deleteMany({ email: user.email });
+    } catch (e) {
+      console.warn(
+        "[DELETE ACCOUNT] could not remove doctor record:",
+        e && e.message,
+      );
+    }
+
+    await User.deleteOne({ _id: userId });
+
+    return res.json({ ok: true, message: "Account deleted" });
+  } catch (err) {
+    console.error("[DELETE ACCOUNT ERROR]", err && err.message);
     return res.status(500).json({ message: "Server error" });
   }
 };

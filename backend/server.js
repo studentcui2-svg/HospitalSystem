@@ -10,20 +10,25 @@ let rateLimit;
 try {
   helmet = require("helmet");
 } catch (e) {
-  console.warn("Optional dependency 'helmet' not installed — skipping security headers.");
+  console.warn(
+    "Optional dependency 'helmet' not installed — skipping security headers.",
+  );
   helmet = null;
 }
 
 try {
   rateLimit = require("express-rate-limit");
 } catch (e) {
-  console.warn("Optional dependency 'express-rate-limit' not installed — skipping rate limiting.");
+  console.warn(
+    "Optional dependency 'express-rate-limit' not installed — skipping rate limiting.",
+  );
   rateLimit = null;
 }
 const cors = require("cors");
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
+const path = require("path");
 const { Server } = require("socket.io");
 const connectDB = require("./config/db");
 const authRoutes = require("./routes/auth");
@@ -46,7 +51,9 @@ const app = express();
 if (helmet) app.use(helmet());
 
 // CORS - allow origins from environment variable or fallback to localhost/dev
-const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173").split(",");
+const allowedOrigins = (
+  process.env.CORS_ORIGINS || "http://localhost:5173"
+).split(",");
 app.use(
   cors({
     origin: function (origin, callback) {
@@ -66,13 +73,24 @@ if (rateLimit) {
   const limiter = rateLimit({ windowMs: 60 * 1000, max: 120 }); // 120 requests/min per IP
   app.use(limiter);
 } else {
-  console.warn("Rate limiting disabled — install 'express-rate-limit' to enable it.");
+  console.warn(
+    "Rate limiting disabled — install 'express-rate-limit' to enable it.",
+  );
 }
 
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// Increase body size limits to allow base64 image uploads from frontend
+app.use(express.json({ limit: process.env.EXPRESS_JSON_LIMIT || "8mb" }));
+app.use(
+  express.urlencoded({
+    extended: true,
+    limit: process.env.EXPRESS_URLENCODED_LIMIT || "8mb",
+  }),
+);
 app.use(cookieParser());
 app.use(morgan("dev"));
+
+// Serve uploaded files (avatars, etc.) from /uploads
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 // =====================
 // Connect to Database (async) and attach status
@@ -156,7 +174,7 @@ try {
     console.log(
       "🔌 Socket connected:",
       socket.id,
-      socket.user?.role || "no-role"
+      socket.user?.role || "no-role",
     );
 
     if (socket.user?.role === "admin") {
