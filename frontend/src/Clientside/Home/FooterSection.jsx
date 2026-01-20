@@ -200,15 +200,26 @@ const FooterSection = ({ onBookAppointment }) => {
             >
               {/* Using the new Styled Component instead of inline style animation */}
               <AnimatedHeart />
-              <h2
-                style={{
-                  fontSize: "2rem",
-                  fontWeight: "900",
-                  letterSpacing: "-1px",
-                }}
-              >
-                ZEECARE
-              </h2>
+              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                <img
+                  src="/logo.png"
+                  alt="ZeeCare"
+                  style={{ width: 56, height: 56, objectFit: "contain" }}
+                  onError={(e) => {
+                    e.target.style.display = "none";
+                  }}
+                />
+                <h2
+                  style={{
+                    fontSize: "2rem",
+                    fontWeight: "900",
+                    letterSpacing: "-1px",
+                    color: "#fff",
+                  }}
+                >
+                  ZEECARE
+                </h2>
+              </div>
             </div>
             <p
               style={{

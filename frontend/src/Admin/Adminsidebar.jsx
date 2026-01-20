@@ -18,7 +18,9 @@ const SidebarContainer = styled.div`
   color: white;
   min-height: 100vh;
   overflow-y: auto;
-  transition: transform 320ms ease, width 220ms ease;
+  transition:
+    transform 320ms ease,
+    width 220ms ease;
 
   /* 2xl (>=1536px) */
   @media (min-width: 1536px) {
@@ -337,7 +339,17 @@ const AdminSidebar = ({ activeSection, setActiveSection, onLogout }) => {
       >
         <SidebarHeader>
           <Logo>
-            <LogoIcon>Z</LogoIcon>
+            <LogoIcon>
+              {/* show fallback initial if no logo image */}
+              <img
+                src="/logo.png"
+                alt="logo"
+                style={{ width: 36, height: 36, objectFit: "contain" }}
+                onError={(e) => {
+                  e.target.style.display = "none";
+                }}
+              />
+            </LogoIcon>
             <LogoText>
               <LogoTitle>ZEECARE</LogoTitle>
               <LogoSubtitle>MEDICAL INSTITUTE</LogoSubtitle>

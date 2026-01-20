@@ -4,6 +4,7 @@ import { toast } from "react-toastify";
 import { jsonFetch } from "../utils/api";
 import jsPDF from "jspdf";
 import html2canvas from "html2canvas";
+import { useGlobalLoading } from "../contexts/GlobalLoading";
 
 // ========== Styled Components ==========
 
@@ -215,6 +216,55 @@ const StatusSelect = styled.select`
   }
 `;
 
+const LoadingOverlay = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+`;
+
+const Spinner = styled.div`
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid rgba(0, 0, 0, 0.08);
+  border-top-color: #4f46e5;
+  animation: spin 0.8s linear infinite;
+
+  @keyframes spin {
+    to {
+      transform: rotate(360deg);
+    }
+  }
+`;
+
+const SkeletonRow = styled.tr`
+  display: table-row;
+  background: transparent;
+`;
+
+const SkeletonTd = styled.td`
+  padding: 0.75rem 0.5rem;
+  vertical-align: middle;
+`;
+
+const SkeletonBlock = styled.div`
+  height: 14px;
+  width: ${(props) => props.width || "100%"};
+  background: linear-gradient(90deg, #f3f4f6 25%, #ececec 37%, #f3f4f6 63%);
+  background-size: 400% 100%;
+  border-radius: 6px;
+  animation: shimmer 1.4s ease infinite;
+
+  @keyframes shimmer {
+    0% {
+      background-position: 200% 0;
+    }
+    100% {
+      background-position: -200% 0;
+    }
+  }
+`;
+
 const ActionButton = styled.button`
   padding: 0.4rem 0.8rem;
   border-radius: 8px;
@@ -371,13 +421,14 @@ const PrimaryButton = styled.button`
 
 // ========== Component Logic ==========
 
-const AppointmentsTable = ({ data = [], onStatusUpdate }) => {
+const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
   const [rows, setRows] = useState([]);
   const [query, setQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
   const [updatingId, setUpdatingId] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const modalContentRef = useRef(null);
+  const { showLoading, hideLoading } = useGlobalLoading();
 
   useEffect(() => {
     setRows(
@@ -391,6 +442,7 @@ const AppointmentsTable = ({ data = [], onStatusUpdate }) => {
   const updateStatus = async (appointmentId, status) => {
     try {
       setUpdatingId(appointmentId);
+      showLoading("Updating appointment status...");
       const response = await jsonFetch(
         `/api/appointments/${appointmentId}/status`,
         {
@@ -416,6 +468,7 @@ const AppointmentsTable = ({ data = [], onStatusUpdate }) => {
       toast.error(error.message || "Failed to update appointment");
     } finally {
       setUpdatingId(null);
+      hideLoading();
     }
   };
 
@@ -451,21 +504,101 @@ const AppointmentsTable = ({ data = [], onStatusUpdate }) => {
 
   const handleDownloadPdf = async () => {
     if (!modalContentRef.current) return;
-    const canvas = await html2canvas(modalContentRef.current);
+    try {
+      showLoading("Generating PDF...");
+      const canvas = await html2canvas(modalContentRef.current);
     const imgData = canvas.toDataURL("image/png");
     const pdf = new jsPDF("p", "mm", "a4");
     const width = pdf.internal.pageSize.getWidth() - 20;
     const height = (canvas.height * width) / canvas.width;
     pdf.addImage(imgData, "PNG", 10, 10, width, height);
     pdf.save("appointment.pdf");
+    } catch (e) {
+      toast.error("Failed to generate PDF",e);
+    } finally {
+      hideLoading();
+    }
   };
 
-  if (!rows.length)
+  if (loading) {
+    // Render toolbar with disabled controls and skeleton rows while loading
     return (
       <TableWrap>
-        <Empty>No appointments yet.</Empty>
+        <Toolbar>
+          <LeftControls>
+            <SearchInput
+              placeholder="Search by name, email or phone"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              disabled
+            />
+          </LeftControls>
+          <RightControls>
+            <Select
+              value={filterStatus}
+              onChange={(e) => setFilterStatus(e.target.value)}
+              disabled
+            >
+              <option value="All">All Statuses</option>
+              <option value="Pending">Pending</option>
+              <option value="Accepted">Accepted</option>
+              <option value="Rejected">Rejected</option>
+            </Select>
+            <ClearButton disabled>Clear</ClearButton>
+            <LoadingOverlay>
+              <Spinner />
+              <div>Loading appointments…</div>
+            </LoadingOverlay>
+          </RightControls>
+        </Toolbar>
+
+        <Table>
+          <thead>
+            <Tr>
+              <Th>Patient Name</Th>
+              <Th>Email</Th>
+              <Th>Mode</Th>
+              <Th>Time Remaining</Th>
+              <Th>CNIC</Th>
+              <Th>Status</Th>
+              <Th>Remarks</Th>
+              <Th>Action</Th>
+            </Tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <SkeletonRow key={i}>
+                <SkeletonTd>
+                  <SkeletonBlock width="140px" />
+                </SkeletonTd>
+                <SkeletonTd>
+                  <SkeletonBlock width="160px" />
+                </SkeletonTd>
+                <SkeletonTd>
+                  <SkeletonBlock width="80px" />
+                </SkeletonTd>
+                <SkeletonTd>
+                  <SkeletonBlock width="90px" />
+                </SkeletonTd>
+                <SkeletonTd>
+                  <SkeletonBlock width="120px" />
+                </SkeletonTd>
+                <SkeletonTd>
+                  <SkeletonBlock width="80px" />
+                </SkeletonTd>
+                <SkeletonTd>
+                  <SkeletonBlock width="100px" />
+                </SkeletonTd>
+                <SkeletonTd>
+                  <SkeletonBlock width="120px" />
+                </SkeletonTd>
+              </SkeletonRow>
+            ))}
+          </tbody>
+        </Table>
       </TableWrap>
     );
+  }
 
   return (
     <TableWrap>

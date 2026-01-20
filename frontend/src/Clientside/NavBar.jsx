@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import styled from "styled-components";
 import { FaSignOutAlt } from "react-icons/fa";
+import BrandLogo from "../components/BrandLogo";
 import ThreeScene from "./Home/ThreeScene.jsx";
 
 export const NAV_HEIGHT = "72px";
@@ -75,24 +76,10 @@ const MobileMenu = styled.div`
   }
 `;
 
-const Logo = styled.h1`
-  color: #4f46e5;
-  font-size: 2rem;
-  font-weight: 800;
-  margin: 0;
+const Logo = styled.div`
+  display: inline-flex;
+  align-items: center;
   cursor: pointer;
-  background: linear-gradient(135deg, #4f46e5 0%, #7e22ce 100%);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  background-clip: text;
-
-  @media (max-width: 768px) {
-    font-size: 1.75rem;
-  }
-
-  @media (max-width: 480px) {
-    font-size: 1.5rem;
-  }
 `;
 
 const NavLinks = styled.div`
@@ -252,7 +239,7 @@ const NavBar = ({
                 window.scrollTo({ top: 0, behavior: "smooth" });
               }}
             >
-              ZECARE
+              <BrandLogo size={44} showText />
             </Logo>
           </Brand>
 

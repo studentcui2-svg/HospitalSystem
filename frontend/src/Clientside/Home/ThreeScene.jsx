@@ -68,6 +68,89 @@ const ThreeScene = () => {
     plus.position.set(0, 0.4, 0.91);
     group.add(plus);
 
+    // Try to load a GLB 3D logo from public/models/logo.glb
+    (async () => {
+      let addedModel = false;
+      try {
+        const { GLTFLoader } = await import(
+          /* webpackChunkName: "gltf-loader" */ "three/examples/jsm/loaders/GLTFLoader"
+        );
+        const loader = new GLTFLoader();
+        loader.load(
+          "/models/logo.glb",
+          (gltf) => {
+            try {
+              const model = gltf.scene || gltf.scenes?.[0];
+              if (!model) return;
+              // center and scale model
+              const box = new THREE.Box3().setFromObject(model);
+              const size = new THREE.Vector3();
+              box.getSize(size);
+              const maxDim = Math.max(size.x, size.y, size.z) || 1;
+              const scale = 0.9 / maxDim; // fit into ~0.9 unit width
+              model.scale.setScalar(scale);
+              // center
+              box.setFromObject(model);
+              const center = new THREE.Vector3();
+              box.getCenter(center);
+              model.position.sub(center);
+
+              model.position.set(0, 0.42, 0.915);
+              model.rotation.y = Math.PI; // face camera
+              group.add(model);
+              addedModel = true;
+              // store reference for cleanup
+              group.userData._gltf = gltf;
+            } catch (inner) {
+              console.warn("Error adding GLTF model:", inner);
+            }
+          },
+          undefined,
+          (err) => {
+            console.warn(
+              "GLTF load error for /models/logo.glb:",
+              err && err.message,
+            );
+          },
+        );
+      } catch (e) {
+        // dynamic import failed or loader not available
+        console.warn(
+          "GLTF loader unavailable, falling back to texture",
+          e && e.message,
+        );
+      }
+
+      // if GLB not added after a short delay, fallback to plain logo texture
+      setTimeout(() => {
+        if (addedModel) return;
+        try {
+          const texLoader = new THREE.TextureLoader();
+          texLoader.load(
+            "/logo.png",
+            (tex) => {
+              tex.encoding = THREE.sRGBEncoding;
+              const logoGeo = new THREE.PlaneGeometry(0.9, 0.4);
+              const logoMat = new THREE.MeshBasicMaterial({
+                map: tex,
+                transparent: true,
+              });
+              const logoMesh = new THREE.Mesh(logoGeo, logoMat);
+              logoMesh.position.set(0, 0.42, 0.915);
+              group.add(logoMesh);
+            },
+            undefined,
+            () => {
+              // ignore
+            },
+          );
+        } catch (err) {
+          console.log("Failed to load logo texture:", err);
+          // ignore
+        }
+      }, 600);
+    })();
+
     // orbiting spheres for interest
     const sphereGeo = new THREE.SphereGeometry(0.12, 16, 12);
     const sphereMat = new THREE.MeshStandardMaterial({

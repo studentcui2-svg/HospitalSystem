@@ -5,6 +5,21 @@
 
 require("dotenv").config();
 const express = require("express");
+let helmet;
+let rateLimit;
+try {
+  helmet = require("helmet");
+} catch (e) {
+  console.warn("Optional dependency 'helmet' not installed — skipping security headers.");
+  helmet = null;
+}
+
+try {
+  rateLimit = require("express-rate-limit");
+} catch (e) {
+  console.warn("Optional dependency 'express-rate-limit' not installed — skipping rate limiting.");
+  rateLimit = null;
+}
 const cors = require("cors");
 const morgan = require("morgan");
 const cookieParser = require("cookie-parser");
@@ -27,16 +42,49 @@ const app = express();
 // =====================
 // Middleware
 // =====================
-app.use(cors());
+// Security headers (optional)
+if (helmet) app.use(helmet());
+
+// CORS - allow origins from environment variable or fallback to localhost/dev
+const allowedOrigins = (process.env.CORS_ORIGINS || "http://localhost:5173").split(",");
+app.use(
+  cors({
+    origin: function (origin, callback) {
+      // allow requests with no origin (mobile apps, curl, server-to-server)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1) {
+        return callback(null, true);
+      }
+      const msg = `The CORS policy for this site does not allow access from the specified Origin.`;
+      return callback(new Error(msg), false);
+    },
+  }),
+);
+
+// Rate limiting basic protection (optional)
+if (rateLimit) {
+  const limiter = rateLimit({ windowMs: 60 * 1000, max: 120 }); // 120 requests/min per IP
+  app.use(limiter);
+} else {
+  console.warn("Rate limiting disabled — install 'express-rate-limit' to enable it.");
+}
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(morgan("dev"));
 
 // =====================
-// Connect to Database
+// Connect to Database (async) and attach status
 // =====================
-connectDB();
+connectDB()
+  .then(() => {
+    // no-op: connected successfully
+  })
+  .catch((err) => {
+    // Log but do not force exit; this allows the server to start in a degraded mode
+    console.error("Initial MongoDB connection failed:", err && err.message);
+  });
 
 // =====================
 // Routes
@@ -52,6 +100,13 @@ app.use("/api/doctor", doctorPanelRoutes);
 
 app.get("/", (req, res) => {
   res.json({ ok: true, message: "Backend running" });
+});
+
+// Health check endpoint
+app.get("/health", (req, res) => {
+  const mongoose = require("mongoose");
+  const state = mongoose.connection.readyState; // 0 = disconnected, 1 = connected
+  res.json({ ok: true, dbConnected: state === 1, state });
 });
 
 // =====================

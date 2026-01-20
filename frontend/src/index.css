@@ -1,12 +1,15 @@
 /* Global base stylesheet - restored to sensible defaults */
 :root {
-  --text: #0f172a;
-  --muted: #6b7280;
-  --accent: #4f46e5;
+  /* New refined medical palette */
+  --text: #0b1220; /* deep navy text */
+  --muted: #64748b; /* muted slate */
+  --accent: #0ea5a4; /* teal primary */
+  --accent-dark: #0f766e;
+  --accent-2: #7c3aed; /* purple accent for highlights */
   --surface: #ffffff;
-  --app-bg: #fafbfd;
+  --app-bg: #f8fafb; /* very light neutral */
 
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   line-height: 1.5;
 }
 
@@ -40,7 +43,7 @@ button {
   border-radius: 8px;
   border: none;
   padding: 0.55rem 1rem;
-  background: var(--accent);
+  background: linear-gradient(135deg, var(--accent) 0%, var(--accent-2) 100%);
   color: white;
   cursor: pointer;
 }
