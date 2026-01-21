@@ -3,6 +3,7 @@ const mongoose = require("mongoose");
 const appointmentSchema = new mongoose.Schema(
   {
     patientName: { type: String, required: true },
+    fatherName: { type: String },
     patientEmail: { type: String },
     cnic: { type: String },
     phone: { type: String },
@@ -13,6 +14,7 @@ const appointmentSchema = new mongoose.Schema(
       default: "",
     },
     dateOfBirth: { type: Date },
+    age: { type: Number },
     department: { type: String },
     doctor: { type: String },
     notes: { type: String },
@@ -38,6 +40,8 @@ const appointmentSchema = new mongoose.Schema(
       enum: ["Pending", "Accepted", "Rejected"],
       default: "Pending",
     },
+    rejectionReason: { type: String },
+    meetingLink: { type: String },
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     // Payment information
     payment: {
@@ -70,7 +74,7 @@ const appointmentSchema = new mongoose.Schema(
       html: String,
     },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 module.exports = mongoose.model("Appointment", appointmentSchema);

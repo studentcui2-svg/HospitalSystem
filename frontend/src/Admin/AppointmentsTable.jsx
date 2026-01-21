@@ -425,8 +425,12 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
   const [rows, setRows] = useState([]);
   const [query, setQuery] = useState("");
   const [filterStatus, setFilterStatus] = useState("All");
+  const [filterPeriod, setFilterPeriod] = useState("all");
   const [updatingId, setUpdatingId] = useState(null);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
+  const [showRejectionModal, setShowRejectionModal] = useState(false);
+  const [rejectionReason, setRejectionReason] = useState("");
+  const [pendingRejection, setPendingRejection] = useState(null);
   const modalContentRef = useRef(null);
   const { showLoading, hideLoading } = useGlobalLoading();
 
@@ -439,7 +443,7 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
     );
   }, [data]);
 
-  const updateStatus = async (appointmentId, status) => {
+  const updateStatus = async (appointmentId, status, reason = "") => {
     try {
       setUpdatingId(appointmentId);
       showLoading("Updating appointment status...");
@@ -447,7 +451,10 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
         `/api/appointments/${appointmentId}/status`,
         {
           method: "PATCH",
-          body: { status },
+          body:
+            status === "Rejected" && reason
+              ? { status, rejectionReason: reason }
+              : { status },
         },
       );
 
@@ -463,7 +470,9 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
       }
 
       const patientName = updated?.patientName || "the patient";
-      toast.success(`Status updated for ${patientName}`);
+      toast.success(
+        `Status updated for ${patientName}${status === "Rejected" && reason ? ". Email sent with reason and rebooking link." : ""}`,
+      );
     } catch (error) {
       toast.error(error.message || "Failed to update appointment");
     } finally {
@@ -472,9 +481,32 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
     }
   };
 
+  const handleStatusChange = (appointmentId, newStatus) => {
+    if (newStatus === "Rejected") {
+      setPendingRejection(appointmentId);
+      setShowRejectionModal(true);
+      setRejectionReason("");
+    } else {
+      updateStatus(appointmentId, newStatus);
+    }
+  };
+
+  const handleRejectionSubmit = () => {
+    if (!rejectionReason.trim()) {
+      toast.error("Please provide a reason for rejection");
+      return;
+    }
+    updateStatus(pendingRejection, "Rejected", rejectionReason);
+    setShowRejectionModal(false);
+    setPendingRejection(null);
+    setRejectionReason("");
+  };
+
   const visibleRows = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return rows.filter((r) => {
+
+    // First filter by search query and status
+    let filtered = rows.filter((r) => {
       if (filterStatus !== "All" && r.status !== filterStatus) return false;
       if (!q) return true;
       return (
@@ -483,11 +515,52 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
         (r.cnic || "").toLowerCase().includes(q)
       );
     });
-  }, [rows, query, filterStatus]);
+
+    // Then filter by date period
+    if (filterPeriod !== "all") {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+      filtered = filtered.filter((appointment) => {
+        const apptDate = new Date(appointment.date);
+        const apptDay = new Date(
+          apptDate.getFullYear(),
+          apptDate.getMonth(),
+          apptDate.getDate(),
+        );
+
+        switch (filterPeriod) {
+          case "today":
+            return apptDay.getTime() === today.getTime();
+
+          case "week": {
+            const weekAgo = new Date(today);
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            return apptDate >= weekAgo;
+          }
+
+          case "month": {
+            const monthAgo = new Date(today);
+            monthAgo.setMonth(monthAgo.getMonth() - 1);
+            return apptDate >= monthAgo;
+          }
+
+          default:
+            return true;
+        }
+      });
+    }
+
+    // Sort by date (earliest first)
+    return filtered.sort((a, b) => {
+      return new Date(a.date) - new Date(b.date);
+    });
+  }, [rows, query, filterStatus, filterPeriod]);
 
   const clearFilters = () => {
     setQuery("");
     setFilterStatus("All");
+    setFilterPeriod("all");
   };
 
   const closeModal = () => setSelectedAppointment(null);
@@ -507,14 +580,14 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
     try {
       showLoading("Generating PDF...");
       const canvas = await html2canvas(modalContentRef.current);
-    const imgData = canvas.toDataURL("image/png");
-    const pdf = new jsPDF("p", "mm", "a4");
-    const width = pdf.internal.pageSize.getWidth() - 20;
-    const height = (canvas.height * width) / canvas.width;
-    pdf.addImage(imgData, "PNG", 10, 10, width, height);
-    pdf.save("appointment.pdf");
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const width = pdf.internal.pageSize.getWidth() - 20;
+      const height = (canvas.height * width) / canvas.width;
+      pdf.addImage(imgData, "PNG", 10, 10, width, height);
+      pdf.save("appointment.pdf");
     } catch (e) {
-      toast.error("Failed to generate PDF",e);
+      toast.error("Failed to generate PDF", e);
     } finally {
       hideLoading();
     }
@@ -572,16 +645,19 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
                   <SkeletonBlock width="140px" />
                 </SkeletonTd>
                 <SkeletonTd>
+                  <SkeletonBlock width="120px" />
+                </SkeletonTd>
+                <SkeletonTd>
                   <SkeletonBlock width="160px" />
+                </SkeletonTd>
+                <SkeletonTd>
+                  <SkeletonBlock width="110px" />
                 </SkeletonTd>
                 <SkeletonTd>
                   <SkeletonBlock width="80px" />
                 </SkeletonTd>
                 <SkeletonTd>
                   <SkeletonBlock width="90px" />
-                </SkeletonTd>
-                <SkeletonTd>
-                  <SkeletonBlock width="120px" />
                 </SkeletonTd>
                 <SkeletonTd>
                   <SkeletonBlock width="80px" />
@@ -612,6 +688,15 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
         </LeftControls>
         <RightControls>
           <Select
+            value={filterPeriod}
+            onChange={(e) => setFilterPeriod(e.target.value)}
+          >
+            <option value="all">All Appointments</option>
+            <option value="today">Today</option>
+            <option value="week">This Week</option>
+            <option value="month">Monthly</option>
+          </Select>
+          <Select
             value={filterStatus}
             onChange={(e) => setFilterStatus(e.target.value)}
           >
@@ -628,10 +713,12 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
         <thead>
           <Tr>
             <Th>Patient Name</Th>
+            <Th>Father Name</Th>
+            <Th>Age</Th>
             <Th>Email</Th>
+            <Th>Contact Number</Th>
             <Th>Mode</Th>
             <Th>Time Remaining</Th>
-            <Th>CNIC</Th>
             <Th>Status</Th>
             <Th>Remarks</Th>
             <Th>Action</Th>
@@ -646,6 +733,22 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
             </Tr>
           ) : (
             visibleRows.map((row) => {
+              // Calculate age from dateOfBirth if not stored
+              let calculatedAge = row.age;
+              if (!calculatedAge && row.dateOfBirth) {
+                const birthDate = new Date(row.dateOfBirth);
+                const today = new Date();
+                let age = today.getFullYear() - birthDate.getFullYear();
+                const monthDiff = today.getMonth() - birthDate.getMonth();
+                if (
+                  monthDiff < 0 ||
+                  (monthDiff === 0 && today.getDate() < birthDate.getDate())
+                ) {
+                  age--;
+                }
+                calculatedAge = age;
+              }
+
               // Calculate time remaining and remarks for admin view
               const now = new Date();
               const appointmentDate = new Date(row.date);
@@ -698,7 +801,16 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
                   <Td data-label="Patient Name:">
                     {row.patientName || "Unknown"}
                   </Td>
+                  <Td data-label="Father Name:">{row.fatherName || "-"}</Td>
+                  <Td data-label="Age:">
+                    {calculatedAge !== null && calculatedAge !== undefined
+                      ? `${calculatedAge} years`
+                      : "-"}
+                  </Td>
                   <Td data-label="Email:">{row.patientEmail || "-"}</Td>
+                  <Td data-label="Contact Number:">
+                    {row.phone || row.patientPhone || "-"}
+                  </Td>
                   <Td data-label="Mode:">
                     <Status
                       $status={isOnline ? "Online" : "Clinic"}
@@ -717,7 +829,6 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
                       {timeRemaining}
                     </div>
                   </Td>
-                  <Td data-label="CNIC:">{row.cnic || "-"}</Td>
                   <Td data-label="Status:">
                     <Status $status={row.status}>{row.status}</Status>
                   </Td>
@@ -748,7 +859,7 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
                       <StatusSelect
                         value={row.status}
                         onChange={(e) =>
-                          updateStatus(row._id || row.id, e.target.value)
+                          handleStatusChange(row._id || row.id, e.target.value)
                         }
                         disabled={
                           updatingId === (row._id || row.id) ||
@@ -816,6 +927,95 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
               <SecondaryButton onClick={handlePrint}>Print</SecondaryButton>
               <PrimaryButton onClick={handleDownloadPdf}>
                 Download PDF
+              </PrimaryButton>
+            </ModalFooter>
+          </ModalContent>
+        </ModalOverlay>
+      )}
+
+      {showRejectionModal && (
+        <ModalOverlay>
+          <ModalContent style={{ maxWidth: "500px" }}>
+            <ModalHeader>
+              <ModalTitle>Rejection Reason</ModalTitle>
+              <CloseButton
+                onClick={() => {
+                  setShowRejectionModal(false);
+                  setPendingRejection(null);
+                  setRejectionReason("");
+                }}
+              >
+                ×
+              </CloseButton>
+            </ModalHeader>
+            <ModalBody>
+              <div style={{ marginBottom: "16px" }}>
+                <label
+                  style={{
+                    display: "block",
+                    marginBottom: "8px",
+                    fontWeight: 600,
+                    color: "#374151",
+                    fontSize: "0.9rem",
+                  }}
+                >
+                  Please provide a reason for rejecting this appointment:
+                </label>
+                <textarea
+                  value={rejectionReason}
+                  onChange={(e) => setRejectionReason(e.target.value)}
+                  placeholder="Enter rejection reason (e.g., Doctor unavailable, Time slot conflict, etc.)"
+                  rows={5}
+                  style={{
+                    width: "100%",
+                    padding: "12px",
+                    border: "1px solid #d1d5db",
+                    borderRadius: "8px",
+                    fontSize: "0.9rem",
+                    fontFamily: "inherit",
+                    resize: "vertical",
+                    outline: "none",
+                  }}
+                  onFocus={(e) => {
+                    e.target.style.borderColor = "#4f46e5";
+                    e.target.style.boxShadow =
+                      "0 0 0 3px rgba(79, 70, 229, 0.1)";
+                  }}
+                  onBlur={(e) => {
+                    e.target.style.borderColor = "#d1d5db";
+                    e.target.style.boxShadow = "none";
+                  }}
+                />
+                <p
+                  style={{
+                    marginTop: "8px",
+                    fontSize: "0.8rem",
+                    color: "#6b7280",
+                  }}
+                >
+                  This reason will be sent to the patient via email along with a
+                  link to reschedule.
+                </p>
+              </div>
+            </ModalBody>
+            <ModalFooter>
+              <SecondaryButton
+                onClick={() => {
+                  setShowRejectionModal(false);
+                  setPendingRejection(null);
+                  setRejectionReason("");
+                }}
+              >
+                Cancel
+              </SecondaryButton>
+              <PrimaryButton
+                onClick={handleRejectionSubmit}
+                style={{
+                  background:
+                    "linear-gradient(135deg, #ef4444 0%, #dc2626 100%)",
+                }}
+              >
+                Reject & Send Email
               </PrimaryButton>
             </ModalFooter>
           </ModalContent>

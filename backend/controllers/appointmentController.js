@@ -2,6 +2,179 @@ const Appointment = require("../models/Appointment");
 const sendEmail = require("../utils/email");
 const Stripe = require("stripe");
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+const axios = require("axios");
+
+// Zoom API Configuration
+const ZOOM_ACCOUNT_ID = process.env.ZOOM_ACCOUNT_ID || "";
+const ZOOM_CLIENT_ID = process.env.ZOOM_CLIENT_ID || "";
+const ZOOM_CLIENT_SECRET = process.env.ZOOM_CLIENT_SECRET || "";
+
+// Function to get Zoom access token
+async function getZoomAccessToken() {
+  if (!ZOOM_ACCOUNT_ID || !ZOOM_CLIENT_ID || !ZOOM_CLIENT_SECRET) {
+    console.warn("[ZOOM] API credentials not configured");
+    return null;
+  }
+
+  try {
+    const authString = Buffer.from(
+      `${ZOOM_CLIENT_ID}:${ZOOM_CLIENT_SECRET}`,
+    ).toString("base64");
+    const response = await axios.post(
+      `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${ZOOM_ACCOUNT_ID}`,
+      {},
+      {
+        headers: {
+          Authorization: `Basic ${authString}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      },
+    );
+    return response.data.access_token;
+  } catch (error) {
+    console.error(
+      "[ZOOM] Failed to get access token:",
+      error.response?.data || error.message,
+    );
+    return null;
+  }
+}
+
+// Function to create Zoom meeting
+async function createZoomMeeting(appointmentData) {
+  const token = await getZoomAccessToken();
+
+  if (!token) {
+    console.warn("[ZOOM] No access token, skipping meeting creation");
+    return null;
+  }
+
+  try {
+    const meetingData = {
+      topic: `Medical Appointment - ${appointmentData.patientName} with Dr. ${appointmentData.doctor}`,
+      type: 2, // Scheduled meeting
+      start_time: new Date(appointmentData.date).toISOString(),
+      duration: appointmentData.durationMinutes || 30,
+      timezone: appointmentData.timezone || "Asia/Karachi",
+      settings: {
+        host_video: true,
+        participant_video: true,
+        join_before_host: false,
+        mute_upon_entry: true,
+        waiting_room: true,
+        audio: "both",
+        auto_recording: "none",
+      },
+    };
+
+    const response = await axios.post(
+      "https://api.zoom.us/v2/users/me/meetings",
+      meetingData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    console.log("[ZOOM] Meeting created:", response.data.id);
+    return {
+      meetingId: response.data.id,
+      joinUrl: response.data.join_url,
+      password: response.data.password,
+    };
+  } catch (error) {
+    console.error(
+      "[ZOOM] Failed to create meeting:",
+      error.response?.data || error.message,
+    );
+    return null;
+  }
+}
+
+exports.createAppointment = async (req, res) => {
+  if (!ZOOM_ACCOUNT_ID || !ZOOM_CLIENT_ID || !ZOOM_CLIENT_SECRET) {
+    console.warn("[ZOOM] API credentials not configured");
+    return null;
+  }
+
+  try {
+    const authString = Buffer.from(
+      `${ZOOM_CLIENT_ID}:${ZOOM_CLIENT_SECRET}`,
+    ).toString("base64");
+    const response = await axios.post(
+      `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${ZOOM_ACCOUNT_ID}`,
+      {},
+      {
+        headers: {
+          Authorization: `Basic ${authString}`,
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+      },
+    );
+    return response.data.access_token;
+  } catch (error) {
+    console.error(
+      "[ZOOM] Failed to get access token:",
+      error.response?.data || error.message,
+    );
+    return null;
+  }
+};
+
+// Function to create Zoom meeting
+async function createZoomMeeting(appointmentData) {
+  const token = await getZoomAccessToken();
+
+  if (!token) {
+    console.warn("[ZOOM] No access token, skipping meeting creation");
+    return null;
+  }
+
+  try {
+    const meetingData = {
+      topic: `Medical Appointment - ${appointmentData.patientName} with Dr. ${appointmentData.doctor}`,
+      type: 2, // Scheduled meeting
+      start_time: new Date(appointmentData.date).toISOString(),
+      duration: appointmentData.durationMinutes || 30,
+      timezone: appointmentData.timezone || "Asia/Karachi",
+      settings: {
+        host_video: true,
+        participant_video: true,
+        join_before_host: false,
+        mute_upon_entry: true,
+        waiting_room: true,
+        audio: "both",
+        auto_recording: "none",
+      },
+    };
+
+    const response = await axios.post(
+      "https://api.zoom.us/v2/users/me/meetings",
+      meetingData,
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+      },
+    );
+
+    console.log("[ZOOM] Meeting created:", response.data.id);
+    return {
+      meetingId: response.data.id,
+      joinUrl: response.data.join_url,
+      password: response.data.password,
+    };
+  } catch (error) {
+    console.error(
+      "[ZOOM] Failed to create meeting:",
+      error.response?.data || error.message,
+    );
+    return null;
+  }
+}
 
 exports.createAppointment = async (req, res) => {
   try {
@@ -9,12 +182,14 @@ exports.createAppointment = async (req, res) => {
 
     const {
       patientName,
+      fatherName,
       patientEmail,
       cnic,
       phone,
       address,
       gender,
       dateOfBirth,
+      age,
       department,
       doctor,
       notes,
@@ -115,12 +290,14 @@ exports.createAppointment = async (req, res) => {
 
     const appt = new Appointment({
       patientName,
+      fatherName,
       patientEmail,
       cnic,
       phone,
       address,
       gender,
       dateOfBirth: safeDob,
+      age: age,
       department,
       doctor,
       notes,
@@ -195,7 +372,7 @@ exports.getAppointments = async (req, res) => {
 exports.updateStatus = async (req, res) => {
   try {
     const { id } = req.params;
-    const { status } = req.body;
+    const { status, rejectionReason } = req.body;
     console.log(`[UPDATE APPOINTMENT] ${id} -> ${status}`);
 
     const normalizedStatus = typeof status === "string" ? status.trim() : "";
@@ -265,6 +442,30 @@ exports.updateStatus = async (req, res) => {
     }
 
     appt.status = normalizedStatus;
+    if (normalizedStatus === "Rejected" && rejectionReason) {
+      appt.rejectionReason = rejectionReason;
+    }
+
+    // Create Zoom meeting when appointment is accepted (online mode only)
+    if (
+      normalizedStatus === "Accepted" &&
+      appt.mode === "online" &&
+      !appt.meetingLink
+    ) {
+      const zoomMeeting = await createZoomMeeting({
+        patientName: appt.patientName,
+        doctor: appt.doctor,
+        date: appt.date,
+        durationMinutes: appt.durationMinutes,
+        timezone: appt.timezone,
+      });
+
+      if (zoomMeeting) {
+        appt.meetingLink = zoomMeeting.joinUrl;
+        console.log("[ZOOM] Meeting link saved:", zoomMeeting.joinUrl);
+      }
+    }
+
     await appt.save();
     console.log("[UPDATE APPOINTMENT] Updated:", appt._id);
 
@@ -288,6 +489,53 @@ exports.updateStatus = async (req, res) => {
           : normalizedStatus === "Rejected"
             ? "We're sorry to inform you that we cannot accommodate your appointment at this time."
             : "Your appointment status has been updated.";
+
+      // Add meeting link section for accepted online appointments
+      let meetingLinkMessage = "";
+      if (
+        normalizedStatus === "Accepted" &&
+        appt.mode === "online" &&
+        appt.meetingLink
+      ) {
+        meetingLinkMessage = `
+          <div style="background: linear-gradient(135deg, #10b981, #059669); border-radius: 12px; padding: 20px; margin: 20px 0; border: 2px solid #10b981;">
+            <p style="margin: 0; color: white; font-weight: 700; font-size: 1.2rem; text-align: center;">🎥 Your Virtual Meeting is Ready!</p>
+            <p style="margin: 12px 0; color: white; line-height: 1.6; text-align: center;">Join your online consultation at the scheduled time:</p>
+            <div style="text-align: center; margin: 16px 0;">
+              <a href="${appt.meetingLink}" style="display: inline-block; background: white; color: #10b981; padding: 14px 36px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 1.1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">Join Meeting</a>
+            </div>
+            <p style="margin: 12px 0 0 0; color: #d1fae5; font-size: 0.85rem; text-align: center;">
+              💡 Tip: Test your camera and microphone before the meeting
+            </p>
+          </div>
+        `;
+      }
+
+      // Add rejection reason to message if provided
+      let rejectionReasonMessage = "";
+      if (normalizedStatus === "Rejected" && rejectionReason) {
+        rejectionReasonMessage = `
+          <div style="background: #fef2f2; border-radius: 8px; padding: 16px; margin: 16px 0; border: 1px solid #ef4444;">
+            <p style="margin: 0; color: #991b1b; font-weight: 700; font-size: 1.1rem;">📝 Reason for Rejection:</p>
+            <p style="margin: 8px 0 0 0; color: #374151; line-height: 1.6;">${rejectionReason}</p>
+          </div>
+        `;
+      }
+
+      // Add rebooking link for rejected appointments
+      let rebookingMessage = "";
+      if (normalizedStatus === "Rejected") {
+        const rebookingLink = "http://localhost:5173";
+        rebookingMessage = `
+          <div style="background: #dbeafe; border-radius: 8px; padding: 16px; margin: 16px 0; border: 1px solid #3b82f6;">
+            <p style="margin: 0; color: #1e40af; font-weight: 700; font-size: 1.1rem;">📅 Want to Reschedule?</p>
+            <p style="margin: 8px 0; color: #374151; line-height: 1.6;">You can book a new appointment at a different time by clicking the button below:</p>
+            <div style="text-align: center; margin-top: 16px;">
+              <a href="${rebookingLink}/#/appointment" style="display: inline-block; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; padding: 12px 32px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 1rem;">Book New Appointment</a>
+            </div>
+          </div>
+        `;
+      }
 
       // Add refund information if applicable
       let refundMessage = "";
@@ -367,7 +615,10 @@ exports.updateStatus = async (req, res) => {
               ? appointmentDetails
               : `<p><strong>Scheduled Date:</strong> ${readableDate}</p>`
           }
+          ${meetingLinkMessage}
+          ${rejectionReasonMessage}
           ${refundMessage}
+          ${rebookingMessage}
           <p style="margin-top: 18px;">If you have any questions, please reply to this email or call our reception.</p>
           <p style="margin-top: 24px;">Best regards,<br/>The Clinic Team</p>
         </div>
@@ -403,6 +654,84 @@ exports.updateStatus = async (req, res) => {
         "[UPDATE APPOINTMENT] No patient email available for notification",
         appt._id,
       );
+    }
+
+    // Send email to doctor when appointment is accepted
+    if (normalizedStatus === "Accepted" && appt.doctor) {
+      try {
+        const doctorSubject = `New Appointment Confirmed - ${patientName}`;
+        const doctorHtml = `
+          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+            <h2 style="color: #4f46e5;">Hello Dr. ${appt.doctor},</h2>
+            <p>A new appointment has been confirmed with you.</p>
+            
+            <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin: 16px 0;">
+              <p style="margin: 0 0 12px 0; color: #374151; font-weight: 600;">📋 Appointment Details:</p>
+              <table style="width: 100%; border-collapse: collapse;">
+                <tr>
+                  <td style="padding: 4px 0; color: #6b7280;">Patient Name:</td>
+                  <td style="padding: 4px 0; color: #111827; font-weight: 600;">${appt.patientName}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; color: #6b7280;">Father Name:</td>
+                  <td style="padding: 4px 0; color: #111827;">${appt.fatherName || "N/A"}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; color: #6b7280;">Age:</td>
+                  <td style="padding: 4px 0; color: #111827;">${appt.age ? appt.age + " years" : "N/A"}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; color: #6b7280;">Gender:</td>
+                  <td style="padding: 4px 0; color: #111827;">${appt.gender || "N/A"}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; color: #6b7280;">Contact:</td>
+                  <td style="padding: 4px 0; color: #111827;">${appt.phone || "N/A"}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; color: #6b7280;">Department:</td>
+                  <td style="padding: 4px 0; color: #111827;">${appt.department || "N/A"}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; color: #6b7280;">Date & Time:</td>
+                  <td style="padding: 4px 0; color: #111827; font-weight: 600;">${readableDate}</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; color: #6b7280;">Duration:</td>
+                  <td style="padding: 4px 0; color: #111827;">${appt.durationMinutes || 30} minutes</td>
+                </tr>
+                <tr>
+                  <td style="padding: 4px 0; color: #6b7280;">Mode:</td>
+                  <td style="padding: 4px 0; color: #111827; font-weight: 600;">${appt.mode === "online" ? "🎥 Online" : "🏥 Physical"}</td>
+                </tr>
+              </table>
+            </div>
+            
+            ${meetingLinkMessage}
+            
+            <p style="margin-top: 18px;">Please be available at the scheduled time.</p>
+            <p style="margin-top: 24px;">Best regards,<br/>Hospital Management System</p>
+          </div>
+        `;
+
+        const doctorText = `New appointment confirmed with ${patientName} on ${readableDate}. ${appt.meetingLink ? `Meeting Link: ${appt.meetingLink}` : ""}`;
+
+        // TODO: Implement doctor email lookup from Doctor model
+        // For now, this is logged - you need to fetch doctor's email from database
+        console.log(
+          "[EMAIL] Doctor notification prepared for Dr.",
+          appt.doctor,
+        );
+        console.log(
+          "[EMAIL] Doctor notification HTML ready (implement doctor email lookup)",
+        );
+        // await sendEmail({ to: doctorEmail, subject: doctorSubject, html: doctorHtml, text: doctorText });
+      } catch (emailErr) {
+        console.error(
+          "[EMAIL ERROR] Failed to send doctor notification:",
+          emailErr.message,
+        );
+      }
     }
 
     res.json({ ok: true, appointment: appt, notified, refund: refundInfo });

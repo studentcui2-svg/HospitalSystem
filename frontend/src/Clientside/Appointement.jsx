@@ -142,10 +142,11 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
+    fatherName: "",
     email: "",
     mobileNumber: "",
     nic: "",
-    dateOfBirth: "",
+    age: "",
     gender: "",
     appointmentDateTime: "",
     department: "Pediatrics",
@@ -168,6 +169,9 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [invoiceHtml, setInvoiceHtml] = useState(null);
   const [lockedAppointment, setLockedAppointment] = useState(false);
+  const [bookedSlots, setBookedSlots] = useState([]);
+  const [loadingSlots, setLoadingSlots] = useState(false);
+  const [useCustomTime, setUseCustomTime] = useState(false);
 
   // derive unique departments from fetched doctors
   const departments = useMemo(() => {
@@ -200,17 +204,106 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
   useEffect(() => {
     if (departments.length > 0) {
       setFormData((prev) =>
-        prev.department ? prev : { ...prev, department: departments[0] }
+        prev.department ? prev : { ...prev, department: departments[0] },
       );
     }
   }, [departments]);
+
+  // Fetch booked slots when doctor or date changes
+  useEffect(() => {
+    const fetchBookedSlots = async () => {
+      if (!formData.doctor || !formData.appointmentDateTime) {
+        setBookedSlots([]);
+        return;
+      }
+
+      try {
+        setLoadingSlots(true);
+        const selectedDate = new Date(formData.appointmentDateTime);
+        const startOfDay = new Date(selectedDate);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(selectedDate);
+        endOfDay.setHours(23, 59, 59, 999);
+
+        const response = await jsonFetch(
+          `/api/appointments?doctor=${encodeURIComponent(formData.doctor)}&all=true`,
+        );
+
+        if (response && response.appointments) {
+          // Filter appointments for the selected date
+          const dayAppointments = response.appointments.filter((apt) => {
+            const aptDate = new Date(apt.date);
+            return aptDate >= startOfDay && aptDate <= endOfDay;
+          });
+
+          setBookedSlots(dayAppointments);
+        }
+      } catch (error) {
+        console.error("Error fetching booked slots:", error);
+        setBookedSlots([]);
+      } finally {
+        setLoadingSlots(false);
+      }
+    };
+
+    fetchBookedSlots();
+  }, [formData.doctor, formData.appointmentDateTime]);
+
+  // Generate time slots for the selected date
+  const timeSlots = useMemo(() => {
+    if (!formData.appointmentDateTime) return [];
+
+    const slots = [];
+    const selectedDate = new Date(formData.appointmentDateTime);
+    const now = new Date();
+    const isToday = selectedDate.toDateString() === now.toDateString();
+
+    selectedDate.setHours(0, 0, 0, 0); // Start at 00:00 (midnight)
+
+    for (let i = 0; i < 48; i++) {
+      // 48 slots = 24 hours * 2 slots/hour (00:00 to 23:30)
+      const slotStart = new Date(selectedDate.getTime() + i * 30 * 60000);
+
+      const slotEnd = new Date(
+        slotStart.getTime() + (formData.durationMinutes || 30) * 60000,
+      );
+
+      // Check if this slot has passed (for today only)
+      const isPast = isToday && slotStart < now;
+
+      // Check if this slot overlaps with any booked appointment
+      const isBooked = bookedSlots.some((apt) => {
+        const aptStart = new Date(apt.date);
+        const aptEnd = new Date(
+          apt.end || aptStart.getTime() + (apt.durationMinutes || 30) * 60000,
+        );
+        return (
+          (slotStart >= aptStart && slotStart < aptEnd) ||
+          (slotEnd > aptStart && slotEnd <= aptEnd) ||
+          (slotStart <= aptStart && slotEnd >= aptEnd)
+        );
+      });
+
+      slots.push({
+        time: slotStart,
+        display: slotStart.toLocaleTimeString([], {
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        isBooked,
+        isPast,
+      });
+    }
+
+    return slots;
+  }, [formData.appointmentDateTime, formData.durationMinutes, bookedSlots]);
 
   // Filter doctors based on selected department
   const filteredDoctors = useMemo(() => {
     const filtered = allDoctors.filter(
       (doctor) =>
         doctor.department &&
-        doctor.department.toLowerCase() === formData.department.toLowerCase()
+        doctor.department.toLowerCase() === formData.department.toLowerCase(),
     );
     console.log("[FILTERED DOCTORS]", {
       allDoctors,
@@ -246,18 +339,62 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    // Check for time conflicts and past times before submitting
+    if (formData.appointmentDateTime) {
+      const selectedStart = new Date(formData.appointmentDateTime);
+      const selectedEnd = new Date(
+        selectedStart.getTime() + (formData.durationMinutes || 30) * 60000,
+      );
+
+      // Check if time is in the past
+      const now = new Date();
+      const selectedDate = new Date(formData.appointmentDateTime.split("T")[0]);
+      const isToday = selectedDate.toDateString() === now.toDateString();
+
+      if (isToday && selectedStart < now) {
+        toast.error(
+          "Cannot book appointments in the past. Please select a future time.",
+        );
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Check for conflicts
+      const hasConflict = bookedSlots.some((apt) => {
+        const aptStart = new Date(apt.date);
+        const aptEnd = new Date(
+          apt.end || aptStart.getTime() + (apt.durationMinutes || 30) * 60000,
+        );
+        return (
+          (selectedStart >= aptStart && selectedStart < aptEnd) ||
+          (selectedEnd > aptStart && selectedEnd <= aptEnd) ||
+          (selectedStart <= aptStart && selectedEnd >= aptEnd)
+        );
+      });
+
+      if (hasConflict) {
+        toast.error(
+          "Selected time slot conflicts with an existing appointment. Please choose a different time.",
+        );
+        setIsSubmitting(false);
+        return;
+      }
+    }
+
     setIsSubmitting(true);
 
     try {
       const appointmentPayload = {
         patientName: `${formData.firstName} ${formData.lastName}`,
+        fatherName: formData.fatherName,
         patientEmail: formData.email,
         phone: formData.mobileNumber,
         cnic: formData.nic,
         department: formData.department,
         doctor: formData.doctor,
         address: formData.address,
-        dateOfBirth: formData.dateOfBirth,
+        age: formData.age ? parseInt(formData.age) : null,
         gender: formData.gender,
         notes: `Duration: ${formData.durationMinutes} mins`,
         visitedBefore: formData.visitedBefore === "yes",
@@ -294,7 +431,7 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
             window.dispatchEvent(
               new CustomEvent("appointments:changed", {
                 detail: { appointment: res.appointment, action: "create" },
-              })
+              }),
             );
           } catch (e) {
             console.log(e);
@@ -324,9 +461,9 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
               }<br/><strong>Doctor:</strong> ${
                 ap.doctor || "-"
               }<br/><strong>Scheduled:</strong> ${new Date(
-                ap.date
+                ap.date,
               ).toLocaleString()}</p><h3>Payment</h3><p><strong>Amount Due:</strong> USD ${Number(
-                amountText
+                amountText,
               ).toFixed(2)}<br/><strong>Status:</strong> ${
                 invoice && invoice.status ? invoice.status : "unpaid"
               }<br/><strong>Note:</strong> ${
@@ -345,7 +482,7 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
               window.dispatchEvent(
                 new CustomEvent("appointments:changed", {
                   detail: { appointment: res.appointment, action: "create" },
-                })
+                }),
               );
             } catch (e) {
               console.error(e);
@@ -522,6 +659,25 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                           color: "#94a3b8",
                         }}
                       >
+                        FATHER NAME
+                      </label>
+                      <GlassInput
+                        name="fatherName"
+                        value={formData.fatherName}
+                        onChange={handleInputChange}
+                        placeholder="Father's full name"
+                      />
+                    </div>
+                    <div style={{ marginBottom: "1.5rem" }}>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "8px",
+                          fontSize: "0.8rem",
+                          fontWeight: 800,
+                          color: "#94a3b8",
+                        }}
+                      >
                         EMAIL ADDRESS
                       </label>
                       <GlassInput
@@ -530,6 +686,25 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                         value={formData.email}
                         onChange={handleInputChange}
                         placeholder="john@example.com"
+                      />
+                    </div>
+                    <div style={{ marginBottom: "1.5rem" }}>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "8px",
+                          fontSize: "0.8rem",
+                          fontWeight: 800,
+                          color: "#94a3b8",
+                        }}
+                      >
+                        CONTACT NUMBER
+                      </label>
+                      <GlassInput
+                        name="mobileNumber"
+                        value={formData.mobileNumber}
+                        onChange={handleInputChange}
+                        placeholder="+92-300-1234567"
                       />
                     </div>
                     <div
@@ -568,26 +743,48 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                             color: "#94a3b8",
                           }}
                         >
-                          GENDER
+                          AGE
                         </label>
-                        <select
-                          name="gender"
-                          value={formData.gender}
+                        <GlassInput
+                          name="age"
+                          type="number"
+                          value={formData.age}
                           onChange={handleInputChange}
-                          style={{
-                            width: "100%",
-                            padding: "1.1rem",
-                            background: "rgba(255,255,255,0.05)",
-                            border: "1px solid rgba(255,255,255,0.1)",
-                            borderRadius: "16px",
-                            color: "white",
-                          }}
-                        >
-                          <option value="">Select</option>
-                          <option value="male">Male</option>
-                          <option value="female">Female</option>
-                        </select>
+                          placeholder="25"
+                          min="0"
+                          max="150"
+                        />
                       </div>
+                    </div>
+                    <div style={{ marginBottom: "1.5rem" }}>
+                      <label
+                        style={{
+                          display: "block",
+                          marginBottom: "8px",
+                          fontSize: "0.8rem",
+                          fontWeight: 800,
+                          color: "#94a3b8",
+                        }}
+                      >
+                        GENDER
+                      </label>
+                      <select
+                        name="gender"
+                        value={formData.gender}
+                        onChange={handleInputChange}
+                        style={{
+                          width: "100%",
+                          padding: "1.1rem",
+                          background: "rgba(255,255,255,0.05)",
+                          border: "1px solid rgba(255,255,255,0.1)",
+                          borderRadius: "16px",
+                          color: "white",
+                        }}
+                      >
+                        <option value="">Select</option>
+                        <option value="male">Male</option>
+                        <option value="female">Female</option>
+                      </select>
                     </div>
                   </motion.div>
                 ) : null}
@@ -734,8 +931,8 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                             {loadingDoctors
                               ? "Loading doctors..."
                               : filteredDoctors.length > 0
-                              ? "Select a Doctor"
-                              : "No doctors available"}
+                                ? "Select a Doctor"
+                                : "No doctors available"}
                           </option>
                           {filteredDoctors.map((doc) => (
                             <option key={doc._id} value={doc.name}>
@@ -755,15 +952,533 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                           color: "#94a3b8",
                         }}
                       >
-                        SCHEDULE DATETIME
+                        SELECT DATE
                       </label>
                       <GlassInput
-                        type="datetime-local"
+                        type="date"
                         name="appointmentDateTime"
-                        value={formData.appointmentDateTime}
-                        onChange={handleInputChange}
+                        value={
+                          formData.appointmentDateTime
+                            ? formData.appointmentDateTime.split("T")[0]
+                            : ""
+                        }
+                        onChange={(e) => {
+                          const dateValue = e.target.value;
+                          if (dateValue) {
+                            setFormData({
+                              ...formData,
+                              appointmentDateTime: `${dateValue}T08:00`,
+                            });
+                          } else {
+                            setFormData({
+                              ...formData,
+                              appointmentDateTime: "",
+                            });
+                          }
+                        }}
+                        min={new Date().toISOString().split("T")[0]}
                       />
                     </div>
+
+                    {formData.appointmentDateTime && (
+                      <div>
+                        <label
+                          style={{
+                            display: "block",
+                            marginBottom: "12px",
+                            fontSize: "0.8rem",
+                            fontWeight: 800,
+                            color: "#94a3b8",
+                          }}
+                        >
+                          SELECT TIME SLOT {loadingSlots && "(Loading...)"}
+                        </label>
+                        {/* Legend */}
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "15px",
+                            marginBottom: "10px",
+                            fontSize: "0.75rem",
+                            color: "#94a3b8",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "5px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: "12px",
+                                height: "12px",
+                                borderRadius: "3px",
+                                background:
+                                  "linear-gradient(135deg, #10b981, #059669)",
+                              }}
+                            ></div>
+                            <span>Available</span>
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "5px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: "12px",
+                                height: "12px",
+                                borderRadius: "3px",
+                                background:
+                                  "linear-gradient(135deg, #ef4444, #dc2626)",
+                              }}
+                            ></div>
+                            <span>Booked</span>
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "5px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: "12px",
+                                height: "12px",
+                                borderRadius: "3px",
+                                background:
+                                  "linear-gradient(135deg, #6b7280, #4b5563)",
+                              }}
+                            ></div>
+                            <span>Past</span>
+                          </div>
+                        </div>
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns:
+                              "repeat(auto-fill, minmax(100px, 1fr))",
+                            gap: "10px",
+                            maxHeight: "300px",
+                            overflowY: "auto",
+                            padding: "10px",
+                            background: "rgba(255, 255, 255, 0.03)",
+                            borderRadius: "12px",
+                            border: "1px solid rgba(255, 255, 255, 0.1)",
+                          }}
+                        >
+                          {timeSlots.map((slot, index) => {
+                            const isSelected =
+                              formData.appointmentDateTime ===
+                              slot.time.toISOString().slice(0, 16);
+                            return (
+                              <button
+                                key={index}
+                                type="button"
+                                disabled={slot.isBooked || slot.isPast}
+                                onClick={() => {
+                                  const localDateTime = new Date(slot.time);
+                                  const year = localDateTime.getFullYear();
+                                  const month = String(
+                                    localDateTime.getMonth() + 1,
+                                  ).padStart(2, "0");
+                                  const day = String(
+                                    localDateTime.getDate(),
+                                  ).padStart(2, "0");
+                                  const hours = String(
+                                    localDateTime.getHours(),
+                                  ).padStart(2, "0");
+                                  const minutes = String(
+                                    localDateTime.getMinutes(),
+                                  ).padStart(2, "0");
+                                  const localString = `${year}-${month}-${day}T${hours}:${minutes}`;
+
+                                  setFormData({
+                                    ...formData,
+                                    appointmentDateTime: localString,
+                                  });
+                                }}
+                                style={{
+                                  padding: "12px 8px",
+                                  borderRadius: "10px",
+                                  border: isSelected
+                                    ? "2px solid #6366f1"
+                                    : "1px solid rgba(255, 255, 255, 0.2)",
+                                  background: slot.isPast
+                                    ? "linear-gradient(135deg, #6b7280, #4b5563)"
+                                    : slot.isBooked
+                                      ? "linear-gradient(135deg, #ef4444, #dc2626)"
+                                      : isSelected
+                                        ? "linear-gradient(135deg, #6366f1, #4f46e5)"
+                                        : "linear-gradient(135deg, #10b981, #059669)",
+                                  color: "white",
+                                  cursor:
+                                    slot.isBooked || slot.isPast
+                                      ? "not-allowed"
+                                      : "pointer",
+                                  fontSize: "0.85rem",
+                                  fontWeight: 700,
+                                  opacity:
+                                    slot.isBooked || slot.isPast ? 0.6 : 1,
+                                  transition: "all 0.2s",
+                                  boxShadow: isSelected
+                                    ? "0 4px 12px rgba(99, 102, 241, 0.4)"
+                                    : "none",
+                                }}
+                                onMouseEnter={(e) => {
+                                  if (!slot.isBooked && !slot.isPast) {
+                                    e.currentTarget.style.transform =
+                                      "scale(1.05)";
+                                    e.currentTarget.style.boxShadow =
+                                      "0 4px 12px rgba(16, 185, 129, 0.4)";
+                                  }
+                                }}
+                                onMouseLeave={(e) => {
+                                  if (!slot.isBooked && !slot.isPast) {
+                                    e.currentTarget.style.transform =
+                                      "scale(1)";
+                                    e.currentTarget.style.boxShadow = isSelected
+                                      ? "0 4px 12px rgba(99, 102, 241, 0.4)"
+                                      : "none";
+                                  }
+                                }}
+                              >
+                                {slot.display}
+                                {slot.isPast && (
+                                  <div
+                                    style={{
+                                      fontSize: "0.65rem",
+                                      marginTop: "2px",
+                                    }}
+                                  >
+                                    Past
+                                  </div>
+                                )}
+                                {slot.isBooked && (
+                                  <div
+                                    style={{
+                                      fontSize: "0.65rem",
+                                      marginTop: "2px",
+                                    }}
+                                  >
+                                    Booked
+                                  </div>
+                                )}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            gap: "20px",
+                            marginTop: "12px",
+                            fontSize: "0.75rem",
+                            color: "#94a3b8",
+                          }}
+                        >
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: "16px",
+                                height: "16px",
+                                borderRadius: "4px",
+                                background:
+                                  "linear-gradient(135deg, #10b981, #059669)",
+                              }}
+                            />
+                            Available
+                          </div>
+                          <div
+                            style={{
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                            }}
+                          >
+                            <div
+                              style={{
+                                width: "16px",
+                                height: "16px",
+                                borderRadius: "4px",
+                                background:
+                                  "linear-gradient(135deg, #ef4444, #dc2626)",
+                              }}
+                            />
+                            Booked
+                          </div>
+                        </div>
+
+                        {/* Custom Time Toggle */}
+                        <div style={{ marginTop: "16px" }}>
+                          <button
+                            type="button"
+                            onClick={() => setUseCustomTime(!useCustomTime)}
+                            style={{
+                              width: "100%",
+                              padding: "12px",
+                              borderRadius: "10px",
+                              border: "2px solid #6366f1",
+                              background: useCustomTime
+                                ? "linear-gradient(135deg, #6366f1, #4f46e5)"
+                                : "rgba(99, 102, 241, 0.1)",
+                              color: useCustomTime ? "white" : "#6366f1",
+                              cursor: "pointer",
+                              fontSize: "0.85rem",
+                              fontWeight: 700,
+                              transition: "all 0.3s",
+                            }}
+                          >
+                            {useCustomTime
+                              ? "📅 Use Preset Slots"
+                              : "🕐 Choose Any Time"}
+                          </button>
+                        </div>
+
+                        {/* Custom Time Input with Conflict Check */}
+                        {useCustomTime && (
+                          <div style={{ marginTop: "16px" }}>
+                            <label
+                              style={{
+                                display: "block",
+                                marginBottom: "12px",
+                                fontSize: "0.8rem",
+                                fontWeight: 800,
+                                color: "#94a3b8",
+                              }}
+                            >
+                              ENTER CUSTOM TIME
+                            </label>
+                            {(() => {
+                              // Check if selected custom time conflicts with bookings OR is in the past
+                              const checkTimeConflict = () => {
+                                if (!formData.appointmentDateTime)
+                                  return { hasConflict: false, isPast: false };
+
+                                const selectedStart = new Date(
+                                  formData.appointmentDateTime,
+                                );
+                                const selectedEnd = new Date(
+                                  selectedStart.getTime() +
+                                    (formData.durationMinutes || 30) * 60000,
+                                );
+
+                                // Check if time is in the past
+                                const now = new Date();
+                                const selectedDate = new Date(
+                                  formData.appointmentDateTime.split("T")[0],
+                                );
+                                const isToday =
+                                  selectedDate.toDateString() ===
+                                  now.toDateString();
+                                const isPast = isToday && selectedStart < now;
+
+                                // Check for booking conflicts
+                                const hasConflict = bookedSlots.some((apt) => {
+                                  const aptStart = new Date(apt.date);
+                                  const aptEnd = new Date(
+                                    apt.end ||
+                                      aptStart.getTime() +
+                                        (apt.durationMinutes || 30) * 60000,
+                                  );
+                                  return (
+                                    (selectedStart >= aptStart &&
+                                      selectedStart < aptEnd) ||
+                                    (selectedEnd > aptStart &&
+                                      selectedEnd <= aptEnd) ||
+                                    (selectedStart <= aptStart &&
+                                      selectedEnd >= aptEnd)
+                                  );
+                                });
+
+                                return { hasConflict, isPast };
+                              };
+
+                              const { hasConflict, isPast } =
+                                checkTimeConflict();
+                              const selectedTime = formData.appointmentDateTime
+                                ? new Date(
+                                    formData.appointmentDateTime,
+                                  ).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    hour12: false,
+                                  })
+                                : "";
+                              const endTime = formData.appointmentDateTime
+                                ? new Date(
+                                    new Date(
+                                      formData.appointmentDateTime,
+                                    ).getTime() +
+                                      (formData.durationMinutes || 30) * 60000,
+                                  ).toLocaleTimeString([], {
+                                    hour: "2-digit",
+                                    minute: "2-digit",
+                                    hour12: false,
+                                  })
+                                : "";
+
+                              return (
+                                <>
+                                  <GlassInput
+                                    type="time"
+                                    value={
+                                      formData.appointmentDateTime
+                                        ? (() => {
+                                            const dt = new Date(
+                                              formData.appointmentDateTime,
+                                            );
+                                            const hours = dt
+                                              .getHours()
+                                              .toString()
+                                              .padStart(2, "0");
+                                            const minutes = dt
+                                              .getMinutes()
+                                              .toString()
+                                              .padStart(2, "0");
+                                            return `${hours}:${minutes}`;
+                                          })()
+                                        : ""
+                                    }
+                                    onChange={(e) => {
+                                      const timeValue = e.target.value;
+                                      const dateValue =
+                                        formData.appointmentDateTime
+                                          ? formData.appointmentDateTime.split(
+                                              "T",
+                                            )[0]
+                                          : new Date()
+                                              .toISOString()
+                                              .split("T")[0];
+                                      if (timeValue) {
+                                        setFormData({
+                                          ...formData,
+                                          appointmentDateTime: `${dateValue}T${timeValue}`,
+                                        });
+                                      }
+                                    }}
+                                    disabled={hasConflict || isPast}
+                                    style={{
+                                      fontSize: "1.2rem",
+                                      textAlign: "center",
+                                      padding: "1.3rem",
+                                      border:
+                                        hasConflict || isPast
+                                          ? "2px solid #ef4444"
+                                          : "1px solid rgba(255, 255, 255, 0.1)",
+                                      background:
+                                        hasConflict || isPast
+                                          ? "rgba(239, 68, 68, 0.1)"
+                                          : "rgba(255, 255, 255, 0.05)",
+                                      cursor:
+                                        hasConflict || isPast
+                                          ? "not-allowed"
+                                          : "pointer",
+                                      opacity: hasConflict || isPast ? 0.6 : 1,
+                                    }}
+                                  />
+
+                                  {formData.appointmentDateTime && (
+                                    <div
+                                      style={{
+                                        marginTop: "12px",
+                                        padding: "12px",
+                                        borderRadius: "10px",
+                                        background:
+                                          hasConflict || isPast
+                                            ? "linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(220, 38, 38, 0.2))"
+                                            : "linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.2))",
+                                        border:
+                                          hasConflict || isPast
+                                            ? "1px solid rgba(239, 68, 68, 0.4)"
+                                            : "1px solid rgba(16, 185, 129, 0.4)",
+                                      }}
+                                    >
+                                      <div
+                                        style={{
+                                          fontSize: "0.75rem",
+                                          fontWeight: 700,
+                                          color:
+                                            hasConflict || isPast
+                                              ? "#ef4444"
+                                              : "#10b981",
+                                          marginBottom: "6px",
+                                        }}
+                                      >
+                                        {isPast
+                                          ? "⏰ TIME HAS PASSED"
+                                          : hasConflict
+                                            ? "❌ TIME SLOT CONFLICT"
+                                            : "✅ TIME SLOT AVAILABLE"}
+                                      </div>
+                                      <div
+                                        style={{
+                                          fontSize: "0.85rem",
+                                          color: "white",
+                                        }}
+                                      >
+                                        <strong>Duration:</strong>{" "}
+                                        {selectedTime} - {endTime}
+                                        <br />
+                                        <strong>Length:</strong>{" "}
+                                        {formData.durationMinutes || 30} minutes
+                                      </div>
+                                      {isPast && (
+                                        <div
+                                          style={{
+                                            marginTop: "8px",
+                                            fontSize: "0.75rem",
+                                            color: "#fca5a5",
+                                          }}
+                                        >
+                                          ⚠️ This time has already passed.
+                                          Please choose a future time.
+                                        </div>
+                                      )}
+                                      {hasConflict && !isPast && (
+                                        <div
+                                          style={{
+                                            marginTop: "8px",
+                                            fontSize: "0.75rem",
+                                            color: "#fca5a5",
+                                          }}
+                                        >
+                                          ⚠️ This time overlaps with an existing
+                                          appointment. Please choose a different
+                                          time.
+                                        </div>
+                                      )}
+                                    </div>
+                                  )}
+                                </>
+                              );
+                            })()}
+                            <div
+                              style={{
+                                marginTop: "12px",
+                                fontSize: "0.7rem",
+                                color: "#94a3b8",
+                                textAlign: "center",
+                              }}
+                            >
+                              💡 Select any time - system will check for
+                              conflicts automatically
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
 
                     <PreviewCard>
                       <div>
@@ -914,7 +1629,7 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
             date: new Date(formData.appointmentDateTime),
             end: new Date(
               new Date(formData.appointmentDateTime).getTime() +
-                formData.durationMinutes * 60000
+                formData.durationMinutes * 60000,
             ),
           }}
           amount={paymentAmount}

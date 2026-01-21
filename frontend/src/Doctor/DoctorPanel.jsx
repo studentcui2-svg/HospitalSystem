@@ -7,22 +7,121 @@ import IncomingCallModal from "../Clientside/IncomingCallModal";
 import io from "socket.io-client";
 
 const Container = styled.div`
-  max-width: 1100px;
-  margin: 2rem auto;
-  padding: 1rem;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+  min-height: 100vh;
+
+  @media (max-width: 768px) {
+    padding: 1.5rem 0.75rem;
+  }
 `;
 
 const Header = styled.h2`
-  margin: 0 0 1rem 0;
+  margin: 0 0 0.5rem 0;
+  font-size: 2.5rem;
+  font-weight: 800;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  text-shadow: 0 4px 12px rgba(102, 126, 234, 0.3);
+  animation: titleGlow 3s ease-in-out infinite;
+
+  @keyframes titleGlow {
+    0%,
+    100% {
+      filter: drop-shadow(0 0 8px rgba(102, 126, 234, 0.5));
+    }
+    50% {
+      filter: drop-shadow(0 0 16px rgba(118, 75, 162, 0.8));
+    }
+  }
+
+  @media (max-width: 768px) {
+    font-size: 1.8rem;
+  }
+`;
+
+const WelcomeText = styled.p`
+  color: rgba(255, 255, 255, 0.8);
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+  font-weight: 500;
+
+  @media (max-width: 768px) {
+    font-size: 1rem;
+  }
+`;
+
+const TableCard = styled.div`
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 20px;
+  padding: 2rem;
+  box-shadow:
+    0 20px 60px rgba(102, 126, 234, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  position: relative;
+  overflow: hidden;
+  animation: cardFadeIn 0.8s ease-out;
+
+  @keyframes cardFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(30px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.08) 0%,
+      transparent 70%
+    );
+    animation: cardFloat 8s ease-in-out infinite;
+  }
+
+  @keyframes cardFloat {
+    0%,
+    100% {
+      transform: translate(0, 0) rotate(0deg);
+    }
+    50% {
+      transform: translate(40px, -40px) rotate(180deg);
+    }
+  }
+
+  @media (max-width: 768px) {
+    padding: 1.5rem 1rem;
+    border-radius: 16px;
+  }
+`;
+
+const TableWrapper = styled.div`
+  position: relative;
+  z-index: 1;
+  background: rgba(255, 255, 255, 0.98);
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
 `;
 
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  background: #fff;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 6px 24px rgba(0, 0, 0, 0.08);
+  background: transparent;
+  border-radius: 0;
 
   @media (max-width: 767px) {
     display: block;
@@ -41,11 +140,14 @@ const Table = styled.table`
 
 const Th = styled.th`
   text-align: left;
-  padding: 12px 16px;
-  background: linear-gradient(90deg, #f3f4f6, #ffffff);
+  padding: 1.25rem 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   font-weight: 700;
-  color: #111827;
-  font-size: 0.95rem;
+  color: white;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 3px solid rgba(255, 255, 255, 0.2);
 
   @media (max-width: 767px) {
     display: none;
@@ -53,40 +155,61 @@ const Th = styled.th`
 `;
 
 const Tr = styled.tr`
-  &:nth-child(even) {
-    background: #fbfbfd;
+  transition: all 0.3s ease;
+  border-bottom: 1px solid #e5e7eb;
+
+  &:hover {
+    background: linear-gradient(
+      90deg,
+      rgba(102, 126, 234, 0.05) 0%,
+      rgba(118, 75, 162, 0.05) 100%
+    );
+    transform: scale(1.01);
+    box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+  }
+
+  &:last-child {
+    border-bottom: none;
   }
 
   @media (max-width: 767px) {
     display: block;
-    background: #f9fafb;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
+    background: white;
+    border: 2px solid rgba(102, 126, 234, 0.2);
+    border-radius: 12px;
     padding: 1rem;
     margin-bottom: 1rem;
-    border-bottom: none;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+
+    &:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.15);
+    }
   }
 `;
 
 const Td = styled.td`
-  padding: 12px 16px;
+  padding: 1rem;
   vertical-align: middle;
-  color: #111827;
+  color: #1f2937;
   font-size: 0.95rem;
 
   @media (max-width: 767px) {
     display: block;
-    padding: 0.5rem 0;
+    padding: 0.6rem 0;
     text-align: left;
     border-bottom: none;
 
     &::before {
       content: attr(data-label);
       font-weight: 700;
-      color: #374151;
+      color: #667eea;
       margin-right: 0.5rem;
       display: inline-block;
-      width: 120px;
+      min-width: 120px;
+      text-transform: uppercase;
+      font-size: 0.85rem;
+      letter-spacing: 0.5px;
     }
 
     &:last-child {
@@ -100,27 +223,184 @@ const Td = styled.td`
   }
 `;
 
+const FilterToolbar = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 1.5rem 0;
+  padding: 1.25rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(102, 126, 234, 0.25);
+  flex-wrap: wrap;
+
+  @media (max-width: 968px) {
+    flex-direction: column;
+    align-items: stretch;
+  }
+`;
+
+const SearchWrapper = styled.div`
+  position: relative;
+  flex: 1;
+  min-width: 280px;
+
+  @media (max-width: 968px) {
+    width: 100%;
+    min-width: unset;
+  }
+
+  &::before {
+    content: "🔍";
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 1.1rem;
+  }
+`;
+
+const SearchInput = styled.input`
+  padding: 0.85rem 1rem 0.85rem 2.8rem;
+  border-radius: 10px;
+  border: none;
+  font-size: 0.95rem;
+  width: 100%;
+  background: white;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+
+  &:focus {
+    outline: none;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.15);
+    transform: translateY(-1px);
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+`;
+
+const FilterButtons = styled.div`
+  display: flex;
+  gap: 0.75rem;
+  align-items: center;
+
+  @media (max-width: 968px) {
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  @media (max-width: 640px) {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.6rem;
+  }
+`;
+
+const FilterButton = styled.button`
+  padding: 0.7rem 1.4rem;
+  border: 2px solid
+    ${(props) => (props.$active ? "#fff" : "rgba(255, 255, 255, 0.3)")};
+  background: ${(props) =>
+    props.$active ? "rgba(255, 255, 255, 0.95)" : "rgba(255, 255, 255, 0.15)"};
+  color: ${(props) => (props.$active ? "#667eea" : "#fff")};
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  font-size: 0.9rem;
+  backdrop-filter: blur(10px);
+  white-space: nowrap;
+
+  &:hover {
+    background: ${(props) =>
+      props.$active ? "rgba(255, 255, 255, 1)" : "rgba(255, 255, 255, 0.25)"};
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  @media (max-width: 640px) {
+    padding: 0.6rem 1rem;
+    font-size: 0.85rem;
+  }
+`;
+
 const Badge = styled.span`
   display: inline-block;
-  padding: 6px 10px;
+  padding: 0.5rem 1rem;
   border-radius: 999px;
   font-weight: 700;
-  font-size: 0.82rem;
+  font-size: 0.8rem;
   color: #fff;
   background: ${(p) => p.$bg || "#6b7280"};
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: 0 2px 8px
+    ${(p) => (p.$bg ? `${p.$bg}40` : "rgba(107, 114, 128, 0.25)")};
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px
+      ${(p) => (p.$bg ? `${p.$bg}60` : "rgba(107, 114, 128, 0.4)")};
+  }
 `;
 
 const ActionButton = styled.button`
-  padding: 8px 12px;
-  border-radius: 8px;
+  padding: 0.7rem 1.5rem;
+  border-radius: 10px;
   border: none;
   font-weight: 700;
   cursor: pointer;
   color: white;
   margin-left: 8px;
-  background: ${(p) => p.$bg || "#4f46e5"};
+  background: ${(p) =>
+    p.$bg || "linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%)"};
   opacity: ${(p) => (p.disabled ? 0.6 : 1)};
   cursor: ${(p) => (p.disabled ? "not-allowed" : "pointer")};
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px
+    ${(p) => (p.$bg ? `${p.$bg}40` : "rgba(79, 70, 229, 0.3)")};
+  text-transform: uppercase;
+  font-size: 0.85rem;
+  letter-spacing: 0.5px;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition:
+      width 0.6s,
+      height 0.6s;
+  }
+
+  &:hover::before {
+    width: 300px;
+    height: 300px;
+  }
+
+  &:hover:not(:disabled) {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 24px
+      ${(p) => (p.$bg ? `${p.$bg}60` : "rgba(79, 70, 229, 0.5)")};
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(-1px);
+  }
 
   @media (max-width: 767px) {
     display: block;
@@ -132,18 +412,63 @@ const ActionButton = styled.button`
 
 const Small = styled.div`
   color: #6b7280;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
+  margin-top: 0.25rem;
 `;
 
 const ProfileBox = styled.div`
-  background: #ffffff;
-  color: #111827;
-  padding: 12px;
-  border-radius: 8px;
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
-  margin-bottom: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 2rem;
+  border-radius: 20px;
+  box-shadow:
+    0 20px 60px rgba(102, 126, 234, 0.3),
+    0 0 0 1px rgba(255, 255, 255, 0.1) inset;
+  margin-bottom: 2rem;
+  position: relative;
+  overflow: hidden;
+  animation: profileFadeIn 0.6s ease-out;
+
+  @keyframes profileFadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    right: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(
+      circle,
+      rgba(255, 255, 255, 0.1) 0%,
+      transparent 70%
+    );
+    animation: float 6s ease-in-out infinite;
+  }
+
+  @keyframes float {
+    0%,
+    100% {
+      transform: translate(0, 0) rotate(0deg);
+    }
+    50% {
+      transform: translate(-30px, -30px) rotate(180deg);
+    }
+  }
 
   form {
+    position: relative;
+    z-index: 1;
+
     @media (max-width: 767px) {
       flex-direction: column !important;
       align-items: stretch !important;
@@ -152,6 +477,160 @@ const ProfileBox = styled.div`
         width: 100%;
       }
     }
+  }
+`;
+
+const ProfileHeader = styled.div`
+  margin-bottom: 1.5rem;
+  position: relative;
+  z-index: 1;
+`;
+
+const ProfileLabel = styled.div`
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 1.5px;
+  opacity: 0.9;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+`;
+
+const ProfileValue = styled.div`
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+`;
+
+const PasswordFormWrapper = styled.div`
+  position: relative;
+  z-index: 1;
+`;
+
+const PasswordInputWrapper = styled.div`
+  position: relative;
+  margin-bottom: 1rem;
+
+  @media (max-width: 767px) {
+    margin-bottom: 0.75rem;
+  }
+`;
+
+const PasswordInput = styled.input`
+  width: 100%;
+  padding: 1rem 3rem 1rem 1.25rem;
+  border-radius: 12px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.95);
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: #1f2937;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+  &:focus {
+    outline: none;
+    border-color: rgba(255, 255, 255, 0.8);
+    background: white;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+    transform: translateY(-2px);
+  }
+
+  &::placeholder {
+    color: #9ca3af;
+  }
+`;
+
+const EyeButton = styled.button`
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #6b7280;
+  cursor: pointer;
+  font-size: 1.1rem;
+  padding: 0.5rem;
+  transition: all 0.2s ease;
+  border-radius: 8px;
+
+  &:hover {
+    background: rgba(107, 114, 128, 0.1);
+    color: #4b5563;
+    transform: translateY(-50%) scale(1.1);
+  }
+
+  &:active {
+    transform: translateY(-50%) scale(0.95);
+  }
+`;
+
+const PasswordFormGrid = styled.div`
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 1rem;
+  align-items: end;
+
+  @media (max-width: 767px) {
+    grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+`;
+
+const SubmitButton = styled.button`
+  padding: 1rem 2.5rem;
+  border-radius: 12px;
+  border: none;
+  background: linear-gradient(135deg, #1e40af 0%, #3b82f6 100%);
+  color: white;
+  font-weight: 700;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  position: relative;
+  overflow: hidden;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition:
+      width 0.6s,
+      height 0.6s;
+  }
+
+  &:hover::before {
+    width: 300px;
+    height: 300px;
+  }
+
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 32px rgba(59, 130, 246, 0.5);
+  }
+
+  &:active {
+    transform: translateY(-1px);
+  }
+
+  &:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+    transform: none;
+  }
+
+  @media (max-width: 767px) {
+    width: 100%;
+    padding: 0.9rem 2rem;
   }
 `;
 
@@ -169,6 +648,8 @@ const DoctorPanel = () => {
   const [incomingCall, setIncomingCall] = useState(null);
   const [socket, setSocket] = useState(null);
   const [patientResponses, setPatientResponses] = useState({});
+  const [filterPeriod, setFilterPeriod] = useState("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const callTimeoutRef = useRef(null);
 
   useEffect(() => {
@@ -293,6 +774,66 @@ const DoctorPanel = () => {
     }
   }, [activeCall]);
 
+  const filterAppointmentsByPeriod = (appointmentsList) => {
+    let filtered = appointmentsList;
+
+    // Filter by search query (name or email)
+    if (searchQuery.trim()) {
+      const query = searchQuery.trim().toLowerCase();
+      filtered = filtered.filter((appointment) => {
+        const patientName = (appointment.patientName || "").toLowerCase();
+        const patientEmail = (appointment.patientEmail || "").toLowerCase();
+        return patientName.includes(query) || patientEmail.includes(query);
+      });
+    }
+
+    // Filter by date period
+    if (filterPeriod === "all") return filtered;
+
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+    return filtered.filter((appointment) => {
+      const apptDate = new Date(appointment.date);
+      const apptDay = new Date(
+        apptDate.getFullYear(),
+        apptDate.getMonth(),
+        apptDate.getDate(),
+      );
+
+      switch (filterPeriod) {
+        case "today":
+          return apptDay.getTime() === today.getTime();
+
+        case "week": {
+          const weekAgo = new Date(today);
+          weekAgo.setDate(weekAgo.getDate() - 7);
+          return apptDate >= weekAgo;
+        }
+
+        case "month": {
+          const monthAgo = new Date(today);
+          monthAgo.setMonth(monthAgo.getMonth() - 1);
+          return apptDate >= monthAgo;
+        }
+
+        default:
+          return true;
+      }
+    });
+  };
+
+  const sortAppointments = (appointmentsList) => {
+    return [...appointmentsList].sort((a, b) => {
+      // Sort by date (earliest first)
+      return new Date(a.date) - new Date(b.date);
+    });
+  };
+
+  const filteredAndSortedAppointments = sortAppointments(
+    filterAppointmentsByPeriod(appointments),
+  );
+
   const handleChangePassword = async (e) => {
     e && e.preventDefault && e.preventDefault();
     if (!newPassword || newPassword.length < 6) {
@@ -373,7 +914,7 @@ const DoctorPanel = () => {
       socket.emit("initiate-call", {
         appointmentId: appt._id,
         callerRole: "doctor",
-        callerName: `Dr. ${doctorName}`,
+        callerName: `${doctorName}`,
       });
     }
 
@@ -455,317 +996,378 @@ const DoctorPanel = () => {
 
   return (
     <Container>
-      <Header>Doctor Panel</Header>
-      <p>
-        Welcome{doctorName ? `, Dr. ${doctorName}` : ""}. Here are your upcoming
-        appointments.
-      </p>
+      <Header>🏥 Doctor Panel</Header>
+      <WelcomeText>
+        Welcome
+        {doctorName
+          ? doctorName.toLowerCase().startsWith("dr.") ||
+            doctorName.toLowerCase().startsWith("dr ")
+            ? `, ${doctorName}`
+            : `, Dr. ${doctorName}`
+          : ""}
+        ! Here are your upcoming appointments.
+      </WelcomeText>
 
-      {loading && <p>Loading...</p>}
+      {loading && <WelcomeText>⏳ Loading...</WelcomeText>}
 
       {profile && (
         <ProfileBox>
-          <div style={{ marginBottom: 8 }}>
-            <strong style={{ color: "#111827" }}>Email:</strong>{" "}
-            <span style={{ color: "#111827", fontWeight: 700 }}>
-              {profile.email}
-            </span>
-          </div>
-          <div style={{ marginBottom: 8 }}>
-            <strong style={{ color: "#111827" }}>Password set:</strong>{" "}
-            <span style={{ color: "#111827", fontWeight: 700 }}>
-              {profile.hasPassword ? "Yes" : "No"}
-            </span>
-          </div>
-          <form
-            onSubmit={handleChangePassword}
-            style={{ display: "flex", gap: 8, alignItems: "center" }}
-          >
-            {profile.hasPassword && (
-              <div style={{ position: "relative" }}>
-                <input
-                  type={showCurrentPassword ? "text" : "password"}
-                  placeholder="Current password"
-                  value={currentPassword}
-                  onChange={(e) => setCurrentPassword(e.target.value)}
-                  style={{ padding: 8, borderRadius: 6, width: "100%" }}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowCurrentPassword((s) => !s)}
-                  style={{
-                    position: "absolute",
-                    right: 8,
-                    top: "50%",
-                    transform: "translateY(-50%)",
-                    background: "none",
-                    border: "none",
-                    color: "#6b7280",
-                    cursor: "pointer",
-                    fontSize: 14,
-                    padding: 4,
-                  }}
-                  aria-label={
-                    showCurrentPassword ? "Hide password" : "Show password"
-                  }
-                >
-                  {showCurrentPassword ? <FaEyeSlash /> : <FaEye />}
-                </button>
-              </div>
-            )}
-            <div style={{ position: "relative" }}>
-              <input
-                type={showNewPassword ? "text" : "password"}
-                placeholder="New password (min 6)"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                style={{ padding: 8, borderRadius: 6, width: "100%" }}
-              />
-              <button
-                type="button"
-                onClick={() => setShowNewPassword((s) => !s)}
-                style={{
-                  position: "absolute",
-                  right: 8,
-                  top: "50%",
-                  transform: "translateY(-50%)",
-                  background: "none",
-                  border: "none",
-                  color: "#6b7280",
-                  cursor: "pointer",
-                  fontSize: 14,
-                  padding: 4,
-                }}
-                aria-label={showNewPassword ? "Hide password" : "Show password"}
-              >
-                {showNewPassword ? <FaEyeSlash /> : <FaEye />}
-              </button>
-            </div>
-            <ActionButton
-              as="button"
-              type="submit"
-              disabled={changing}
-              $bg="#2563eb"
-            >
-              {changing ? "Saving..." : profile.hasPassword ? "Change" : "Set"}
-            </ActionButton>
-          </form>
+          <ProfileHeader>
+            <ProfileLabel>✉️ Email Address</ProfileLabel>
+            <ProfileValue>{profile.email}</ProfileValue>
+          </ProfileHeader>
+
+          <ProfileHeader style={{ marginBottom: "1.25rem" }}>
+            <ProfileLabel>🔐 Password Status</ProfileLabel>
+            <ProfileValue>
+              {profile.hasPassword ? "✓ Password Set" : "⚠️ No Password"}
+            </ProfileValue>
+          </ProfileHeader>
+
+          <PasswordFormWrapper>
+            <form onSubmit={handleChangePassword}>
+              <PasswordFormGrid>
+                {profile.hasPassword && (
+                  <PasswordInputWrapper>
+                    <PasswordInput
+                      type={showCurrentPassword ? "text" : "password"}
+                      placeholder="Current password"
+                      value={currentPassword}
+                      onChange={(e) => setCurrentPassword(e.target.value)}
+                    />
+                    <EyeButton
+                      type="button"
+                      onClick={() => setShowCurrentPassword((s) => !s)}
+                      aria-label={
+                        showCurrentPassword ? "Hide password" : "Show password"
+                      }
+                    >
+                      {showCurrentPassword ? <FaEyeSlash /> : <FaEye />}
+                    </EyeButton>
+                  </PasswordInputWrapper>
+                )}
+                <PasswordInputWrapper>
+                  <PasswordInput
+                    type={showNewPassword ? "text" : "password"}
+                    placeholder="New password (min 6)"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                  />
+                  <EyeButton
+                    type="button"
+                    onClick={() => setShowNewPassword((s) => !s)}
+                    aria-label={
+                      showNewPassword ? "Hide password" : "Show password"
+                    }
+                  >
+                    {showNewPassword ? <FaEyeSlash /> : <FaEye />}
+                  </EyeButton>
+                </PasswordInputWrapper>
+                <SubmitButton type="submit" disabled={changing}>
+                  {changing
+                    ? "⏳ Saving..."
+                    : profile.hasPassword
+                      ? "🔄 Change"
+                      : "✨ Set"}
+                </SubmitButton>
+              </PasswordFormGrid>
+            </form>
+          </PasswordFormWrapper>
         </ProfileBox>
       )}
 
-      {appointments.length === 0 && !loading && <p>No appointments found.</p>}
+      <FilterToolbar>
+        <SearchWrapper>
+          <SearchInput
+            type="text"
+            placeholder="Search by patient name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+        </SearchWrapper>
+        <FilterButtons>
+          <FilterButton
+            $active={filterPeriod === "all"}
+            onClick={() => setFilterPeriod("all")}
+          >
+            All
+          </FilterButton>
+          <FilterButton
+            $active={filterPeriod === "today"}
+            onClick={() => setFilterPeriod("today")}
+          >
+            Today
+          </FilterButton>
+          <FilterButton
+            $active={filterPeriod === "week"}
+            onClick={() => setFilterPeriod("week")}
+          >
+            This Week
+          </FilterButton>
+          <FilterButton
+            $active={filterPeriod === "month"}
+            onClick={() => setFilterPeriod("month")}
+          >
+            Monthly
+          </FilterButton>
+        </FilterButtons>
+      </FilterToolbar>
 
-      {appointments.length > 0 && (
-        <Table>
-          <thead>
-            <Tr>
-              <Th>Patient</Th>
-              <Th>Date / Time</Th>
-              <Th>Mode</Th>
-              <Th>Time Remaining</Th>
-              <Th>Contact</Th>
-              <Th>Status</Th>
-              <Th>Remarks</Th>
-              <Th style={{ textAlign: "right" }}>Actions</Th>
-            </Tr>
-          </thead>
-          <tbody>
-            {appointments.map((a) => {
-              // Determine if online payment is pending using normalized fields
-              const invoicePending =
-                a.invoice &&
-                (a.invoice.status === "pending" ||
-                  a.invoice.status === "unpaid");
-              const paymentPending =
-                a.payment && a.payment.status === "pending";
-              const needsPayment = paymentPending || invoicePending;
-              const status = (a.status || "Pending").toLowerCase();
+      {filteredAndSortedAppointments.length === 0 && !loading && (
+        <WelcomeText style={{ textAlign: "center", marginTop: "2rem" }}>
+          📭 No appointments found.
+        </WelcomeText>
+      )}
 
-              // Calculate time-related values first
-              const now = new Date();
-              const appointmentDate = new Date(a.date);
-              const appointmentEndDate = new Date(
-                appointmentDate.getTime() +
-                  (a.durationMinutes || 30) * 60 * 1000,
-              );
-              const appointmentTimePassed = now > appointmentEndDate;
-              const isMeetingTimeNear =
-                now >= appointmentDate && now <= appointmentEndDate;
-              const minutesUntilAppointment =
-                (appointmentDate - now) / (1000 * 60);
-
-              // Auto-mark as done if accepted and time has passed
-              const isDone =
-                status === "completed" ||
-                status === "done" ||
-                (status === "accepted" && appointmentTimePassed);
-              const isRejected = status === "rejected";
-              const isPending = status === "pending";
-              const isAccepted =
-                status === "accepted" && !appointmentTimePassed;
-              const isOnline = a.mode === "online";
-
-              let timeRemaining = "-";
-              let remarks = "-";
-
-              if (isDone) {
-                remarks = "Successful Done";
-                timeRemaining = "Completed";
-              } else if (isRejected) {
-                remarks = "Rejected";
-                timeRemaining = "N/A";
-              } else if (isPending) {
-                remarks = needsPayment
-                  ? "Payment Pending"
-                  : "Waiting for Approval";
-                timeRemaining = "Pending";
-              } else if (isMeetingTimeNear) {
-                remarks = "In Meeting";
-                timeRemaining = "Now";
-              } else if (
-                minutesUntilAppointment > 0 &&
-                minutesUntilAppointment <= 5
-              ) {
-                timeRemaining = `${Math.floor(minutesUntilAppointment)} min`;
-                remarks = "Starting Soon";
-              } else if (minutesUntilAppointment > 0) {
-                timeRemaining = `${Math.floor(minutesUntilAppointment)} min`;
-                remarks = "Upcoming";
-              }
-
-              let badgeColor = "#f59e0b"; // amber for pending
-              if (isAccepted) badgeColor = "#10b981"; // green
-              if (isRejected) badgeColor = "#ef4444"; // red
-              if (isDone) badgeColor = "#6b7280"; // gray
-
-              return (
-                <Tr key={a._id}>
-                  <Td data-label="Patient:">
-                    <div style={{ fontWeight: 800 }}>{a.patientName}</div>
-                    <Small>{a.patientEmail}</Small>
-                  </Td>
-                  <Td data-label="Date / Time:">
-                    <div style={{ fontWeight: 700 }}>
-                      {new Date(a.date).toLocaleString()}
-                    </div>
-                    <Small>{a.durationMinutes || 30} mins</Small>
-                  </Td>
-                  <Td data-label="Mode:">
-                    <Badge $bg={isOnline ? "#7c3aed" : "#f59e0b"}>
-                      {isOnline ? "ONLINE" : "CLINIC"}
-                    </Badge>
-                  </Td>
-                  <Td data-label="Time Remaining:">
-                    <div
-                      style={{
-                        fontWeight: 700,
-                        color: isMeetingTimeNear ? "#ef4444" : "#111827",
-                      }}
-                    >
-                      {timeRemaining}
-                    </div>
-                  </Td>
-                  <Td data-label="Contact:">
-                    <div>{a.phone || a.patientPhone || "-"}</div>
-                    <Small>{a.gender || ""}</Small>
-                    {patientResponses[a._id] && (
-                      <Small style={{ marginTop: 6 }}>
-                        Response: {patientResponses[a._id]}
-                      </Small>
-                    )}
-                  </Td>
-                  <Td data-label="Status:">
-                    <Badge $bg={badgeColor}>
-                      {(a.status || "Pending").toUpperCase()}
-                    </Badge>
-                  </Td>
-                  <Td data-label="Remarks:">
-                    <div
-                      style={{
-                        fontWeight: 600,
-                        color:
-                          remarks === "In Meeting"
-                            ? "#10b981"
-                            : remarks === "Missed"
-                              ? "#ef4444"
-                              : "#6b7280",
-                      }}
-                    >
-                      {remarks}
-                    </div>
-                  </Td>
-                  <Td data-label="Actions:" style={{ textAlign: "right" }}>
-                    {isPending && !needsPayment && (
-                      <ActionButton
-                        $bg="#2563eb"
-                        onClick={() => acceptAppointment(a._id)}
-                      >
-                        Accept
-                      </ActionButton>
-                    )}
-
-                    {needsPayment &&
-                      (a.invoice && a.invoice.html ? (
-                        <ActionButton
-                          $bg="#2563eb"
-                          onClick={() => downloadInvoice(a)}
-                        >
-                          Invoice
-                        </ActionButton>
-                      ) : (
-                        <ActionButton $bg="#9ca3af" disabled>
-                          Payment Pending
-                        </ActionButton>
-                      ))}
-
-                    {isAccepted &&
-                      !isRejected &&
-                      !isDone &&
-                      (a.mode === "online" ? (
-                        <ActionButton
-                          $bg="#7c3aed"
-                          onClick={() =>
-                            !needsPayment &&
-                            canStartMeeting(a) &&
-                            startMeeting(a)
-                          }
-                          disabled={!canStartMeeting(a) || needsPayment}
-                          title={
-                            needsPayment
-                              ? "Payment pending — please complete payment first"
-                              : canStartMeeting(a)
-                                ? "Click to start the meeting"
-                                : (() => {
-                                    const now = new Date().getTime();
-                                    const apptTime = new Date(a.date).getTime();
-                                    const minutesUntil = Math.floor(
-                                      (apptTime - now) / (1000 * 60),
-                                    );
-                                    return minutesUntil > 2
-                                      ? `Meeting available in ${minutesUntil} minutes`
-                                      : "Meeting time has passed";
-                                  })()
-                          }
-                        >
-                          Start Meeting
-                        </ActionButton>
-                      ) : (
-                        <ActionButton $bg="#6b7280" disabled>
-                          On Clinic
-                        </ActionButton>
-                      ))}
-
-                    {isDone && (
-                      <ActionButton $bg="#10b981" disabled>
-                        Done
-                      </ActionButton>
-                    )}
-                  </Td>
+      {filteredAndSortedAppointments.length > 0 && (
+        <TableCard>
+          <TableWrapper>
+            <Table>
+              <thead>
+                <Tr>
+                  <Th>Patient</Th>
+                  <Th>Father Name</Th>
+                  <Th>Age</Th>
+                  <Th>Contact Number</Th>
+                  <Th>Date / Time</Th>
+                  <Th>Mode</Th>
+                  <Th>Time Remaining</Th>
+                  <Th>Status</Th>
+                  <Th>Remarks</Th>
+                  <Th style={{ textAlign: "right" }}>Actions</Th>
                 </Tr>
-              );
-            })}
-          </tbody>
-        </Table>
+              </thead>
+              <tbody>
+                {filteredAndSortedAppointments.map((a) => {
+                  // Determine if online payment is pending using normalized fields
+                  const invoicePending =
+                    a.invoice &&
+                    (a.invoice.status === "pending" ||
+                      a.invoice.status === "unpaid");
+                  const paymentPending =
+                    a.payment && a.payment.status === "pending";
+                  const needsPayment = paymentPending || invoicePending;
+                  const status = (a.status || "Pending").toLowerCase();
+
+                  // Calculate age from dateOfBirth if not stored
+                  let calculatedAge = a.age;
+                  if (!calculatedAge && a.dateOfBirth) {
+                    const birthDate = new Date(a.dateOfBirth);
+                    const today = new Date();
+                    let age = today.getFullYear() - birthDate.getFullYear();
+                    const monthDiff = today.getMonth() - birthDate.getMonth();
+                    if (
+                      monthDiff < 0 ||
+                      (monthDiff === 0 && today.getDate() < birthDate.getDate())
+                    ) {
+                      age--;
+                    }
+                    calculatedAge = age;
+                  }
+
+                  // Calculate time-related values first
+                  const now = new Date();
+                  const appointmentDate = new Date(a.date);
+                  const appointmentEndDate = new Date(
+                    appointmentDate.getTime() +
+                      (a.durationMinutes || 30) * 60 * 1000,
+                  );
+                  const appointmentTimePassed = now > appointmentEndDate;
+                  const isMeetingTimeNear =
+                    now >= appointmentDate && now <= appointmentEndDate;
+                  const minutesUntilAppointment =
+                    (appointmentDate - now) / (1000 * 60);
+
+                  // Auto-mark as done if accepted and time has passed
+                  const isDone =
+                    status === "completed" ||
+                    status === "done" ||
+                    (status === "accepted" && appointmentTimePassed);
+                  const isRejected = status === "rejected";
+                  const isPending = status === "pending";
+                  const isAccepted =
+                    status === "accepted" && !appointmentTimePassed;
+                  const isOnline = a.mode === "online";
+
+                  let timeRemaining = "-";
+                  let remarks = "-";
+
+                  if (isDone) {
+                    remarks = "Successful Done";
+                    timeRemaining = "Completed";
+                  } else if (isRejected) {
+                    remarks = "Rejected";
+                    timeRemaining = "N/A";
+                  } else if (isPending) {
+                    remarks = needsPayment
+                      ? "Payment Pending"
+                      : "Waiting for Approval";
+                    timeRemaining = "Pending";
+                  } else if (isMeetingTimeNear) {
+                    remarks = "In Meeting";
+                    timeRemaining = "Now";
+                  } else if (
+                    minutesUntilAppointment > 0 &&
+                    minutesUntilAppointment <= 5
+                  ) {
+                    timeRemaining = `${Math.floor(minutesUntilAppointment)} min`;
+                    remarks = "Starting Soon";
+                  } else if (minutesUntilAppointment > 0) {
+                    timeRemaining = `${Math.floor(minutesUntilAppointment)} min`;
+                    remarks = "Upcoming";
+                  }
+
+                  let badgeColor = "#f59e0b"; // amber for pending
+                  if (isAccepted) badgeColor = "#10b981"; // green
+                  if (isRejected) badgeColor = "#ef4444"; // red
+                  if (isDone) badgeColor = "#6b7280"; // gray
+
+                  return (
+                    <Tr key={a._id}>
+                      <Td data-label="Patient:">
+                        <div style={{ fontWeight: 800 }}>{a.patientName}</div>
+                        <Small>{a.patientEmail}</Small>
+                        <Small>{a.gender || ""}</Small>
+                      </Td>
+                      <Td data-label="Father Name:">
+                        <div style={{ fontWeight: 700 }}>
+                          {a.fatherName || "-"}
+                        </div>
+                      </Td>
+                      <Td data-label="Age:">
+                        <div style={{ fontWeight: 600 }}>
+                          {calculatedAge !== null && calculatedAge !== undefined
+                            ? `${calculatedAge} years`
+                            : "-"}
+                        </div>
+                      </Td>
+                      <Td data-label="Contact Number:">
+                        <div style={{ fontWeight: 700 }}>
+                          {a.phone || a.patientPhone || "-"}
+                        </div>
+                        {patientResponses[a._id] && (
+                          <Small style={{ marginTop: 6 }}>
+                            Response: {patientResponses[a._id]}
+                          </Small>
+                        )}
+                      </Td>
+                      <Td data-label="Date / Time:">
+                        <div style={{ fontWeight: 700 }}>
+                          {new Date(a.date).toLocaleString()}
+                        </div>
+                        <Small>{a.durationMinutes || 30} mins</Small>
+                      </Td>
+                      <Td data-label="Mode:">
+                        <Badge $bg={isOnline ? "#7c3aed" : "#f59e0b"}>
+                          {isOnline ? "ONLINE" : "CLINIC"}
+                        </Badge>
+                      </Td>
+                      <Td data-label="Time Remaining:">
+                        <div
+                          style={{
+                            fontWeight: 700,
+                            color: isMeetingTimeNear ? "#ef4444" : "#111827",
+                          }}
+                        >
+                          {timeRemaining}
+                        </div>
+                      </Td>
+                      <Td data-label="Status:">
+                        <Badge $bg={badgeColor}>
+                          {(a.status || "Pending").toUpperCase()}
+                        </Badge>
+                      </Td>
+                      <Td data-label="Remarks:">
+                        <div
+                          style={{
+                            fontWeight: 600,
+                            color:
+                              remarks === "In Meeting"
+                                ? "#10b981"
+                                : remarks === "Missed"
+                                  ? "#ef4444"
+                                  : "#6b7280",
+                          }}
+                        >
+                          {remarks}
+                        </div>
+                      </Td>
+                      <Td data-label="Actions:" style={{ textAlign: "right" }}>
+                        {isPending && !needsPayment && (
+                          <ActionButton
+                            $bg="#2563eb"
+                            onClick={() => acceptAppointment(a._id)}
+                          >
+                            Accept
+                          </ActionButton>
+                        )}
+
+                        {needsPayment &&
+                          (a.invoice && a.invoice.html ? (
+                            <ActionButton
+                              $bg="#2563eb"
+                              onClick={() => downloadInvoice(a)}
+                            >
+                              Invoice
+                            </ActionButton>
+                          ) : (
+                            <ActionButton $bg="#9ca3af" disabled>
+                              Payment Pending
+                            </ActionButton>
+                          ))}
+
+                        {isAccepted &&
+                          !isRejected &&
+                          !isDone &&
+                          (a.mode === "online" ? (
+                            <ActionButton
+                              $bg="#7c3aed"
+                              onClick={() =>
+                                !needsPayment &&
+                                canStartMeeting(a) &&
+                                startMeeting(a)
+                              }
+                              disabled={!canStartMeeting(a) || needsPayment}
+                              title={
+                                needsPayment
+                                  ? "Payment pending — please complete payment first"
+                                  : canStartMeeting(a)
+                                    ? "Click to start the meeting"
+                                    : (() => {
+                                        const now = new Date().getTime();
+                                        const apptTime = new Date(
+                                          a.date,
+                                        ).getTime();
+                                        const minutesUntil = Math.floor(
+                                          (apptTime - now) / (1000 * 60),
+                                        );
+                                        return minutesUntil > 2
+                                          ? `Meeting available in ${minutesUntil} minutes`
+                                          : "Meeting time has passed";
+                                      })()
+                              }
+                            >
+                              Start Meeting
+                            </ActionButton>
+                          ) : (
+                            <ActionButton $bg="#6b7280" disabled>
+                              On Clinic
+                            </ActionButton>
+                          ))}
+
+                        {isDone && (
+                          <ActionButton $bg="#10b981" disabled>
+                            Done
+                          </ActionButton>
+                        )}
+                      </Td>
+                    </Tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          </TableWrapper>
+        </TableCard>
       )}
 
       {activeCall && (
