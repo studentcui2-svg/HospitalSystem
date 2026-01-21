@@ -39,6 +39,7 @@ const chatbotRoutes = require("./routes/chatbot");
 const siteContentRoutes = require("./routes/siteContent");
 const paymentRoutes = require("./routes/payments");
 const doctorPanelRoutes = require("./routes/doctorPanel");
+const patientRecordRoutes = require("./routes/patientRecords");
 const { initializeWebRTC } = require("./utils/webrtc");
 const Message = require("./models/Message");
 
@@ -115,6 +116,7 @@ app.use("/api/chatbot", chatbotRoutes);
 app.use("/api/site-content", siteContentRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/doctor", doctorPanelRoutes);
+app.use("/api/patient-records", patientRecordRoutes);
 
 app.get("/", (req, res) => {
   res.json({ ok: true, message: "Backend running" });

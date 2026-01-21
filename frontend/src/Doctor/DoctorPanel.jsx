@@ -113,12 +113,33 @@ const TableWrapper = styled.div`
   z-index: 1;
   background: rgba(255, 255, 255, 0.98);
   border-radius: 16px;
-  overflow: hidden;
+  overflow-x: auto;
+  overflow-y: visible;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+
+  /* Custom scrollbar */
+  &::-webkit-scrollbar {
+    height: 8px;
+  }
+
+  &::-webkit-scrollbar-track {
+    background: rgba(102, 126, 234, 0.1);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 4px;
+  }
+
+  &::-webkit-scrollbar-thumb:hover {
+    background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
+  }
 `;
 
 const Table = styled.table`
   width: 100%;
+  min-width: 1200px;
   border-collapse: collapse;
   background: transparent;
   border-radius: 0;
@@ -126,6 +147,7 @@ const Table = styled.table`
   @media (max-width: 767px) {
     display: block;
     border: none;
+    min-width: unset;
 
     thead {
       display: none;
@@ -631,6 +653,56 @@ const SubmitButton = styled.button`
   @media (max-width: 767px) {
     width: 100%;
     padding: 0.9rem 2rem;
+  }
+`;
+
+const RecordsLinkButton = styled.button`
+  padding: 0.5rem 1rem;
+  margin: 0.25rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: white;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  position: relative;
+  overflow: hidden;
+  white-space: nowrap;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.3);
+    transform: translate(-50%, -50%);
+    transition:
+      width 0.6s,
+      height 0.6s;
+  }
+
+  &:hover::before {
+    width: 200px;
+    height: 200px;
+  }
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+
+  @media (max-width: 767px) {
+    width: 100%;
+    margin-top: 0.5rem;
   }
 `;
 
@@ -1360,6 +1432,21 @@ const DoctorPanel = () => {
                             Done
                           </ActionButton>
                         )}
+
+                        {/* Patient Records Link - Always visible */}
+                        <RecordsLinkButton
+                          onClick={() => {
+                            const identifier =
+                              a.patientEmail ||
+                              a.phone ||
+                              a.cnic ||
+                              a.patientName;
+                            window.location.hash = `#/doctor/patient/${encodeURIComponent(identifier)}`;
+                          }}
+                          title="View complete patient medical records"
+                        >
+                          📋 Records
+                        </RecordsLinkButton>
                       </Td>
                     </Tr>
                   );

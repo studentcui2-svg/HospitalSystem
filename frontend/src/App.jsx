@@ -13,6 +13,7 @@ import NavBar from "./Clientside/NavBar";
 import AdminDashboard from "./Admin/AdminDashboard";
 import AdminGate from "./Clientside/AdminGate";
 import DoctorPanel from "./Doctor/DoctorPanel";
+import PatientDetail from "./Doctor/PatientDetail";
 import MyAppointments from "./Clientside/MyAppointments";
 
 // --- 1. Global 3D & Glassmorphism Theme ---
@@ -76,6 +77,7 @@ const App = () => {
   const [isAppointmentModalOpen, setIsAppointmentModalOpen] = useState(false);
   const [userRole, setUserRole] = useState("user");
   const [isAdminGateOpen, setIsAdminGateOpen] = useState(false);
+  const [patientIdentifier, setPatientIdentifier] = useState(null);
 
   // --- 3. Navigation Engine ---
   const handleNavigation = useCallback((page, path, standalone = false) => {
@@ -160,14 +162,32 @@ const App = () => {
   useEffect(() => {
     const syncRoute = () => {
       const path = window.location.pathname;
+      const hash = window.location.hash;
+
+      // Check for hash-based routes first
+      if (hash.startsWith("#/doctor/patient/")) {
+        const identifier = decodeURIComponent(
+          hash.replace("#/doctor/patient/", ""),
+        );
+        setPatientIdentifier(identifier);
+        setCurrentPage("patientdetail");
+        return;
+      }
+
       if (path === "/login") handleNavigation("login", "/login", true);
       else if (path === "/signup") handleNavigation("signup", "/signup", true);
       else if (path === "/admin") setIsAdminGateOpen(true);
       else if (path === "/doctor") handleNavigation("doctor", "/doctor");
       else setCurrentPage("home");
     };
+
+    syncRoute(); // Run on mount
     window.addEventListener("popstate", syncRoute);
-    return () => window.removeEventListener("popstate", syncRoute);
+    window.addEventListener("hashchange", syncRoute);
+    return () => {
+      window.removeEventListener("popstate", syncRoute);
+      window.removeEventListener("hashchange", syncRoute);
+    };
   }, [handleNavigation]);
 
   const shouldShowNavbar = () => {
@@ -233,6 +253,16 @@ const App = () => {
 
           {currentPage === "doctor" && (
             <DoctorPanel onNavigateToHome={navigateToHome} />
+          )}
+
+          {currentPage === "patientdetail" && (
+            <PatientDetail
+              identifier={patientIdentifier}
+              onBack={() => {
+                window.location.hash = "";
+                setCurrentPage("doctor");
+              }}
+            />
           )}
 
           {currentPage === "myappointments" && <MyAppointments />}
