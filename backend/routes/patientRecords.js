@@ -20,17 +20,19 @@ router.get(
   patientRecordController.getPatientRecords,
 );
 
-// Create new patient record
+// Create new patient record (with file upload support)
 router.post(
   "/records",
   authenticate,
+  patientRecordController.upload.array("attachments", 10),
   patientRecordController.createPatientRecord,
 );
 
-// Update patient record
+// Update patient record (with file upload support)
 router.put(
   "/records/:id",
   authenticate,
+  patientRecordController.upload.array("attachments", 10),
   patientRecordController.updatePatientRecord,
 );
 

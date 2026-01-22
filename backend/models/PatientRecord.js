@@ -26,6 +26,18 @@ const patientRecordSchema = new mongoose.Schema(
     followUpDate: { type: Date },
     followUpNotes: { type: String },
 
+    // Attachments (files uploaded by doctor)
+    attachments: [
+      {
+        filename: { type: String },
+        originalName: { type: String },
+        path: { type: String },
+        mimetype: { type: String },
+        size: { type: Number },
+        uploadedAt: { type: Date, default: Date.now },
+      },
+    ],
+
     // Related appointment
     appointmentId: {
       type: mongoose.Schema.Types.ObjectId,

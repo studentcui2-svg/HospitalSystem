@@ -1,5 +1,72 @@
 const PatientRecord = require("../models/PatientRecord");
 const Appointment = require("../models/Appointment");
+const multer = require("multer");
+const path = require("path");
+const fs = require("fs");
+
+// Configure multer for file uploads
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadDir = "uploads/patient-records";
+    // Create directory if it doesn't exist
+    if (!fs.existsSync(uploadDir)) {
+      fs.mkdirSync(uploadDir, { recursive: true });
+    }
+    cb(null, uploadDir);
+  },
+  filename: function (req, file, cb) {
+    // Create unique filename: timestamp-originalname
+    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
+    cb(
+      null,
+      file.fieldname +
+        "-" +
+        uniqueSuffix +
+        path.extname(file.originalname).toLowerCase(),
+    );
+  },
+});
+
+const fileFilter = (req, file, cb) => {
+  // Allowed file types
+  const allowedTypes = [
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/gif",
+    "image/webp",
+    "image/svg+xml",
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "text/plain",
+    "text/csv",
+  ];
+
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(
+      new Error(
+        "Invalid file type. Only images, PDFs, and documents are allowed.",
+      ),
+      false,
+    );
+  }
+};
+
+const upload = multer({
+  storage: storage,
+  fileFilter: fileFilter,
+  limits: {
+    fileSize: 10 * 1024 * 1024, // 10MB max file size
+  },
+});
+
+// Export the upload middleware
+exports.upload = upload;
 
 // Get all records for a specific patient
 exports.getPatientRecords = async (req, res) => {
@@ -60,6 +127,17 @@ exports.getPatientRecords = async (req, res) => {
         "[GET PATIENT RECORDS] First appointment doctor:",
         appointments[0].doctor,
       );
+      console.log("[GET PATIENT RECORDS] Doctor name filter:", doctorName);
+      console.log(
+        "[GET PATIENT RECORDS] Exact match:",
+        appointments[0].doctor === doctorName,
+      );
+      // Log all appointment doctors for debugging
+      appointments.forEach((apt, idx) => {
+        console.log(
+          `[GET PATIENT RECORDS] Appointment ${idx + 1} doctor: "${apt.doctor}"`,
+        );
+      });
     }
 
     res.json({
@@ -121,6 +199,17 @@ exports.createPatientRecord = async (req, res) => {
       createdBy: req.userId,
     };
 
+    // Add uploaded files to attachments
+    if (req.files && req.files.length > 0) {
+      recordData.attachments = req.files.map((file) => ({
+        filename: file.filename,
+        originalName: file.originalname,
+        path: file.path,
+        mimetype: file.mimetype,
+        size: file.size,
+      }));
+    }
+
     const record = new PatientRecord(recordData);
     await record.save();
 
@@ -141,6 +230,24 @@ exports.updatePatientRecord = async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
+
+    // Add new files to existing attachments if files are uploaded
+    if (req.files && req.files.length > 0) {
+      const existingRecord = await PatientRecord.findById(id);
+      const newAttachments = req.files.map((file) => ({
+        filename: file.filename,
+        originalName: file.originalname,
+        path: file.path,
+        mimetype: file.mimetype,
+        size: file.size,
+      }));
+
+      // Combine existing and new attachments
+      updates.attachments = [
+        ...(existingRecord.attachments || []),
+        ...newAttachments,
+      ];
+    }
 
     const record = await PatientRecord.findByIdAndUpdate(
       id,
