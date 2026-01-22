@@ -152,8 +152,7 @@ const PatientRecords = () => {
   });
 
   const handlePatientClick = (patient) => {
-    const identifier =
-      patient._id?.email || patient._id?.phone || patient._id?.cnic;
+    const identifier = patient._id?.email || patient._id?.phone;
     window.location.href = `#/doctor/patient/${encodeURIComponent(identifier)}`;
   };
 
@@ -187,9 +186,6 @@ const PatientRecords = () => {
             <PatientName>{patient._id?.name || "Unknown Patient"}</PatientName>
             <PatientInfo>📧 {patient._id?.email || "No email"}</PatientInfo>
             <PatientInfo>📱 {patient._id?.phone || "No phone"}</PatientInfo>
-            {patient._id?.cnic && (
-              <PatientInfo>🆔 {patient._id.cnic}</PatientInfo>
-            )}
             <div style={{ marginTop: "12px" }}>
               <Badge bg="#dbeafe" color="#1e40af">
                 {patient.totalVisits || 0} Visits

@@ -172,6 +172,9 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
   const [bookedSlots, setBookedSlots] = useState([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [useCustomTime, setUseCustomTime] = useState(false);
+  const [cnicLookupLoading, setCnicLookupLoading] = useState(false);
+  const [patientHistory, setPatientHistory] = useState(null);
+  const [showPatientInfo, setShowPatientInfo] = useState(false);
 
   // derive unique departments from fetched doctors
   const departments = useMemo(() => {
@@ -332,6 +335,93 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
 
   const handleInputChange = (e) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
+  };
+
+  // Handle CNIC lookup
+  const handleCnicLookup = async (cnicValue) => {
+    // Remove dashes and spaces for lookup
+    const cleanCnic = cnicValue.replace(/[-\s]/g, "");
+
+    // Only lookup if CNIC is 13 digits
+    if (cleanCnic.length !== 13) {
+      setPatientHistory(null);
+      setShowPatientInfo(false);
+      return;
+    }
+
+    try {
+      setCnicLookupLoading(true);
+      console.log("[CNIC LOOKUP] Searching for:", cleanCnic);
+
+      const response = await jsonFetch(
+        `/api/appointments/patient/cnic/${cleanCnic}`,
+      );
+
+      console.log("[CNIC LOOKUP] Response:", response);
+
+      if (response.found && response.patient) {
+        // Auto-fill patient data
+        setFormData((prev) => ({
+          ...prev,
+          firstName: response.patient.firstName || "",
+          lastName: response.patient.lastName || "",
+          fatherName: response.patient.fatherName || "",
+          email: response.patient.email || "",
+          mobileNumber: response.patient.mobileNumber || "",
+          address: response.patient.address || "",
+          gender: response.patient.gender || "",
+          age: response.patient.age || "",
+          visitedBefore: "yes", // Automatically set to yes since patient exists
+        }));
+
+        setPatientHistory(response.history);
+        setShowPatientInfo(true);
+        toast.success(
+          `Welcome back! Found ${response.history.totalAppointments} previous appointment(s)`,
+        );
+      } else {
+        // No patient found
+        setPatientHistory(null);
+        setShowPatientInfo(false);
+        toast.info("No previous records found. Please fill in your details.");
+      }
+    } catch (error) {
+      console.error("[CNIC LOOKUP] Error:", error);
+      setPatientHistory(null);
+      setShowPatientInfo(false);
+
+      // Handle different error scenarios
+      if (error.status === 404) {
+        toast.info("New patient! Please fill in your details below.");
+      } else if (error.message) {
+        toast.error(`Error: ${error.message}`);
+      } else {
+        toast.error("Unable to verify CNIC. Please try again.");
+      }
+    } finally {
+      setCnicLookupLoading(false);
+    }
+  };
+
+  const handleCnicChange = (e) => {
+    const value = e.target.value;
+    setFormData({ ...formData, nic: value });
+
+    // Clean CNIC and check length
+    const cleanValue = value.replace(/[-\s]/g, "");
+
+    // Reset state if CNIC is incomplete
+    if (cleanValue.length < 13) {
+      setPatientHistory(null);
+      setShowPatientInfo(false);
+      setCnicLookupLoading(false);
+      return;
+    }
+
+    // Trigger lookup when we have 13 digits
+    if (cleanValue.length === 13) {
+      handleCnicLookup(value);
+    }
   };
 
   const nextStep = () => setStep((s) => s + 1);
@@ -596,206 +686,476 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
               </StepIndicator>
 
               <form onSubmit={handleSubmit}>
-                {/* STEP 1: PERSONAL DETAILS */}
+                {/* STEP 1: CNIC VERIFICATION & PERSONAL DETAILS */}
                 {step < 3 ? (
                   <motion.div
                     initial={{ x: 20, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                   >
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "1fr 1fr",
-                        gap: "1.5rem",
-                        marginBottom: "1.5rem",
-                      }}
-                    >
-                      <div>
-                        <label
-                          style={{
-                            display: "block",
-                            marginBottom: "8px",
-                            fontSize: "0.8rem",
-                            fontWeight: 800,
-                            color: "#94a3b8",
-                          }}
-                        >
-                          FIRST NAME
-                        </label>
-                        <GlassInput
-                          name="firstName"
-                          value={formData.firstName}
-                          onChange={handleInputChange}
-                          placeholder="John"
-                        />
-                      </div>
-                      <div>
-                        <label
-                          style={{
-                            display: "block",
-                            marginBottom: "8px",
-                            fontSize: "0.8rem",
-                            fontWeight: 800,
-                            color: "#94a3b8",
-                          }}
-                        >
-                          LAST NAME
-                        </label>
-                        <GlassInput
-                          name="lastName"
-                          value={formData.lastName}
-                          onChange={handleInputChange}
-                          placeholder="Doe"
-                        />
-                      </div>
-                    </div>
-                    <div style={{ marginBottom: "1.5rem" }}>
+                    {/* CNIC Input - Always shown first */}
+                    <div style={{ marginBottom: "2rem" }}>
                       <label
                         style={{
-                          display: "block",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: "8px",
                           marginBottom: "8px",
-                          fontSize: "0.8rem",
+                          fontSize: "0.9rem",
                           fontWeight: 800,
                           color: "#94a3b8",
                         }}
                       >
-                        FATHER NAME
+                        <FaIdCard style={{ color: "#6366f1" }} />
+                        ENTER YOUR CNIC / NIC
+                        {cnicLookupLoading && (
+                          <span
+                            style={{
+                              fontSize: "0.75rem",
+                              color: "#6366f1",
+                              fontWeight: 600,
+                            }}
+                          >
+                            🔍 Verifying...
+                          </span>
+                        )}
                       </label>
-                      <GlassInput
-                        name="fatherName"
-                        value={formData.fatherName}
-                        onChange={handleInputChange}
-                        placeholder="Father's full name"
-                      />
-                    </div>
-                    <div style={{ marginBottom: "1.5rem" }}>
-                      <label
+                      <div
                         style={{
-                          display: "block",
-                          marginBottom: "8px",
-                          fontSize: "0.8rem",
-                          fontWeight: 800,
-                          color: "#94a3b8",
+                          position: "relative",
+                          display: "flex",
+                          gap: "12px",
                         }}
                       >
-                        EMAIL ADDRESS
-                      </label>
-                      <GlassInput
-                        name="email"
-                        type="email"
-                        value={formData.email}
-                        onChange={handleInputChange}
-                        placeholder="john@example.com"
-                      />
-                    </div>
-                    <div style={{ marginBottom: "1.5rem" }}>
-                      <label
-                        style={{
-                          display: "block",
-                          marginBottom: "8px",
-                          fontSize: "0.8rem",
-                          fontWeight: 800,
-                          color: "#94a3b8",
-                        }}
-                      >
-                        CONTACT NUMBER
-                      </label>
-                      <GlassInput
-                        name="mobileNumber"
-                        value={formData.mobileNumber}
-                        onChange={handleInputChange}
-                        placeholder="+92-300-1234567"
-                      />
-                    </div>
-                    <div
-                      style={{
-                        display: "grid",
-                        gridTemplateColumns: "1.2fr 0.8fr",
-                        gap: "1.5rem",
-                      }}
-                    >
-                      <div>
-                        <label
-                          style={{
-                            display: "block",
-                            marginBottom: "8px",
-                            fontSize: "0.8rem",
-                            fontWeight: 800,
-                            color: "#94a3b8",
-                          }}
-                        >
-                          CNIC / NIC
-                        </label>
                         <GlassInput
                           name="nic"
                           value={formData.nic}
-                          onChange={handleInputChange}
-                          placeholder="12345-6789012-3"
-                        />
-                      </div>
-                      <div>
-                        <label
+                          onChange={handleCnicChange}
+                          placeholder="Enter 13-digit CNIC (e.g., 12345-6789012-3)"
                           style={{
-                            display: "block",
-                            marginBottom: "8px",
-                            fontSize: "0.8rem",
-                            fontWeight: 800,
-                            color: "#94a3b8",
+                            borderColor: showPatientInfo
+                              ? "rgba(34, 197, 94, 0.5)"
+                              : undefined,
+                            fontSize: "1.1rem",
+                            padding: "1.3rem",
+                            flex: 1,
+                          }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => handleCnicLookup(formData.nic)}
+                          disabled={
+                            cnicLookupLoading ||
+                            formData.nic.replace(/[-\s]/g, "").length !== 13
+                          }
+                          style={{
+                            padding: "0 24px",
+                            background: cnicLookupLoading
+                              ? "rgba(99, 102, 241, 0.5)"
+                              : "linear-gradient(135deg, #6366f1, #a855f7)",
+                            color: "white",
+                            border: "none",
+                            borderRadius: "16px",
+                            cursor: cnicLookupLoading
+                              ? "not-allowed"
+                              : "pointer",
+                            fontWeight: 700,
+                            fontSize: "0.9rem",
+                            transition: "all 0.3s",
+                            opacity:
+                              formData.nic.replace(/[-\s]/g, "").length !== 13
+                                ? 0.5
+                                : 1,
                           }}
                         >
-                          AGE
-                        </label>
-                        <GlassInput
-                          name="age"
-                          type="number"
-                          value={formData.age}
-                          onChange={handleInputChange}
-                          placeholder="25"
-                          min="0"
-                          max="150"
-                        />
+                          {cnicLookupLoading ? "⏳ Checking..." : "🔍 Verify"}
+                        </button>
+                        {showPatientInfo && patientHistory && (
+                          <div
+                            style={{
+                              position: "absolute",
+                              left: "12px",
+                              top: "50%",
+                              transform: "translateY(-50%)",
+                              display: "flex",
+                              alignItems: "center",
+                              gap: "6px",
+                              background:
+                                "linear-gradient(135deg, #22c55e, #16a34a)",
+                              padding: "6px 12px",
+                              borderRadius: "12px",
+                              fontSize: "0.75rem",
+                              fontWeight: 700,
+                              color: "white",
+                            }}
+                          >
+                            <FaCheck /> Verified
+                          </div>
+                        )}
                       </div>
+                      {showPatientInfo && patientHistory && (
+                        <div
+                          style={{
+                            marginTop: "12px",
+                            padding: "16px",
+                            background:
+                              "linear-gradient(135deg, rgba(34, 197, 94, 0.15), rgba(16, 185, 129, 0.15))",
+                            border: "2px solid rgba(34, 197, 94, 0.4)",
+                            borderRadius: "12px",
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between",
+                          }}
+                        >
+                          <div>
+                            <div
+                              style={{
+                                fontSize: "0.95rem",
+                                fontWeight: 700,
+                                color: "#86efac",
+                                marginBottom: "6px",
+                              }}
+                            >
+                              ✓ Welcome Back, Returning Patient!
+                            </div>
+                            <div
+                              style={{
+                                fontSize: "0.8rem",
+                                color: "#d1fae5",
+                                display: "flex",
+                                gap: "16px",
+                              }}
+                            >
+                              <span>
+                                📋 {patientHistory.totalAppointments} Total
+                                Appointments
+                              </span>
+                              <span>
+                                ✅ {patientHistory.completedVisits} Completed
+                                Visits
+                              </span>
+                              <span>
+                                📅 Last Visit:{" "}
+                                {new Date(
+                                  patientHistory.lastVisit,
+                                ).toLocaleDateString()}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
-                    <div style={{ marginBottom: "1.5rem" }}>
-                      <label
+
+                    {/* Auto-filled patient info - collapsible/readonly style */}
+                    {showPatientInfo ? (
+                      <div
                         style={{
-                          display: "block",
-                          marginBottom: "8px",
-                          fontSize: "0.8rem",
-                          fontWeight: 800,
-                          color: "#94a3b8",
-                        }}
-                      >
-                        GENDER
-                      </label>
-                      <select
-                        name="gender"
-                        value={formData.gender}
-                        onChange={handleInputChange}
-                        style={{
-                          width: "100%",
-                          padding: "1.1rem",
-                          background: "rgba(255,255,255,0.05)",
-                          border: "1px solid rgba(255,255,255,0.1)",
+                          marginBottom: "2rem",
+                          padding: "20px",
+                          background: "rgba(99, 102, 241, 0.08)",
+                          border: "1px solid rgba(99, 102, 241, 0.2)",
                           borderRadius: "16px",
-                          color: "white",
                         }}
                       >
-                        <option value="">Select</option>
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
-                      </select>
-                    </div>
+                        <div
+                          style={{
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            marginBottom: "16px",
+                          }}
+                        >
+                          <h3
+                            style={{
+                              margin: 0,
+                              fontSize: "1rem",
+                              color: "#a5b4fc",
+                              fontWeight: 700,
+                            }}
+                          >
+                            📋 Your Information (Auto-Filled)
+                          </h3>
+                          <button
+                            type="button"
+                            onClick={() => setShowPatientInfo(false)}
+                            style={{
+                              background: "none",
+                              border: "1px solid rgba(255,255,255,0.2)",
+                              padding: "6px 12px",
+                              borderRadius: "8px",
+                              color: "#94a3b8",
+                              fontSize: "0.75rem",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Edit Info
+                          </button>
+                        </div>
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: "12px",
+                            fontSize: "0.85rem",
+                          }}
+                        >
+                          <div>
+                            <span style={{ color: "#64748b" }}>Name:</span>{" "}
+                            <span style={{ color: "#e2e8f0", fontWeight: 600 }}>
+                              {formData.firstName} {formData.lastName}
+                            </span>
+                          </div>
+                          <div>
+                            <span style={{ color: "#64748b" }}>
+                              Father's Name:
+                            </span>{" "}
+                            <span style={{ color: "#e2e8f0", fontWeight: 600 }}>
+                              {formData.fatherName}
+                            </span>
+                          </div>
+                          <div>
+                            <span style={{ color: "#64748b" }}>Email:</span>{" "}
+                            <span style={{ color: "#e2e8f0", fontWeight: 600 }}>
+                              {formData.email}
+                            </span>
+                          </div>
+                          <div>
+                            <span style={{ color: "#64748b" }}>Phone:</span>{" "}
+                            <span style={{ color: "#e2e8f0", fontWeight: 600 }}>
+                              {formData.mobileNumber}
+                            </span>
+                          </div>
+                          <div>
+                            <span style={{ color: "#64748b" }}>Gender:</span>{" "}
+                            <span style={{ color: "#e2e8f0", fontWeight: 600 }}>
+                              {formData.gender}
+                            </span>
+                          </div>
+                          <div>
+                            <span style={{ color: "#64748b" }}>Age:</span>{" "}
+                            <span style={{ color: "#e2e8f0", fontWeight: 600 }}>
+                              {formData.age} years
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      /* Show full form if not auto-filled or user wants to edit */
+                      <>
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: "1.5rem",
+                            marginBottom: "1.5rem",
+                          }}
+                        >
+                          <div>
+                            <label
+                              style={{
+                                display: "block",
+                                marginBottom: "8px",
+                                fontSize: "0.8rem",
+                                fontWeight: 800,
+                                color: "#94a3b8",
+                              }}
+                            >
+                              FIRST NAME
+                            </label>
+                            <GlassInput
+                              name="firstName"
+                              value={formData.firstName}
+                              onChange={handleInputChange}
+                              placeholder="John"
+                            />
+                          </div>
+                          <div>
+                            <label
+                              style={{
+                                display: "block",
+                                marginBottom: "8px",
+                                fontSize: "0.8rem",
+                                fontWeight: 800,
+                                color: "#94a3b8",
+                              }}
+                            >
+                              LAST NAME
+                            </label>
+                            <GlassInput
+                              name="lastName"
+                              value={formData.lastName}
+                              onChange={handleInputChange}
+                              placeholder="Doe"
+                            />
+                          </div>
+                        </div>
+                        <div style={{ marginBottom: "1.5rem" }}>
+                          <label
+                            style={{
+                              display: "block",
+                              marginBottom: "8px",
+                              fontSize: "0.8rem",
+                              fontWeight: 800,
+                              color: "#94a3b8",
+                            }}
+                          >
+                            FATHER NAME
+                          </label>
+                          <GlassInput
+                            name="fatherName"
+                            value={formData.fatherName}
+                            onChange={handleInputChange}
+                            placeholder="Father's full name"
+                          />
+                        </div>
+                        <div style={{ marginBottom: "1.5rem" }}>
+                          <label
+                            style={{
+                              display: "block",
+                              marginBottom: "8px",
+                              fontSize: "0.8rem",
+                              fontWeight: 800,
+                              color: "#94a3b8",
+                            }}
+                          >
+                            EMAIL ADDRESS
+                          </label>
+                          <GlassInput
+                            name="email"
+                            type="email"
+                            value={formData.email}
+                            onChange={handleInputChange}
+                            placeholder="john@example.com"
+                          />
+                        </div>
+                        <div style={{ marginBottom: "1.5rem" }}>
+                          <label
+                            style={{
+                              display: "block",
+                              marginBottom: "8px",
+                              fontSize: "0.8rem",
+                              fontWeight: 800,
+                              color: "#94a3b8",
+                            }}
+                          >
+                            CONTACT NUMBER
+                          </label>
+                          <GlassInput
+                            name="mobileNumber"
+                            value={formData.mobileNumber}
+                            onChange={handleInputChange}
+                            placeholder="+92-300-1234567"
+                          />
+                        </div>
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "1fr 1fr",
+                            gap: "1.5rem",
+                            marginBottom: "1.5rem",
+                          }}
+                        >
+                          <div>
+                            <label
+                              style={{
+                                display: "block",
+                                marginBottom: "8px",
+                                fontSize: "0.8rem",
+                                fontWeight: 800,
+                                color: "#94a3b8",
+                              }}
+                            >
+                              AGE
+                            </label>
+                            <GlassInput
+                              name="age"
+                              type="number"
+                              value={formData.age}
+                              onChange={handleInputChange}
+                              placeholder="25"
+                              min="0"
+                              max="150"
+                            />
+                          </div>
+                          <div>
+                            <label
+                              style={{
+                                display: "block",
+                                marginBottom: "8px",
+                                fontSize: "0.8rem",
+                                fontWeight: 800,
+                                color: "#94a3b8",
+                              }}
+                            >
+                              GENDER
+                            </label>
+                            <select
+                              name="gender"
+                              value={formData.gender}
+                              onChange={handleInputChange}
+                              style={{
+                                width: "100%",
+                                padding: "1.1rem",
+                                background: "rgba(255,255,255,0.05)",
+                                border: "1px solid rgba(255,255,255,0.1)",
+                                borderRadius: "16px",
+                                color: "white",
+                              }}
+                            >
+                              <option value="">Select</option>
+                              <option value="male">Male</option>
+                              <option value="female">Female</option>
+                            </select>
+                          </div>
+                        </div>
+                      </>
+                    )}
                   </motion.div>
                 ) : null}
 
-                {/* STEP 2: CLINIC DETAILS */}
+                {/* STEP 2: APPOINTMENT DETAILS (Department, Doctor, Mode, Date/Time) */}
                 {step === 2 && (
                   <motion.div
                     initial={{ x: 20, opacity: 0 }}
                     animate={{ x: 0, opacity: 1 }}
                   >
-                    <div style={{ marginBottom: "1rem" }}>
+                    {/* Show patient summary if auto-filled */}
+                    {showPatientInfo && (
+                      <div
+                        style={{
+                          marginBottom: "2rem",
+                          padding: "16px",
+                          background:
+                            "linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(168, 85, 247, 0.1))",
+                          border: "1px solid rgba(99, 102, 241, 0.3)",
+                          borderRadius: "12px",
+                        }}
+                      >
+                        <div style={{ fontSize: "0.85rem", color: "#c7d2fe" }}>
+                          <strong style={{ color: "#a5b4fc" }}>
+                            Booking for:
+                          </strong>{" "}
+                          {formData.firstName} {formData.lastName} |{" "}
+                          <strong>CNIC:</strong> {formData.nic}
+                        </div>
+                      </div>
+                    )}
+
+                    <h3
+                      style={{
+                        margin: "0 0 1.5rem 0",
+                        fontSize: "1.3rem",
+                        color: "#a5b4fc",
+                        fontWeight: 700,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "10px",
+                      }}
+                    >
+                      <FaCalendarAlt style={{ color: "#6366f1" }} />
+                      Select Appointment Details
+                    </h3>
+
+                    <div style={{ marginBottom: "1.5rem" }}>
                       <label
                         style={{
                           display: "block",
@@ -805,7 +1165,7 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                           color: "#94a3b8",
                         }}
                       >
-                        APPOINTMENT TYPE
+                        🏥 APPOINTMENT TYPE
                       </label>
                       <select
                         name="mode"
@@ -818,10 +1178,13 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                           border: "1px solid rgba(255,255,255,0.1)",
                           borderRadius: "16px",
                           color: "white",
+                          fontSize: "1rem",
                         }}
                       >
-                        <option value="online">Online (Video)</option>
-                        <option value="physical">Physical (In-clinic)</option>
+                        <option value="online">🎥 Online (Video Call)</option>
+                        <option value="physical">
+                          🏥 Physical (In-Clinic Visit)
+                        </option>
                       </select>
                     </div>
 
@@ -881,13 +1244,14 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                             color: "#94a3b8",
                           }}
                         >
-                          DEPARTMENT
+                          🏥 DEPARTMENT
                         </label>
                         <GlassInput
                           as="select"
                           name="department"
                           value={formData.department}
                           onChange={handleInputChange}
+                          style={{ fontSize: "1rem" }}
                         >
                           {departments.length === 0 ? (
                             <>
@@ -919,13 +1283,14 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                             color: "#94a3b8",
                           }}
                         >
-                          DOCTOR
+                          👨‍⚕️ DOCTOR
                         </label>
                         <GlassInput
                           as="select"
                           name="doctor"
                           value={formData.doctor}
                           onChange={handleInputChange}
+                          style={{ fontSize: "1rem" }}
                         >
                           <option value="">
                             {loadingDoctors
@@ -936,7 +1301,7 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                           </option>
                           {filteredDoctors.map((doc) => (
                             <option key={doc._id} value={doc.name}>
-                              {doc.name}
+                              Dr. {doc.name}
                             </option>
                           ))}
                         </GlassInput>
@@ -952,7 +1317,7 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                           color: "#94a3b8",
                         }}
                       >
-                        SELECT DATE
+                        📅 DATE & TIME SELECT DATE
                       </label>
                       <GlassInput
                         type="date"
@@ -1073,9 +1438,29 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                           }}
                         >
                           {timeSlots.map((slot, index) => {
+                            // Fix the isSelected comparison to handle local datetime properly
+                            const slotLocalString = (() => {
+                              const d = new Date(slot.time);
+                              const year = d.getFullYear();
+                              const month = String(d.getMonth() + 1).padStart(
+                                2,
+                                "0",
+                              );
+                              const day = String(d.getDate()).padStart(2, "0");
+                              const hours = String(d.getHours()).padStart(
+                                2,
+                                "0",
+                              );
+                              const minutes = String(d.getMinutes()).padStart(
+                                2,
+                                "0",
+                              );
+                              return `${year}-${month}-${day}T${hours}:${minutes}`;
+                            })();
+
                             const isSelected =
-                              formData.appointmentDateTime ===
-                              slot.time.toISOString().slice(0, 16);
+                              formData.appointmentDateTime === slotLocalString;
+
                             return (
                               <button
                                 key={index}

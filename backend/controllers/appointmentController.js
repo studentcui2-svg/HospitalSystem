@@ -740,3 +740,91 @@ exports.updateStatus = async (req, res) => {
     res.status(500).json({ message: "Server error" });
   }
 };
+
+// New endpoint to lookup patient by CNIC
+exports.getPatientByCnic = async (req, res) => {
+  try {
+    const { cnic } = req.params;
+
+    if (!cnic) {
+      return res.status(400).json({ message: "CNIC is required" });
+    }
+
+    console.log("[GET PATIENT BY CNIC] Looking up:", cnic);
+
+    // Clean the CNIC by removing dashes and spaces
+    const cleanCnic = cnic.replace(/[-\s]/g, "");
+
+    // Create a regex that matches the CNIC in both formats:
+    // 35201-1234567-1 or 3520112345671
+    // Using word boundaries to ensure exact match
+    const pattern1 = cleanCnic; // Without dashes
+    const pattern2 = `${cleanCnic.slice(0, 5)}-${cleanCnic.slice(5, 12)}-${cleanCnic.slice(12)}`; // With dashes
+
+    console.log(
+      "[GET PATIENT BY CNIC] Searching for patterns:",
+      pattern1,
+      "or",
+      pattern2,
+    );
+
+    // Find the most recent appointment for this CNIC
+    const recentAppointment = await Appointment.findOne({
+      $or: [{ cnic: pattern1 }, { cnic: pattern2 }],
+    })
+      .sort({ createdAt: -1 })
+      .select(
+        "patientName fatherName patientEmail phone cnic address gender age dateOfBirth",
+      );
+
+    if (!recentAppointment) {
+      console.log("[GET PATIENT BY CNIC] No appointment found");
+      return res.status(404).json({
+        message: "No previous records found for this CNIC",
+        found: false,
+      });
+    }
+
+    // Count total appointments for this CNIC
+    const totalAppointments = await Appointment.countDocuments({
+      $or: [{ cnic: pattern1 }, { cnic: pattern2 }],
+    });
+
+    // Count completed visits
+    const completedVisits = await Appointment.countDocuments({
+      $or: [{ cnic: pattern1 }, { cnic: pattern2 }],
+      status: "completed",
+    });
+
+    console.log("[GET PATIENT BY CNIC] Found patient:", {
+      name: recentAppointment.patientName,
+      totalAppointments,
+      completedVisits,
+    });
+
+    res.json({
+      found: true,
+      patient: {
+        firstName: recentAppointment.patientName?.split(" ")[0] || "",
+        lastName:
+          recentAppointment.patientName?.split(" ").slice(1).join(" ") || "",
+        fatherName: recentAppointment.fatherName,
+        email: recentAppointment.patientEmail,
+        mobileNumber: recentAppointment.phone,
+        nic: recentAppointment.cnic,
+        address: recentAppointment.address,
+        gender: recentAppointment.gender,
+        age: recentAppointment.age,
+        dateOfBirth: recentAppointment.dateOfBirth,
+      },
+      history: {
+        totalAppointments,
+        completedVisits,
+        lastVisit: recentAppointment.createdAt,
+      },
+    });
+  } catch (err) {
+    console.error("[GET PATIENT BY CNIC ERROR]", err);
+    res.status(500).json({ message: "Server error" });
+  }
+};

@@ -1199,7 +1199,6 @@ const DoctorPanel = () => {
                 <Tr>
                   <Th>Patient</Th>
                   <Th>Father Name</Th>
-                  <Th>Age</Th>
                   <Th>Contact Number</Th>
                   <Th>Date / Time</Th>
                   <Th>Mode</Th>
@@ -1300,17 +1299,15 @@ const DoctorPanel = () => {
                         <div style={{ fontWeight: 800 }}>{a.patientName}</div>
                         <Small>{a.patientEmail}</Small>
                         <Small>{a.gender || ""}</Small>
+                        {a.cnic && <Small>CNIC: {a.cnic}</Small>}
+                        {calculatedAge !== null &&
+                          calculatedAge !== undefined && (
+                            <Small>Age: {calculatedAge} years</Small>
+                          )}
                       </Td>
                       <Td data-label="Father Name:">
                         <div style={{ fontWeight: 700 }}>
                           {a.fatherName || "-"}
-                        </div>
-                      </Td>
-                      <Td data-label="Age:">
-                        <div style={{ fontWeight: 600 }}>
-                          {calculatedAge !== null && calculatedAge !== undefined
-                            ? `${calculatedAge} years`
-                            : "-"}
                         </div>
                       </Td>
                       <Td data-label="Contact Number:">

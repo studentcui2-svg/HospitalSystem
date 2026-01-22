@@ -174,6 +174,11 @@ const App = () => {
         return;
       }
 
+      if (hash === "#/doctor/panel" || hash === "#/doctor") {
+        setCurrentPage("doctor");
+        return;
+      }
+
       if (path === "/login") handleNavigation("login", "/login", true);
       else if (path === "/signup") handleNavigation("signup", "/signup", true);
       else if (path === "/admin") setIsAdminGateOpen(true);
