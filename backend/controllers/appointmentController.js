@@ -3,6 +3,7 @@ const sendEmail = require("../utils/email");
 const Stripe = require("stripe");
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 const axios = require("axios");
+const mongoose = require("mongoose");
 
 // Zoom API Configuration
 const ZOOM_ACCOUNT_ID = process.env.ZOOM_ACCOUNT_ID || "";
@@ -220,17 +221,48 @@ exports.createAppointment = async (req, res) => {
 
     const endDate = new Date(appointmentDate.getTime() + duration * 60000);
 
-    // Check for overlapping appointments for the same doctor
+    // Resolve doctor name/email to doctor ID
+    const Doctor = require("../models/Doctor");
+    let doctorId = null;
+    let doctorName = null;
+
     if (doctor) {
+      // Check if doctor is already an ObjectId
+      if (mongoose.Types.ObjectId.isValid(doctor)) {
+        const doctorDoc = await Doctor.findById(doctor);
+        if (doctorDoc) {
+          doctorId = doctorDoc._id;
+          doctorName = doctorDoc.name;
+        }
+      } else {
+        // Try to find doctor by name or email
+        const doctorDoc = await Doctor.findOne({
+          $or: [
+            { name: { $regex: `^${doctor}$`, $options: "i" } },
+            { email: { $regex: `^${doctor}$`, $options: "i" } },
+          ],
+        });
+        if (doctorDoc) {
+          doctorId = doctorDoc._id;
+          doctorName = doctorDoc.name;
+        } else {
+          // Store as doctorName only if doctor not found in database
+          doctorName = doctor;
+        }
+      }
+    }
+
+    // Check for overlapping appointments for the same doctor
+    if (doctorId) {
       const conflict = await Appointment.findOne({
-        doctor,
+        doctor: doctorId,
         date: { $lt: endDate },
         end: { $gt: appointmentDate },
       });
       if (conflict) {
         console.warn(
           "[CREATE APPOINTMENT] Slot conflict for doctor",
-          doctor,
+          doctorId,
           appointmentDate,
           endDate,
         );
@@ -299,7 +331,8 @@ exports.createAppointment = async (req, res) => {
       dateOfBirth: safeDob,
       age: age,
       department,
-      doctor,
+      doctor: doctorId,
+      doctorName: doctorName || doctor,
       notes,
       visitedBefore: visitedFlag,
       date: appointmentDate,
@@ -328,9 +361,28 @@ exports.getAppointments = async (req, res) => {
     if (req.query.status) q.status = req.query.status;
     if (req.query.search)
       q.patientName = { $regex: req.query.search, $options: "i" };
-    // allow filtering by doctor name
+
+    // allow filtering by doctor name or ID
     if (req.query.doctor) {
-      q.doctor = { $regex: `^${req.query.doctor}$`, $options: "i" };
+      const Doctor = require("../models/Doctor");
+      // Try to find doctor by name or email
+      const doctor = await Doctor.findOne({
+        $or: [
+          { name: { $regex: `^${req.query.doctor}$`, $options: "i" } },
+          { email: { $regex: `^${req.query.doctor}$`, $options: "i" } },
+        ],
+      });
+
+      if (doctor) {
+        // Search by doctor ID or doctorName (backward compatibility)
+        q.$or = [
+          { doctor: doctor._id },
+          { doctorName: { $regex: `^${req.query.doctor}$`, $options: "i" } },
+        ];
+      } else {
+        // Doctor not found, search by doctorName only
+        q.doctorName = { $regex: `^${req.query.doctor}$`, $options: "i" };
+      }
     }
 
     // Restrict non-admin users to see only their own appointments
@@ -346,7 +398,9 @@ exports.getAppointments = async (req, res) => {
     }
 
     // allow admin to request full list when needed via query param `all=true`
-    let queryExec = Appointment.find(q).sort({ date: -1 });
+    let queryExec = Appointment.find(q)
+      .populate("doctor", "name email")
+      .sort({ date: -1 });
     if (String(req.query.all) !== "true") {
       const max = 1000; // safety cap
       const limit = Math.min(Number(req.query.limit) || 100, max);
@@ -357,12 +411,26 @@ exports.getAppointments = async (req, res) => {
     }
 
     const appointments = await queryExec;
+
+    // Map appointments to include doctor name for frontend compatibility
+    const mappedAppointments = appointments.map((appt) => {
+      const apptObj = appt.toObject();
+      // Ensure doctor field contains name for frontend compatibility
+      if (apptObj.doctor && typeof apptObj.doctor === "object") {
+        apptObj.doctorName = apptObj.doctor.name;
+        apptObj.doctor = apptObj.doctor.name;
+      } else if (!apptObj.doctor && apptObj.doctorName) {
+        apptObj.doctor = apptObj.doctorName;
+      }
+      return apptObj;
+    });
+
     console.log(
       "[GET APPOINTMENTS] Found",
       appointments.length,
       "appointments",
     );
-    res.json({ ok: true, appointments });
+    res.json({ ok: true, appointments: mappedAppointments });
   } catch (err) {
     console.error("[GET APPOINTMENTS ERROR]", err);
     res.status(500).json({ message: "Server error" });
@@ -472,14 +540,47 @@ exports.updateStatus = async (req, res) => {
     let notified = false;
     const { patientEmail, patientName, date } = appt;
 
-    if (patientEmail) {
-      const readableDate = date
-        ? new Date(date).toLocaleString("en-US", {
-            dateStyle: "medium",
-            timeStyle: "short",
-          })
-        : "(date not set)";
+    // Fetch doctor name for patient email
+    let doctorDisplayName = appt.doctorName || "N/A";
+    if (appt.doctor && mongoose.Types.ObjectId.isValid(appt.doctor)) {
+      const Doctor = require("../models/Doctor");
+      const doctorDoc = await Doctor.findById(appt.doctor).select("name");
+      if (doctorDoc && doctorDoc.name) {
+        doctorDisplayName = doctorDoc.name;
+      }
+    }
 
+    // Prepare readable date for emails
+    const readableDate = date
+      ? new Date(date).toLocaleString("en-US", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        })
+      : "(date not set)";
+
+    // Add meeting link section for accepted online appointments
+    // This is used in both patient and doctor emails
+    let meetingLinkMessage = "";
+    if (
+      normalizedStatus === "Accepted" &&
+      appt.mode === "online" &&
+      appt.meetingLink
+    ) {
+      meetingLinkMessage = `
+        <div style="background: linear-gradient(135deg, #10b981, #059669); border-radius: 12px; padding: 20px; margin: 20px 0; border: 2px solid #10b981;">
+          <p style="margin: 0; color: white; font-weight: 700; font-size: 1.2rem; text-align: center;">🎥 Your Virtual Meeting is Ready!</p>
+          <p style="margin: 12px 0; color: white; line-height: 1.6; text-align: center;">Join your online consultation at the scheduled time:</p>
+          <div style="text-align: center; margin: 16px 0;">
+            <a href="${appt.meetingLink}" style="display: inline-block; background: white; color: #10b981; padding: 14px 36px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 1.1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">Join Meeting</a>
+          </div>
+          <p style="margin: 12px 0 0 0; color: #d1fae5; font-size: 0.85rem; text-align: center;">
+            💡 Tip: Test your camera and microphone before the meeting
+          </p>
+        </div>
+      `;
+    }
+
+    if (patientEmail) {
       const capitalizedStatus = normalizedStatus.toUpperCase();
       const subject = `Your appointment has been ${capitalizedStatus}`;
 
@@ -489,27 +590,6 @@ exports.updateStatus = async (req, res) => {
           : normalizedStatus === "Rejected"
             ? "We're sorry to inform you that we cannot accommodate your appointment at this time."
             : "Your appointment status has been updated.";
-
-      // Add meeting link section for accepted online appointments
-      let meetingLinkMessage = "";
-      if (
-        normalizedStatus === "Accepted" &&
-        appt.mode === "online" &&
-        appt.meetingLink
-      ) {
-        meetingLinkMessage = `
-          <div style="background: linear-gradient(135deg, #10b981, #059669); border-radius: 12px; padding: 20px; margin: 20px 0; border: 2px solid #10b981;">
-            <p style="margin: 0; color: white; font-weight: 700; font-size: 1.2rem; text-align: center;">🎥 Your Virtual Meeting is Ready!</p>
-            <p style="margin: 12px 0; color: white; line-height: 1.6; text-align: center;">Join your online consultation at the scheduled time:</p>
-            <div style="text-align: center; margin: 16px 0;">
-              <a href="${appt.meetingLink}" style="display: inline-block; background: white; color: #10b981; padding: 14px 36px; text-decoration: none; border-radius: 8px; font-weight: 700; font-size: 1.1rem; box-shadow: 0 4px 12px rgba(0,0,0,0.15);">Join Meeting</a>
-            </div>
-            <p style="margin: 12px 0 0 0; color: #d1fae5; font-size: 0.85rem; text-align: center;">
-              💡 Tip: Test your camera and microphone before the meeting
-            </p>
-          </div>
-        `;
-      }
 
       // Add rejection reason to message if provided
       let rejectionReasonMessage = "";
@@ -580,15 +660,13 @@ exports.updateStatus = async (req, res) => {
           <p style="margin: 0 0 12px 0; color: #374151; font-weight: 600;">📋 Appointment Details:</p>
           <table style="width: 100%; border-collapse: collapse;">
             <tr>
+              <td style="padding: 4px 0; color: #6b7280;">Doctor:</td>
+              <td style="padding: 4px 0; color: #111827; font-weight: 600;">Dr. ${doctorDisplayName}</td>
+            </tr>
+            <tr>
               <td style="padding: 4px 0; color: #6b7280;">Department:</td>
               <td style="padding: 4px 0; color: #111827;">${
                 appt.department || "N/A"
-              }</td>
-            </tr>
-            <tr>
-              <td style="padding: 4px 0; color: #6b7280;">Doctor:</td>
-              <td style="padding: 4px 0; color: #111827;">${
-                appt.doctor || "N/A"
               }</td>
             </tr>
             <tr>
@@ -613,7 +691,31 @@ exports.updateStatus = async (req, res) => {
           ${
             normalizedStatus === "Rejected"
               ? appointmentDetails
-              : `<p><strong>Scheduled Date:</strong> ${readableDate}</p>`
+              : `<div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin: 16px 0;">
+                  <p style="margin: 0 0 12px 0; color: #374151; font-weight: 600;">📋 Appointment Details:</p>
+                  <table style="width: 100%; border-collapse: collapse;">
+                    <tr>
+                      <td style="padding: 4px 0; color: #6b7280;">Doctor:</td>
+                      <td style="padding: 4px 0; color: #111827; font-weight: 600;">Dr. ${doctorDisplayName}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 4px 0; color: #6b7280;">Department:</td>
+                      <td style="padding: 4px 0; color: #111827;">${appt.department || "N/A"}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 4px 0; color: #6b7280;">Scheduled Date:</td>
+                      <td style="padding: 4px 0; color: #111827; font-weight: 600;">${readableDate}</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 4px 0; color: #6b7280;">Duration:</td>
+                      <td style="padding: 4px 0; color: #111827;">${appt.durationMinutes || 30} minutes</td>
+                    </tr>
+                    <tr>
+                      <td style="padding: 4px 0; color: #6b7280;">Mode:</td>
+                      <td style="padding: 4px 0; color: #111827; font-weight: 600;">${appt.mode === "online" ? "🎥 Online" : "🏥 Physical"}</td>
+                    </tr>
+                  </table>
+                </div>`
           }
           ${meetingLinkMessage}
           ${rejectionReasonMessage}
@@ -659,73 +761,116 @@ exports.updateStatus = async (req, res) => {
     // Send email to doctor when appointment is accepted
     if (normalizedStatus === "Accepted" && appt.doctor) {
       try {
-        const doctorSubject = `New Appointment Confirmed - ${patientName}`;
-        const doctorHtml = `
-          <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
-            <h2 style="color: #4f46e5;">Hello Dr. ${appt.doctor},</h2>
-            <p>A new appointment has been confirmed with you.</p>
-            
-            <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin: 16px 0;">
-              <p style="margin: 0 0 12px 0; color: #374151; font-weight: 600;">📋 Appointment Details:</p>
-              <table style="width: 100%; border-collapse: collapse;">
-                <tr>
-                  <td style="padding: 4px 0; color: #6b7280;">Patient Name:</td>
-                  <td style="padding: 4px 0; color: #111827; font-weight: 600;">${appt.patientName}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 4px 0; color: #6b7280;">Father Name:</td>
-                  <td style="padding: 4px 0; color: #111827;">${appt.fatherName || "N/A"}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 4px 0; color: #6b7280;">Age:</td>
-                  <td style="padding: 4px 0; color: #111827;">${appt.age ? appt.age + " years" : "N/A"}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 4px 0; color: #6b7280;">Gender:</td>
-                  <td style="padding: 4px 0; color: #111827;">${appt.gender || "N/A"}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 4px 0; color: #6b7280;">Contact:</td>
-                  <td style="padding: 4px 0; color: #111827;">${appt.phone || "N/A"}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 4px 0; color: #6b7280;">Department:</td>
-                  <td style="padding: 4px 0; color: #111827;">${appt.department || "N/A"}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 4px 0; color: #6b7280;">Date & Time:</td>
-                  <td style="padding: 4px 0; color: #111827; font-weight: 600;">${readableDate}</td>
-                </tr>
-                <tr>
-                  <td style="padding: 4px 0; color: #6b7280;">Duration:</td>
-                  <td style="padding: 4px 0; color: #111827;">${appt.durationMinutes || 30} minutes</td>
-                </tr>
-                <tr>
-                  <td style="padding: 4px 0; color: #6b7280;">Mode:</td>
-                  <td style="padding: 4px 0; color: #111827; font-weight: 600;">${appt.mode === "online" ? "🎥 Online" : "🏥 Physical"}</td>
-                </tr>
-              </table>
+        const Doctor = require("../models/Doctor");
+        let doctorEmail = null;
+        let doctorName = appt.doctorName || "Doctor";
+
+        // Fetch doctor email from Doctor model
+        if (mongoose.Types.ObjectId.isValid(appt.doctor)) {
+          const doctorDoc = await Doctor.findById(appt.doctor).select(
+            "name email",
+          );
+          if (doctorDoc) {
+            doctorEmail = doctorDoc.email;
+            doctorName = doctorDoc.name;
+            console.log(`[EMAIL] Found doctor: ${doctorName} (${doctorEmail})`);
+          }
+        }
+
+        if (doctorEmail) {
+          const readableDate = date
+            ? new Date(date).toLocaleString("en-US", {
+                dateStyle: "medium",
+                timeStyle: "short",
+              })
+            : "(date not set)";
+
+          const doctorSubject = `New Appointment Confirmed - ${patientName}`;
+          const doctorHtml = `
+            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+              <h2 style="color: #4f46e5;">Hello Dr. ${doctorName},</h2>
+              <p>A new appointment has been confirmed with you.</p>
+              
+              <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin: 16px 0;">
+                <p style="margin: 0 0 12px 0; color: #374151; font-weight: 600;">📋 Appointment Details:</p>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr>
+                    <td style="padding: 4px 0; color: #6b7280;">Patient Name:</td>
+                    <td style="padding: 4px 0; color: #111827; font-weight: 600;">${appt.patientName}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #6b7280;">Father Name:</td>
+                    <td style="padding: 4px 0; color: #111827;">${appt.fatherName || "N/A"}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #6b7280;">Age:</td>
+                    <td style="padding: 4px 0; color: #111827;">${appt.age ? appt.age + " years" : "N/A"}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #6b7280;">Gender:</td>
+                    <td style="padding: 4px 0; color: #111827;">${appt.gender || "N/A"}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #6b7280;">Contact:</td>
+                    <td style="padding: 4px 0; color: #111827;">${appt.phone || "N/A"}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #6b7280;">Email:</td>
+                    <td style="padding: 4px 0; color: #111827;">${appt.patientEmail || "N/A"}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #6b7280;">Department:</td>
+                    <td style="padding: 4px 0; color: #111827;">${appt.department || "N/A"}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #6b7280;">Date & Time:</td>
+                    <td style="padding: 4px 0; color: #111827; font-weight: 600;">${readableDate}</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #6b7280;">Duration:</td>
+                    <td style="padding: 4px 0; color: #111827;">${appt.durationMinutes || 30} minutes</td>
+                  </tr>
+                  <tr>
+                    <td style="padding: 4px 0; color: #6b7280;">Mode:</td>
+                    <td style="padding: 4px 0; color: #111827; font-weight: 600;">${appt.mode === "online" ? "🎥 Online" : "🏥 Physical"}</td>
+                  </tr>
+                  ${
+                    appt.notes
+                      ? `<tr>
+                    <td style="padding: 4px 0; color: #6b7280;">Notes:</td>
+                    <td style="padding: 4px 0; color: #111827;">${appt.notes}</td>
+                  </tr>`
+                      : ""
+                  }
+                </table>
+              </div>
+              
+              ${meetingLinkMessage}
+              
+              <p style="margin-top: 18px;">Please be available at the scheduled time.</p>
+              <p style="margin-top: 24px;">Best regards,<br/>Hospital Management System</p>
             </div>
-            
-            ${meetingLinkMessage}
-            
-            <p style="margin-top: 18px;">Please be available at the scheduled time.</p>
-            <p style="margin-top: 24px;">Best regards,<br/>Hospital Management System</p>
-          </div>
-        `;
+          `;
 
-        const doctorText = `New appointment confirmed with ${patientName} on ${readableDate}. ${appt.meetingLink ? `Meeting Link: ${appt.meetingLink}` : ""}`;
+          const doctorText = `New appointment confirmed with ${patientName} on ${readableDate}. ${appt.meetingLink ? `Meeting Link: ${appt.meetingLink}` : ""}`;
 
-        // TODO: Implement doctor email lookup from Doctor model
-        // For now, this is logged - you need to fetch doctor's email from database
-        console.log(
-          "[EMAIL] Doctor notification prepared for Dr.",
-          appt.doctor,
-        );
-        console.log(
-          "[EMAIL] Doctor notification HTML ready (implement doctor email lookup)",
-        );
-        // await sendEmail({ to: doctorEmail, subject: doctorSubject, html: doctorHtml, text: doctorText });
+          const noReplyFrom =
+            process.env.SMTP_NO_REPLY ||
+            `No Reply <${process.env.SMTP_FROM || process.env.SMTP_USER}>`;
+
+          await sendEmail({
+            to: doctorEmail,
+            subject: doctorSubject,
+            html: doctorHtml,
+            text: doctorText,
+            from: noReplyFrom,
+          });
+          console.log(`[EMAIL] ✓ Doctor notification sent to ${doctorEmail}`);
+        } else {
+          console.warn(
+            `[EMAIL] No doctor email found for appointment ${appt._id}`,
+          );
+        }
       } catch (emailErr) {
         console.error(
           "[EMAIL ERROR] Failed to send doctor notification:",

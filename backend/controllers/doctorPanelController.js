@@ -8,30 +8,46 @@ exports.getMyAppointments = async (req, res) => {
     if (!userEmail)
       return res.status(401).json({ message: "Not authenticated" });
 
-    // Try to find doctor entry
+    // Try to find doctor entry by email
     const doctor = await Doctor.findOne({
       email: { $regex: `^${userEmail}$`, $options: "i" },
     });
-    const doctorName = doctor ? doctor.name : null;
 
-    // Build query to match appointments where `doctor` equals the registered name or email
-    const q = {
-      $or: [],
-    };
-    if (doctorName) q.$or.push({ doctor: doctorName });
-    q.$or.push({ doctor: userEmail });
+    if (!doctor) {
+      return res.json({ ok: true, appointments: [] });
+    }
 
-    // if no or conditions, return empty
-    if (!q.$or.length) return res.json({ ok: true, appointments: [] });
-
-    const appointments = await Appointment.find(q)
+    // Query appointments by doctor ID (new approach)
+    // Also include backward compatibility for old appointments with doctorName
+    const appointments = await Appointment.find({
+      $or: [
+        { doctor: doctor._id },
+        { doctorName: doctor.name },
+        { doctorName: userEmail },
+      ],
+    })
+      .populate("doctor", "name email")
       .sort({ date: 1 })
       .limit(1000);
-    res.json({ ok: true, appointments });
+
+    // Map appointments to include doctor name for frontend compatibility
+    const mappedAppointments = appointments.map((appt) => {
+      const apptObj = appt.toObject();
+      // Ensure doctor field contains name for frontend compatibility
+      if (apptObj.doctor && typeof apptObj.doctor === "object") {
+        apptObj.doctorName = apptObj.doctor.name;
+        apptObj.doctor = apptObj.doctor.name;
+      } else if (!apptObj.doctor && apptObj.doctorName) {
+        apptObj.doctor = apptObj.doctorName;
+      }
+      return apptObj;
+    });
+
+    res.json({ ok: true, appointments: mappedAppointments });
   } catch (err) {
     console.error(
       "[DOCTOR PANEL] getMyAppointments error:",
-      err && err.message
+      err && err.message,
     );
     res.status(500).json({ message: "Server error" });
   }
@@ -58,18 +74,21 @@ exports.updateAppointmentStatus = async (req, res) => {
       return res.status(404).json({ message: "Appointment not found" });
 
     // Ensure this doctor is allowed to modify this appointment
-    // Accept if appt.doctor equals doctor's name or email
     const doctor = await Doctor.findOne({
       email: { $regex: `^${userEmail}$`, $options: "i" },
     });
-    const doctorName = doctor ? doctor.name : null;
-    if (
-      !(
-        appt.doctor &&
-        (appt.doctor === userEmail ||
-          (doctorName && appt.doctor === doctorName))
-      )
-    ) {
+
+    if (!doctor) {
+      return res.status(403).json({ message: "Doctor account not found" });
+    }
+
+    // Check if appointment belongs to this doctor (by ID or backward compatibility with name/email)
+    const isAuthorized =
+      (appt.doctor && appt.doctor.toString() === doctor._id.toString()) ||
+      appt.doctorName === doctor.name ||
+      appt.doctorName === userEmail;
+
+    if (!isAuthorized) {
       return res
         .status(403)
         .json({ message: "Not authorized to modify this appointment" });
@@ -115,7 +134,7 @@ exports.updateAppointmentStatus = async (req, res) => {
       } catch (emailErr) {
         console.warn(
           "[DOCTOR PANEL] Failed to send status email",
-          emailErr && emailErr.message
+          emailErr && emailErr.message,
         );
       }
     }
@@ -124,7 +143,7 @@ exports.updateAppointmentStatus = async (req, res) => {
   } catch (err) {
     console.error(
       "[DOCTOR PANEL] updateAppointmentStatus error:",
-      err && err.message
+      err && err.message,
     );
     res.status(500).json({ message: "Server error" });
   }

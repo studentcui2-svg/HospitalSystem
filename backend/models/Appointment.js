@@ -16,7 +16,8 @@ const appointmentSchema = new mongoose.Schema(
     dateOfBirth: { type: Date },
     age: { type: Number },
     department: { type: String },
-    doctor: { type: String },
+    doctor: { type: mongoose.Schema.Types.ObjectId, ref: "Doctor" },
+    doctorName: { type: String }, // Keep for backward compatibility and display
     notes: { type: String },
     visitedBefore: { type: Boolean, default: false },
     // `date` is the appointment start time (stored as UTC)

@@ -512,7 +512,9 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
       return (
         (r.patientName || "").toLowerCase().includes(q) ||
         (r.patientEmail || "").toLowerCase().includes(q) ||
-        (r.cnic || "").toLowerCase().includes(q)
+        (r.cnic || "").toLowerCase().includes(q) ||
+        (r.doctor || "").toLowerCase().includes(q) ||
+        (r.doctorName || "").toLowerCase().includes(q)
       );
     });
 
@@ -600,7 +602,7 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
         <Toolbar>
           <LeftControls>
             <SearchInput
-              placeholder="Search by name, email or phone"
+              placeholder="Search by patient/doctor name, email..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               disabled
@@ -681,7 +683,7 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
       <Toolbar>
         <LeftControls>
           <SearchInput
-            placeholder="Search by name, email or phone"
+            placeholder="Search by patient/doctor name, email..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
