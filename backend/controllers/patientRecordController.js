@@ -207,6 +207,20 @@ exports.createPatientRecord = async (req, res) => {
       createdBy: req.userId,
     };
 
+    // Validate follow-up date is in the future
+    if (recordData.followUpDate) {
+      const followUpDate = new Date(recordData.followUpDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (followUpDate < today) {
+        return res.status(400).json({
+          error: "Follow-up date must be a future date",
+          message: "Follow-up date cannot be in the past",
+        });
+      }
+    }
+
     // Add uploaded files to attachments
     if (req.files && req.files.length > 0) {
       recordData.attachments = req.files.map((file) => ({
@@ -238,6 +252,20 @@ exports.updatePatientRecord = async (req, res) => {
   try {
     const { id } = req.params;
     const updates = req.body;
+
+    // Validate follow-up date is in the future
+    if (updates.followUpDate) {
+      const followUpDate = new Date(updates.followUpDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      if (followUpDate < today) {
+        return res.status(400).json({
+          error: "Follow-up date must be a future date",
+          message: "Follow-up date cannot be in the past",
+        });
+      }
+    }
 
     // Add new files to existing attachments if files are uploaded
     if (req.files && req.files.length > 0) {
@@ -446,12 +474,37 @@ exports.getRecordsByAppointment = async (req, res) => {
 
     const records = await PatientRecord.find(query).sort({ createdAt: -1 });
 
-    // Flatten patient uploads from all records
-    const allUploads = [];
+    // Return both full records and flattened file uploads
+    const fullRecords = [];
+    const fileUploads = [];
+
     records.forEach((record) => {
+      // Add full record with all medical details
+      fullRecords.push({
+        _id: record._id,
+        patientName: record.patientName,
+        patientEmail: record.patientEmail,
+        phone: record.phone,
+        visitDate: record.visitDate,
+        doctorName: record.doctorName,
+        complaints: record.complaints,
+        diagnosis: record.diagnosis,
+        bloodPressure: record.bloodPressure,
+        temperature: record.temperature,
+        prescription: record.prescription,
+        followUpDate: record.followUpDate,
+        followUpNotes: record.followUpNotes,
+        hasAttachments: record.attachments && record.attachments.length > 0,
+        hasPatientUploads:
+          record.patientUploads && record.patientUploads.length > 0,
+        createdAt: record.createdAt,
+        updatedAt: record.updatedAt,
+      });
+
+      // Flatten patient uploads for file list
       if (record.patientUploads && record.patientUploads.length > 0) {
         record.patientUploads.forEach((upload) => {
-          allUploads.push({
+          fileUploads.push({
             _id: record._id + "-" + upload._id,
             recordId: record._id,
             uploadId: upload._id,
@@ -470,15 +523,15 @@ exports.getRecordsByAppointment = async (req, res) => {
         });
       }
 
-      // Also include doctor attachments
+      // Also include doctor attachments in file list
       if (record.attachments && record.attachments.length > 0) {
         record.attachments.forEach((attachment) => {
-          allUploads.push({
+          fileUploads.push({
             _id: record._id + "-" + attachment._id,
             recordId: record._id,
             uploadId: attachment._id,
-            title: record.diagnosis || "Medical Record",
-            description: record.prescription || "",
+            title: "Medical Document",
+            description: "",
             originalName: attachment.originalName,
             path: attachment.path,
             fileUrl: attachment.path
@@ -495,7 +548,9 @@ exports.getRecordsByAppointment = async (req, res) => {
 
     res.json({
       success: true,
-      records: allUploads,
+      records: fileUploads, // For backward compatibility
+      fullRecords: fullRecords, // Full medical records with all details
+      fileUploads: fileUploads, // Just the file attachments
     });
   } catch (error) {
     console.error("[GET RECORDS BY APPOINTMENT ERROR]", error);

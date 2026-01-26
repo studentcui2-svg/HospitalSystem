@@ -240,7 +240,14 @@ const ModalContent = styled.div`
 
   @media (max-width: 768px) {
     max-width: 95vw;
+    max-height: 95vh;
     border-radius: 12px;
+  }
+
+  @media (max-width: 480px) {
+    max-width: 100vw;
+    max-height: 100vh;
+    border-radius: 0;
   }
 `;
 
@@ -253,6 +260,14 @@ const ModalHeader = styled.div`
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   color: white;
   border-radius: 16px 16px 0 0;
+
+  @media (max-width: 768px) {
+    padding: 1rem;
+  }
+
+  @media (max-width: 480px) {
+    border-radius: 0;
+  }
 `;
 
 const ModalTitle = styled.h3`
@@ -288,10 +303,17 @@ const CloseButton = styled.button`
   color: white;
   font-size: 1.25rem;
   transition: all 0.3s;
+  flex-shrink: 0;
 
   &:hover {
     background: rgba(255, 255, 255, 0.3);
     transform: rotate(90deg);
+  }
+
+  @media (max-width: 768px) {
+    width: 36px;
+    height: 36px;
+    font-size: 1.1rem;
   }
 `;
 
@@ -319,6 +341,12 @@ const RecordSection = styled.div`
       opacity: 1;
       transform: translateY(0);
     }
+  }
+
+  @media (max-width: 768px) {
+    padding: 1rem;
+    border-radius: 8px;
+    border-width: 1.5px;
   }
 `;
 
@@ -379,6 +407,13 @@ const SectionHeader = styled.div`
   margin-bottom: 1.25rem;
   padding-bottom: 0.75rem;
   border-bottom: 2px solid ${(props) => props.$borderColor || "#e5e7eb"};
+
+  @media (max-width: 768px) {
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    flex-wrap: wrap;
+  }
 `;
 
 const SectionIcon = styled.div`
@@ -391,6 +426,12 @@ const SectionIcon = styled.div`
   background: ${(props) => props.$bg || "#f3f4f6"};
   color: ${(props) => props.$color || "#374151"};
   font-size: 1.25rem;
+
+  @media (max-width: 768px) {
+    width: 32px;
+    height: 32px;
+    font-size: 1rem;
+  }
 `;
 
 const SectionTitle = styled.h4`
@@ -399,6 +440,10 @@ const SectionTitle = styled.h4`
   font-size: 1.1rem;
   font-weight: 700;
   flex: 1;
+
+  @media (max-width: 768px) {
+    font-size: 0.95rem;
+  }
 `;
 
 const RecordCount = styled.span`
@@ -408,6 +453,11 @@ const RecordCount = styled.span`
   border-radius: 12px;
   font-size: 0.85rem;
   font-weight: 600;
+
+  @media (max-width: 768px) {
+    font-size: 0.75rem;
+    padding: 0.2rem 0.6rem;
+  }
 `;
 
 const RecordItem = styled.div`
@@ -446,6 +496,11 @@ const RecordTitle = styled.div`
   color: #1f2937;
   margin-bottom: 0.5rem;
   font-size: 1.05rem;
+
+  @media (max-width: 768px) {
+    font-size: 0.95rem;
+    word-break: break-word;
+  }
 `;
 
 const RecordMeta = styled.div`
@@ -454,6 +509,10 @@ const RecordMeta = styled.div`
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
+
+  @media (max-width: 768px) {
+    font-size: 0.8rem;
+  }
 `;
 
 const RecordActions = styled.div`
@@ -467,6 +526,11 @@ const UploadForm = styled.div`
   background: #f9fafb;
   border-radius: 12px;
   margin-bottom: 1.5rem;
+
+  @media (max-width: 768px) {
+    padding: 1rem;
+    border-radius: 8px;
+  }
 `;
 
 const FormGroup = styled.div`
@@ -547,6 +611,11 @@ const UploaderBadge = styled.div`
   background: ${(props) => (props.$isDoctor ? "#dcfce7" : "#dbeafe")};
   color: ${(props) => (props.$isDoctor ? "#166534" : "#1e40af")};
   margin-top: 0.5rem;
+
+  @media (max-width: 768px) {
+    font-size: 0.7rem;
+    padding: 0.25rem 0.6rem;
+  }
 `;
 
 const EmptyState = styled.div`
@@ -566,11 +635,145 @@ const EmptyState = styled.div`
   }
 `;
 
+const MedicalRecordCard = styled.div`
+  background: #f9fafb;
+  border: 2px solid #10b981;
+  border-radius: 12px;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+
+  @media (max-width: 768px) {
+    padding: 1rem;
+    border-radius: 8px;
+  }
+`;
+
+const RecordHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  padding-bottom: 0.75rem;
+  border-bottom: 2px solid #10b981;
+
+  h4 {
+    margin: 0;
+    color: #10b981;
+    font-size: 1.1rem;
+    font-weight: 700;
+  }
+
+  .date {
+    color: #6b7280;
+    font-size: 0.9rem;
+  }
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+
+    h4 {
+      font-size: 1rem;
+    }
+
+    .date {
+      font-size: 0.8rem;
+    }
+  }
+`;
+
+const MedicalDetailSection = styled.div`
+  margin-bottom: 1rem;
+
+  &:last-child {
+    margin-bottom: 0;
+  }
+
+  @media (max-width: 768px) {
+    margin-bottom: 0.75rem;
+  }
+`;
+
+const DetailLabel = styled.div`
+  font-weight: 700;
+  color: #1f2937;
+  margin-bottom: 0.5rem;
+  font-size: 1rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+
+  @media (max-width: 768px) {
+    font-size: 0.9rem;
+  }
+`;
+
+const DetailValue = styled.div`
+  color: #4b5563;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  padding-left: 1.75rem;
+  white-space: pre-wrap;
+
+  @media (max-width: 768px) {
+    font-size: 0.85rem;
+    padding-left: 1rem;
+    line-height: 1.5;
+  }
+`;
+
+const VitalsGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  padding-left: 1.75rem;
+
+  @media (max-width: 768px) {
+    grid-template-columns: 1fr;
+    padding-left: 1rem;
+    gap: 0.75rem;
+  }
+`;
+
+const VitalItem = styled.div`
+  background: white;
+  padding: 0.75rem;
+  border-radius: 8px;
+  border: 1px solid #e5e7eb;
+
+  .label {
+    font-size: 0.8rem;
+    color: #6b7280;
+    margin-bottom: 0.25rem;
+  }
+
+  .value {
+    font-size: 1.1rem;
+    font-weight: 700;
+    color: #1f2937;
+  }
+
+  @media (max-width: 768px) {
+    padding: 0.6rem;
+
+    .label {
+      font-size: 0.75rem;
+    }
+
+    .value {
+      font-size: 1rem;
+    }
+  }
+`;
+
 const PatientAppointmentsTable = () => {
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedAppointment, setSelectedAppointment] = useState(null);
   const [patientRecords, setPatientRecords] = useState([]);
+  const [fullMedicalRecords, setFullMedicalRecords] = useState([]);
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [uploadData, setUploadData] = useState({
     title: "",
@@ -601,7 +804,8 @@ const PatientAppointmentsTable = () => {
       const res = await jsonFetch(
         `/api/patient-records/appointment/${appointmentId}`,
       );
-      setPatientRecords(res.records || []);
+      setPatientRecords(res.fileUploads || res.records || []);
+      setFullMedicalRecords(res.fullRecords || []);
     } catch (err) {
       console.error("Failed to load patient records", err);
       toast.error("Failed to load patient records");
@@ -616,6 +820,7 @@ const PatientAppointmentsTable = () => {
   const handleCloseModal = () => {
     setSelectedAppointment(null);
     setPatientRecords([]);
+    setFullMedicalRecords([]);
     setShowUploadForm(false);
     setUploadData({ title: "", description: "", file: null });
   };
@@ -1009,17 +1214,19 @@ const PatientAppointmentsTable = () => {
 
               <RecordsList>
                 {(() => {
-                  // Separate doctor and patient records
-                  const doctorRecords = patientRecords.filter(
+                  const doctorFileUploads = patientRecords.filter(
                     (r) => r.uploadedBy === "doctor",
                   );
-                  const patientUploads = patientRecords.filter(
+                  const patientFileUploads = patientRecords.filter(
                     (r) => r.uploadedBy !== "doctor",
                   );
+                  const hasNoData =
+                    patientRecords.length === 0 &&
+                    fullMedicalRecords.length === 0;
 
                   return (
                     <>
-                      {patientRecords.length === 0 ? (
+                      {hasNoData ? (
                         <EmptyState>
                           <FaFileMedical
                             size={64}
@@ -1033,33 +1240,165 @@ const PatientAppointmentsTable = () => {
                         </EmptyState>
                       ) : (
                         <>
-                          {/* Doctor's Reports Section */}
-                          {doctorRecords.length > 0 && (
+                          {/* Doctor's Full Medical Records */}
+                          {fullMedicalRecords.length > 0 && (
                             <RecordSection $borderColor="#10b981">
                               <SectionHeader $borderColor="#10b981">
                                 <SectionIcon $bg="#d1fae5" $color="#10b981">
                                   <FaUserMd />
                                 </SectionIcon>
-                                <SectionTitle>Doctor's Reports</SectionTitle>
+                                <SectionTitle>
+                                  Doctor's Medical Records
+                                </SectionTitle>
                                 <RecordCount $bg="#d1fae5" $color="#10b981">
-                                  {doctorRecords.length}{" "}
-                                  {doctorRecords.length === 1
-                                    ? "Report"
-                                    : "Reports"}
+                                  {fullMedicalRecords.length}{" "}
+                                  {fullMedicalRecords.length === 1
+                                    ? "Visit"
+                                    : "Visits"}
                                 </RecordCount>
                               </SectionHeader>
 
-                              {doctorRecords.map((record) => (
+                              {fullMedicalRecords.map((record) => (
+                                <MedicalRecordCard key={record._id}>
+                                  <RecordHeader>
+                                    <h4>
+                                      🩺 Visit Record - Dr. {record.doctorName}
+                                    </h4>
+                                    <div className="date">
+                                      {new Date(
+                                        record.visitDate,
+                                      ).toLocaleDateString()}
+                                    </div>
+                                  </RecordHeader>
+
+                                  {record.complaints && (
+                                    <MedicalDetailSection>
+                                      <DetailLabel>
+                                        🔴 <strong>Chief Complaints</strong>
+                                      </DetailLabel>
+                                      <DetailValue>
+                                        {record.complaints}
+                                      </DetailValue>
+                                    </MedicalDetailSection>
+                                  )}
+
+                                  {record.diagnosis && (
+                                    <MedicalDetailSection>
+                                      <DetailLabel>
+                                        ✅ <strong>Diagnosis</strong>
+                                      </DetailLabel>
+                                      <DetailValue>
+                                        {record.diagnosis}
+                                      </DetailValue>
+                                    </MedicalDetailSection>
+                                  )}
+
+                                  {(record.bloodPressure ||
+                                    record.temperature) && (
+                                    <MedicalDetailSection>
+                                      <DetailLabel>
+                                        🌡️ <strong>Vital Signs</strong>
+                                      </DetailLabel>
+                                      <VitalsGrid>
+                                        {record.bloodPressure && (
+                                          <VitalItem>
+                                            <div className="label">
+                                              Blood Pressure
+                                            </div>
+                                            <div className="value">
+                                              {record.bloodPressure}
+                                            </div>
+                                          </VitalItem>
+                                        )}
+                                        {record.temperature && (
+                                          <VitalItem>
+                                            <div className="label">
+                                              Temperature
+                                            </div>
+                                            <div className="value">
+                                              {record.temperature}
+                                            </div>
+                                          </VitalItem>
+                                        )}
+                                      </VitalsGrid>
+                                    </MedicalDetailSection>
+                                  )}
+
+                                  {record.prescription && (
+                                    <MedicalDetailSection>
+                                      <DetailLabel>
+                                        💊 <strong>Prescription</strong>
+                                      </DetailLabel>
+                                      <DetailValue>
+                                        {record.prescription}
+                                      </DetailValue>
+                                    </MedicalDetailSection>
+                                  )}
+
+                                  {record.followUpDate && (
+                                    <MedicalDetailSection>
+                                      <DetailLabel>
+                                        📅 <strong>Follow-Up</strong>
+                                      </DetailLabel>
+                                      <DetailValue>
+                                        <strong>Date:</strong>{" "}
+                                        {new Date(
+                                          record.followUpDate,
+                                        ).toLocaleDateString()}
+                                        {record.followUpNotes && (
+                                          <>
+                                            <br />
+                                            <strong>Notes:</strong>{" "}
+                                            {record.followUpNotes}
+                                          </>
+                                        )}
+                                      </DetailValue>
+                                    </MedicalDetailSection>
+                                  )}
+
+                                  {record.hasAttachments && (
+                                    <MedicalDetailSection>
+                                      <DetailLabel>
+                                        📎 <strong>Attached Documents</strong>
+                                      </DetailLabel>
+                                      <DetailValue>
+                                        <em>
+                                          See Doctor's Attachments section below
+                                        </em>
+                                      </DetailValue>
+                                    </MedicalDetailSection>
+                                  )}
+                                </MedicalRecordCard>
+                              ))}
+                            </RecordSection>
+                          )}
+
+                          {/* Doctor's File Attachments */}
+                          {doctorFileUploads.length > 0 && (
+                            <RecordSection $borderColor="#10b981">
+                              <SectionHeader $borderColor="#10b981">
+                                <SectionIcon $bg="#d1fae5" $color="#10b981">
+                                  <FaFilePdf />
+                                </SectionIcon>
+                                <SectionTitle>
+                                  Doctor's Attachments
+                                </SectionTitle>
+                                <RecordCount $bg="#d1fae5" $color="#10b981">
+                                  {doctorFileUploads.length}{" "}
+                                  {doctorFileUploads.length === 1
+                                    ? "File"
+                                    : "Files"}
+                                </RecordCount>
+                              </SectionHeader>
+
+                              {doctorFileUploads.map((record) => (
                                 <RecordItem key={record._id}>
                                   <RecordInfo>
                                     <RecordTitle>
                                       {getFileIcon(record.mimetype)}{" "}
-                                      {record.title || record.originalName}
+                                      {record.originalName}
                                     </RecordTitle>
                                     <RecordMeta>
-                                      {record.description && (
-                                        <div>📝 {record.description}</div>
-                                      )}
                                       <div>
                                         📅 Uploaded:{" "}
                                         {new Date(
@@ -1071,9 +1410,6 @@ const PatientAppointmentsTable = () => {
                                         {(record.size / 1024).toFixed(2)} KB
                                       </div>
                                     </RecordMeta>
-                                    <UploaderBadge $isDoctor={true}>
-                                      🩺 Uploaded by Doctor
-                                    </UploaderBadge>
                                   </RecordInfo>
                                   <div
                                     style={{
@@ -1096,7 +1432,7 @@ const PatientAppointmentsTable = () => {
                           )}
 
                           {/* Patient's Uploads Section */}
-                          {patientUploads.length > 0 && (
+                          {patientFileUploads.length > 0 && (
                             <RecordSection $borderColor="#3b82f6">
                               <SectionHeader $borderColor="#3b82f6">
                                 <SectionIcon $bg="#dbeafe" $color="#3b82f6">
@@ -1104,14 +1440,14 @@ const PatientAppointmentsTable = () => {
                                 </SectionIcon>
                                 <SectionTitle>Your Uploads</SectionTitle>
                                 <RecordCount $bg="#dbeafe" $color="#3b82f6">
-                                  {patientUploads.length}{" "}
-                                  {patientUploads.length === 1
+                                  {patientFileUploads.length}{" "}
+                                  {patientFileUploads.length === 1
                                     ? "File"
                                     : "Files"}
                                 </RecordCount>
                               </SectionHeader>
 
-                              {patientUploads.map((record) => (
+                              {patientFileUploads.map((record) => (
                                 <RecordItem key={record._id}>
                                   <RecordInfo>
                                     <RecordTitle>

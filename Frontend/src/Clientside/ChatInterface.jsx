@@ -311,7 +311,7 @@ const ChatInterface = ({
     };
 
     initChat();
-  }, [isOpen, doctorId, patientId, userRole]);
+  }, [isOpen, doctorId, patientId, userRole, onClose]);
 
   useEffect(() => {
     if (!chat || !isOpen) return;
@@ -320,6 +320,9 @@ const ChatInterface = ({
     const newSocket = io("http://localhost:5000", { auth: { token } });
     setSocket(newSocket);
     newSocket.emit("join_chat", { chatId: chat._id });
+
+    // Mark messages as read when chat opens
+    newSocket.emit("mark_chat_read", { chatId: chat._id });
 
     newSocket.on("new_chat_message", ({ chatId, message }) => {
       if (chatId === chat._id) {
@@ -335,6 +338,8 @@ const ChatInterface = ({
           if (exists) return prev;
           return [...prev, decryptedMessage];
         });
+        // Mark as read immediately when receiving new message while chat is open
+        newSocket.emit("mark_chat_read", { chatId: chat._id });
       }
     });
 

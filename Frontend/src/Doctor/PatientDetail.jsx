@@ -1003,9 +1003,11 @@ const PatientDetail = ({ identifier, onBack }) => {
           <Input
             type="date"
             value={formData.followUpDate}
+            min={new Date().toISOString().split("T")[0]}
             onChange={(e) =>
               setFormData({ ...formData, followUpDate: e.target.value })
             }
+            title="Follow-up date must be a future date"
           />
         </FormGroup>
 
@@ -1153,12 +1155,6 @@ const PatientDetail = ({ identifier, onBack }) => {
             <StatLabel>Total Appointments</StatLabel>
           </StatBox>
           <StatBox>
-            <StatValue color="#f59e0b">
-              {records.filter((r) => r.visitDate).length}
-            </StatValue>
-            <StatLabel>Completed Visits</StatLabel>
-          </StatBox>
-          <StatBox>
             <StatValue color="#764ba2">
               {records.filter((r) => r.followUpDate).length}
             </StatValue>
@@ -1231,10 +1227,12 @@ const PatientDetail = ({ identifier, onBack }) => {
                 </p>
               )}
 
-              {/* Display Attachments */}
+              {/* Display Doctor's Attachments */}
               {record.attachments && record.attachments.length > 0 && (
                 <AttachmentsSection>
-                  <strong>Attachments ({record.attachments.length}):</strong>
+                  <strong>
+                    📎 Doctor's Attachments ({record.attachments.length}):
+                  </strong>
                   <AttachmentsList>
                     {record.attachments.map((file, idx) => (
                       <AttachmentItem
@@ -1251,6 +1249,66 @@ const PatientDetail = ({ identifier, onBack }) => {
                           </AttachmentName>
                           <AttachmentSize>
                             {formatFileSize(file.size)}
+                          </AttachmentSize>
+                        </AttachmentInfo>
+                        <FiDownload size={16} />
+                      </AttachmentItem>
+                    ))}
+                  </AttachmentsList>
+                </AttachmentsSection>
+              )}
+
+              {/* Display Patient's Uploads */}
+              {record.patientUploads && record.patientUploads.length > 0 && (
+                <AttachmentsSection
+                  style={{
+                    marginTop: "1rem",
+                    background: "#dbeafe",
+                    padding: "1rem",
+                    borderRadius: "8px",
+                  }}
+                >
+                  <strong style={{ color: "#1e40af" }}>
+                    👤 Patient Uploaded Reports ({record.patientUploads.length}
+                    ):
+                  </strong>
+                  <AttachmentsList>
+                    {record.patientUploads.map((upload, idx) => (
+                      <AttachmentItem
+                        key={idx}
+                        href={
+                          upload.fileUrl || `${getApiBase()}/${upload.path}`
+                        }
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        download={upload.originalName}
+                        style={{
+                          background: "#f0f9ff",
+                          border: "2px solid #3b82f6",
+                        }}
+                      >
+                        {getFileIcon(upload.mimetype)}
+                        <AttachmentInfo>
+                          <AttachmentName
+                            title={upload.title || upload.originalName}
+                          >
+                            {upload.title || upload.originalName}
+                          </AttachmentName>
+                          {upload.description && (
+                            <div
+                              style={{
+                                fontSize: "0.85rem",
+                                color: "#6b7280",
+                                marginTop: "0.25rem",
+                              }}
+                            >
+                              {upload.description}
+                            </div>
+                          )}
+                          <AttachmentSize>
+                            {formatFileSize(upload.size)} • Uploaded by Patient
+                            on{" "}
+                            {new Date(upload.uploadedAt).toLocaleDateString()}
                           </AttachmentSize>
                         </AttachmentInfo>
                         <FiDownload size={16} />
