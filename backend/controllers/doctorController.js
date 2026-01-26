@@ -43,7 +43,7 @@ exports.createDoctor = async (req, res) => {
           console.log(
             "[CREATE DOCTOR] Created user account for doctor:",
             user._id,
-            payload.password ? "(with admin password)" : "(with temp password)"
+            payload.password ? "(with admin password)" : "(with temp password)",
           );
         } else {
           // Update existing user to doctor role and password if provided
@@ -56,13 +56,13 @@ exports.createDoctor = async (req, res) => {
           await user.save();
           console.log(
             "[CREATE DOCTOR] Updated existing user to doctor:",
-            user._id
+            user._id,
           );
         }
       } catch (uErr) {
         console.error(
           "[CREATE DOCTOR] Failed to create/update user account:",
-          uErr
+          uErr,
         );
       }
     }
@@ -94,56 +94,90 @@ exports.updateDoctor = async (req, res) => {
     console.log("[UPDATE DOCTOR] ID:", req.params.id, "Payload:", req.body);
     const payload = { ...req.body };
 
+    // Get the old doctor data before updating
+    const oldDoctor = await Doctor.findById(req.params.id);
+    if (!oldDoctor) {
+      return res.status(404).json({ message: "Doctor not found" });
+    }
+
     const doctor = await Doctor.findByIdAndUpdate(req.params.id, payload, {
       new: true,
       runValidators: true,
     });
-    if (!doctor) {
-      return res.status(404).json({ message: "Doctor not found" });
-    }
 
-    // If email provided, create/update corresponding User
-    if (payload.email) {
+    // If email or name is being updated, sync with User collection
+    if (payload.email || payload.name) {
       try {
         const User = require("../models/User");
+
+        // Find user by old email first
         let user = await User.findOne({
-          email: { $regex: `^${payload.email}$`, $options: "i" },
+          email: { $regex: `^${oldDoctor.email}$`, $options: "i" },
+          role: "doctor",
         });
-        if (!user) {
-          // Create new user with password if provided, or a default temp password
-          const password =
-            payload.password || Math.random().toString(36).slice(-10) + "A1!";
-          user = new User({
-            name: payload.name || doctor.name || "Doctor",
-            email: payload.email,
-            password: password,
-            role: "doctor",
-            isVerified: true,
-          });
-          await user.save();
-          console.log(
-            "[UPDATE DOCTOR] Created user account for doctor:",
-            user._id,
-            payload.password ? "(with admin password)" : "(with temp password)"
-          );
-        } else {
-          user.role = "doctor";
+
+        if (user) {
+          // Update existing user
+          if (payload.email) {
+            user.email = payload.email;
+            console.log(
+              "[UPDATE DOCTOR] Updated user email from",
+              oldDoctor.email,
+              "to",
+              payload.email,
+            );
+          }
+          if (payload.name) {
+            user.name = payload.name;
+            console.log("[UPDATE DOCTOR] Updated user name to", payload.name);
+          }
           if (payload.password) {
             user.password = payload.password;
-            console.log("[UPDATE DOCTOR] Updated password");
+            console.log("[UPDATE DOCTOR] Updated user password");
           }
           user.isVerified = true;
           await user.save();
-          console.log(
-            "[UPDATE DOCTOR] Updated user account for doctor:",
-            user._id
-          );
+          console.log("[UPDATE DOCTOR] Synced user account:", user._id);
+        } else if (payload.email) {
+          // No user found with old email, try to find by new email
+          user = await User.findOne({
+            email: { $regex: `^${payload.email}$`, $options: "i" },
+          });
+
+          if (!user) {
+            // Create new user
+            const password =
+              payload.password || Math.random().toString(36).slice(-10) + "A1!";
+            user = new User({
+              name: payload.name || doctor.name || "Doctor",
+              email: payload.email,
+              password: password,
+              role: "doctor",
+              isVerified: true,
+            });
+            await user.save();
+            console.log(
+              "[UPDATE DOCTOR] Created new user account:",
+              user._id,
+              payload.password
+                ? "(with admin password)"
+                : "(with temp password)",
+            );
+          } else {
+            // Update existing user to doctor role
+            user.role = "doctor";
+            if (payload.name) user.name = payload.name;
+            if (payload.password) user.password = payload.password;
+            user.isVerified = true;
+            await user.save();
+            console.log(
+              "[UPDATE DOCTOR] Updated existing user to doctor:",
+              user._id,
+            );
+          }
         }
       } catch (uErr) {
-        console.error(
-          "[UPDATE DOCTOR] Failed to create/update user account:",
-          uErr
-        );
+        console.error("[UPDATE DOCTOR] Failed to sync user account:", uErr);
       }
     }
 
@@ -202,7 +236,7 @@ exports.backfillDoctorUsers = async (req, res) => {
 
       await user.save();
       console.log(
-        `[BACKFILL] Created user for ${email} with temp password: ${tempPass}`
+        `[BACKFILL] Created user for ${email} with temp password: ${tempPass}`,
       );
       results.push({
         email,

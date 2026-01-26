@@ -39,7 +39,9 @@ const App = ({
   const canvasRef = useRef(null);
   const [formData, setFormData] = useState({
     fullName: "",
+    fatherName: "",
     email: "",
+    phone: "",
     password: "",
     confirmPassword: "",
     nic: "",
@@ -213,7 +215,31 @@ const App = ({
   }, [onLogin, showError, showSuccess]);
 
   const handleChange = (e) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    const { name, value } = e.target;
+
+    // Auto-format CNIC with dashes: 35102-6522122-9
+    if (name === "nic") {
+      const numbers = value.replace(/\D/g, ""); // Remove non-digits
+      let formatted = "";
+
+      if (numbers.length <= 5) {
+        formatted = numbers;
+      } else if (numbers.length <= 12) {
+        formatted = numbers.slice(0, 5) + "-" + numbers.slice(5);
+      } else {
+        formatted =
+          numbers.slice(0, 5) +
+          "-" +
+          numbers.slice(5, 12) +
+          "-" +
+          numbers.slice(12, 13);
+      }
+
+      setFormData({ ...formData, [name]: formatted });
+    } else {
+      setFormData({ ...formData, [name]: value });
+    }
+
     if (localError) setLocalError("");
   };
 
@@ -234,7 +260,9 @@ const App = ({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: formData.fullName,
+          fatherName: formData.fatherName,
           email: formData.email,
+          phone: formData.phone,
           password: formData.password,
           nic: formData.nic,
           gender: formData.gender,
@@ -660,32 +688,49 @@ const App = ({
                 )}
 
                 <form onSubmit={handleRegister}>
-                  <div className="med-field-box">
-                    <label className="med-tag">Full Legal Name</label>
-                    <div className="med-input-container">
-                      <UserCircle className="med-input-icon" size={22} />
-                      <input
-                        type="text"
-                        name="fullName"
-                        className="med-text-input"
-                        placeholder="e.g. Dr. Alistair Vance"
-                        required
-                        value={formData.fullName}
-                        onChange={handleChange}
-                      />
+                  <div className="med-input-row">
+                    <div className="med-field-box">
+                      <label className="med-tag">Full Name</label>
+                      <div className="med-input-container">
+                        <UserCircle className="med-input-icon" size={22} />
+                        <input
+                          type="text"
+                          name="fullName"
+                          className="med-text-input"
+                          placeholder="Enter your full name"
+                          required
+                          value={formData.fullName}
+                          onChange={handleChange}
+                        />
+                      </div>
+                    </div>
+                    <div className="med-field-box">
+                      <label className="med-tag">Father Name</label>
+                      <div className="med-input-container">
+                        <User className="med-input-icon" size={22} />
+                        <input
+                          type="text"
+                          name="fatherName"
+                          className="med-text-input"
+                          placeholder="Enter father name"
+                          required
+                          value={formData.fatherName}
+                          onChange={handleChange}
+                        />
+                      </div>
                     </div>
                   </div>
 
                   <div className="med-input-row">
                     <div className="med-field-box">
-                      <label className="med-tag">Institutional Email</label>
+                      <label className="med-tag">Email Address</label>
                       <div className="med-input-container">
                         <Mail className="med-input-icon" size={22} />
                         <input
                           type="email"
                           name="email"
                           className="med-text-input"
-                          placeholder="id@hospital.med"
+                          placeholder="your@email.com"
                           required
                           value={formData.email}
                           onChange={handleChange}
@@ -693,15 +738,34 @@ const App = ({
                       </div>
                     </div>
                     <div className="med-field-box">
-                      <label className="med-tag">Credential ID (NIC)</label>
+                      <label className="med-tag">Phone Number</label>
+                      <div className="med-input-container">
+                        <Activity className="med-input-icon" size={22} />
+                        <input
+                          type="tel"
+                          name="phone"
+                          className="med-text-input"
+                          placeholder="03001234567"
+                          required
+                          value={formData.phone}
+                          onChange={handleChange}
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="med-input-row">
+                    <div className="med-field-box">
+                      <label className="med-tag">CNIC Number</label>
                       <div className="med-input-container">
                         <IdCard className="med-input-icon" size={22} />
                         <input
                           type="text"
                           name="nic"
                           className="med-text-input"
-                          placeholder="00000-0000000-0"
+                          placeholder="35102-6522122-9"
                           required
+                          maxLength="15"
                           value={formData.nic}
                           onChange={handleChange}
                         />
@@ -711,29 +775,50 @@ const App = ({
 
                   <div className="med-input-row">
                     <div className="med-field-box">
-                      <label className="med-tag">Access Token</label>
+                      <label className="med-tag">Password</label>
                       <div className="med-input-container">
                         <Lock className="med-input-icon" size={22} />
                         <input
                           type={showPassword ? "text" : "password"}
                           name="password"
                           className="med-text-input"
-                          placeholder="••••••••"
+                          placeholder="Enter password"
                           required
                           value={formData.password}
                           onChange={handleChange}
                         />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          style={{
+                            position: "absolute",
+                            right: "18px",
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            background: "none",
+                            border: "none",
+                            color: "#484f58",
+                            cursor: "pointer",
+                            padding: "6px",
+                          }}
+                        >
+                          {showPassword ? (
+                            <EyeOff size={18} />
+                          ) : (
+                            <Eye size={18} />
+                          )}
+                        </button>
                       </div>
                     </div>
                     <div className="med-field-box">
-                      <label className="med-tag">Verify Token</label>
+                      <label className="med-tag">Confirm Password</label>
                       <div className="med-input-container">
                         <Lock className="med-input-icon" size={22} />
                         <input
                           type={showPassword ? "text" : "password"}
                           name="confirmPassword"
                           className="med-text-input"
-                          placeholder="••••••••"
+                          placeholder="Re-enter password"
                           required
                           value={formData.confirmPassword}
                           onChange={handleChange}
@@ -754,9 +839,9 @@ const App = ({
                           }}
                         >
                           {showPassword ? (
-                            <EyeOff size={20} />
+                            <EyeOff size={18} />
                           ) : (
-                            <Eye size={20} />
+                            <Eye size={18} />
                           )}
                         </button>
                       </div>
@@ -765,14 +850,13 @@ const App = ({
 
                   <div className="med-input-row">
                     <div className="med-field-box">
-                      <label className="med-tag">Date of Genesis</label>
+                      <label className="med-tag">Date of Birth</label>
                       <div className="med-input-container">
                         <Calendar className="med-input-icon" size={22} />
                         <input
-                          type="text"
+                          type="date"
                           name="dateOfBirth"
                           className="med-text-input"
-                          placeholder="DD/MM/YYYY"
                           required
                           value={formData.dateOfBirth}
                           onChange={handleChange}
@@ -780,7 +864,7 @@ const App = ({
                       </div>
                     </div>
                     <div className="med-field-box">
-                      <label className="med-tag">Personnel Group</label>
+                      <label className="med-tag">Gender</label>
                       <div className="med-input-container">
                         <Users className="med-input-icon" size={22} />
                         <select
@@ -792,25 +876,13 @@ const App = ({
                           onChange={handleChange}
                         >
                           <option value="" disabled>
-                            Select Sector
+                            Select Gender
                           </option>
-                          <option value="male">Clinical (Male)</option>
-                          <option value="female">Clinical (Female)</option>
-                          <option value="other">Laboratory / Other</option>
+                          <option value="male">Male</option>
+                          <option value="female">Female</option>
+                          <option value="other">Other</option>
                         </select>
                       </div>
-                    </div>
-                  </div>
-
-                  <div style={{ textAlign: "center", marginBottom: 12 }}>
-                    <div
-                      id="google-signup-button"
-                      style={{ display: "inline-block" }}
-                    />
-                    <div
-                      style={{ marginTop: 8, fontSize: 12, color: "#8b949e" }}
-                    >
-                      Or sign up with Google
                     </div>
                   </div>
 
@@ -823,7 +895,7 @@ const App = ({
                       <Loader2 size={26} className="med-glow-loader" />
                     ) : (
                       <>
-                        Initialize Node <ChevronRight size={22} />
+                        Sign Up <ChevronRight size={22} />
                       </>
                     )}
                   </button>

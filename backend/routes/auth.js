@@ -11,6 +11,8 @@ router.post("/verify-reset", authController.verifyReset);
 router.post("/reset-password", authController.resetPassword);
 router.post("/login", authController.login);
 router.post("/google", authController.googleAuth);
+router.get("/me", authenticate, authController.getMe);
+router.put("/profile", authenticate, authController.updateProfile);
 router.post("/avatar", authenticate, authController.updateAvatar);
 router.delete("/delete", authenticate, authController.deleteAccount);
 

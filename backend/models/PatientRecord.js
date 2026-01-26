@@ -38,6 +38,26 @@ const patientRecordSchema = new mongoose.Schema(
       },
     ],
 
+    // Patient uploaded medical reports
+    patientUploads: [
+      {
+        title: { type: String, required: true },
+        description: { type: String },
+        filename: { type: String },
+        originalName: { type: String },
+        path: { type: String },
+        fileUrl: { type: String },
+        mimetype: { type: String },
+        size: { type: Number },
+        uploadedBy: {
+          type: String,
+          enum: ["patient", "doctor"],
+          default: "patient",
+        },
+        uploadedAt: { type: Date, default: Date.now },
+      },
+    ],
+
     // Related appointment
     appointmentId: {
       type: mongoose.Schema.Types.ObjectId,

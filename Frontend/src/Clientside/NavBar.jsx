@@ -5,9 +5,11 @@ import {
   FaUserCircle,
   FaTrashAlt,
   FaCamera,
+  FaUser,
 } from "react-icons/fa";
 import BrandLogo from "../components/BrandLogo";
 import ThreeScene from "./Home/ThreeScene.jsx";
+import ProfileEdit from "./ProfileEdit.jsx";
 
 export const NAV_HEIGHT = "72px";
 
@@ -214,6 +216,7 @@ const NavBar = ({
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
+  const [profileEditOpen, setProfileEditOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmAction, setConfirmAction] = useState(null); // 'logout' | 'delete'
   const avatarRef = useRef(null);
@@ -358,20 +361,34 @@ const NavBar = ({
               )}
               {isLoggedIn && (
                 <NavLink
-                  href="/my-appointments"
+                  href="/patient-records"
                   onClick={(e) => {
                     e.preventDefault();
                     setMenuOpen(false);
                     try {
-                      window.__NAV_TO__ && window.__NAV_TO__("myappointments");
+                      window.__NAV_TO__ && window.__NAV_TO__("patientrecords");
                     } catch (e) {
                       console.error(e);
                     }
                   }}
                 >
-                  My Appointments
+                  My Records
                 </NavLink>
               )}
+              <NavLink
+                href="/doctors"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMenuOpen(false);
+                  try {
+                    window.location.href = "#/doctors";
+                  } catch (e) {
+                    console.error(e);
+                  }
+                }}
+              >
+                Our Doctors
+              </NavLink>
               <NavLink
                 href="#about"
                 onClick={(e) => {
@@ -522,6 +539,34 @@ const NavBar = ({
                       >
                         <button
                           onClick={() => {
+                            setProfileEditOpen(true);
+                            setAvatarOpen(false);
+                          }}
+                          style={{
+                            display: "block",
+                            width: "100%",
+                            padding: "10px 14px",
+                            border: "none",
+                            background: "transparent",
+                            textAlign: "left",
+                            cursor: "pointer",
+                          }}
+                        >
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              alignItems: "center",
+                              gap: 8,
+                            }}
+                          >
+                            <FaUser style={{ color: "#0ea5e9" }} />
+                            <span style={{ color: "#0ea5e9" }}>
+                              Edit Profile
+                            </span>
+                          </span>
+                        </button>
+                        <button
+                          onClick={() => {
                             setConfirmAction("delete");
                             setConfirmOpen(true);
                             setAvatarOpen(false);
@@ -667,26 +712,48 @@ const NavBar = ({
                 Doctor Panel
               </NavLink>
             )}
-            {isLoggedIn && (
+            {isLoggedIn && userRole === "user" && (
               <NavLink
-                href={userRole === "doctor" ? "/doctor" : "/my-appointments"}
+                href="/patient-records"
                 onClick={(e) => {
                   e.preventDefault();
                   setMenuOpen(false);
-                  if (userRole === "doctor") {
-                    onNavigateToDoctor?.();
-                  } else {
-                    try {
-                      window.__NAV_TO__ && window.__NAV_TO__("myappointments");
-                    } catch (err) {
-                      console.error(err);
-                    }
+                  try {
+                    window.__NAV_TO__ && window.__NAV_TO__("patientrecords");
+                  } catch (err) {
+                    console.error(err);
                   }
                 }}
               >
-                My Appointments
+                My Records
               </NavLink>
             )}
+            {isLoggedIn && userRole === "doctor" && (
+              <NavLink
+                href="/doctor"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMenuOpen(false);
+                  onNavigateToDoctor?.();
+                }}
+              >
+                My Panel
+              </NavLink>
+            )}
+            <NavLink
+              href="/doctors"
+              onClick={(e) => {
+                e.preventDefault();
+                setMenuOpen(false);
+                try {
+                  window.location.href = "#/doctors";
+                } catch (err) {
+                  console.error(err);
+                }
+              }}
+            >
+              Our Doctors
+            </NavLink>
             <NavLink
               href="#about"
               onClick={(e) => {
@@ -712,7 +779,40 @@ const NavBar = ({
                   Login
                 </LoginButton>
               ) : (
-                <div style={{ display: "flex", gap: 8 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: 8,
+                    width: "100%",
+                  }}
+                >
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setProfileEditOpen(true);
+                    }}
+                    style={{
+                      padding: "10px 12px",
+                      borderRadius: 8,
+                      border: "1px solid rgba(0,0,0,0.06)",
+                      background: "white",
+                      cursor: "pointer",
+                      width: "100%",
+                    }}
+                  >
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        color: "#0ea5e9",
+                        fontWeight: 700,
+                      }}
+                    >
+                      <FaUser style={{ color: "#0ea5e9" }} /> Edit Profile
+                    </span>
+                  </button>
                   <button
                     onClick={() => {
                       setMenuOpen(false);
@@ -720,11 +820,12 @@ const NavBar = ({
                       setConfirmOpen(true);
                     }}
                     style={{
-                      padding: "8px 12px",
+                      padding: "10px 12px",
                       borderRadius: 8,
                       border: "1px solid rgba(0,0,0,0.06)",
                       background: "white",
                       cursor: "pointer",
+                      width: "100%",
                     }}
                   >
                     <span
@@ -746,7 +847,11 @@ const NavBar = ({
                       setConfirmAction("logout");
                       setConfirmOpen(true);
                     }}
-                    style={{ color: "#0ea5e9", borderColor: "#0ea5e9" }}
+                    style={{
+                      color: "#0ea5e9",
+                      borderColor: "#0ea5e9",
+                      width: "100%",
+                    }}
                   >
                     <FaSignOutAlt
                       style={{ marginRight: 8, color: "#0ea5e9" }}
@@ -862,6 +967,12 @@ const NavBar = ({
           </div>
         </div>
       )}
+      {/* Profile Edit Modal */}
+      <ProfileEdit
+        isOpen={profileEditOpen}
+        onClose={() => setProfileEditOpen(false)}
+      />
+
       {/* Toast notifications */}
       {toast && (
         <div

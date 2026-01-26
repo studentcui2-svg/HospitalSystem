@@ -1,9 +1,16 @@
 import React, { useEffect, useState, useRef } from "react";
-import { FaEye, FaEyeSlash } from "react-icons/fa";
+import {
+  FaEye,
+  FaEyeSlash,
+  FaBars,
+  FaTimes,
+  FaCalendarAlt,
+} from "react-icons/fa";
 import styled from "styled-components";
 import { jsonFetch } from "../utils/api";
 import VideoCall from "../Clientside/VideoCall";
 import IncomingCallModal from "../Clientside/IncomingCallModal";
+import ChatFloatingButton from "./ChatFloatingButton";
 import io from "socket.io-client";
 
 const Container = styled.div`
@@ -15,6 +22,139 @@ const Container = styled.div`
 
   @media (max-width: 768px) {
     padding: 1.5rem 0.75rem;
+    padding-top: 4rem; /* Space for fixed hamburger */
+  }
+`;
+
+const HamburgerButton = styled.button`
+  display: none;
+  position: fixed;
+  top: 1rem;
+  right: 1rem;
+  z-index: 1000;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border: none;
+  color: white;
+  font-size: 1.5rem;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+  transition: all 0.3s;
+
+  &:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 16px rgba(102, 126, 234, 0.6);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  @media (max-width: 768px) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+`;
+
+const MobileMenu = styled.div`
+  display: none;
+  position: fixed;
+  top: 0;
+  right: ${(props) => (props.$isOpen ? "0" : "-100%")};
+  width: 280px;
+  height: 100vh;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+  transition: right 0.3s ease;
+  z-index: 999;
+  padding: 1.5rem;
+
+  @media (max-width: 768px) {
+    display: flex;
+    flex-direction: column;
+  }
+`;
+
+const MenuHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+`;
+
+const MenuTitle = styled.h3`
+  color: white;
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin: 0;
+`;
+
+const CloseMenuButton = styled.button`
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  border-radius: 8px;
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  font-size: 1.2rem;
+  cursor: pointer;
+  transition: all 0.3s;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+`;
+
+const MenuItem = styled.button`
+  width: 100%;
+  padding: 1rem 1.2rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  color: white;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 1rem;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.2);
+    transform: translateX(5px);
+  }
+
+  &:active {
+    transform: translateX(3px);
+  }
+
+  svg {
+    font-size: 1.2rem;
+  }
+`;
+
+const MenuOverlay = styled.div`
+  display: ${(props) => (props.$isOpen ? "block" : "none")};
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 998;
+
+  @media (min-width: 769px) {
+    display: none;
   }
 `;
 
@@ -139,10 +279,11 @@ const TableWrapper = styled.div`
 
 const Table = styled.table`
   width: 100%;
-  min-width: 1200px;
+  min-width: 900px;
   border-collapse: collapse;
   background: transparent;
   border-radius: 0;
+  font-size: 0.875rem;
 
   @media (max-width: 767px) {
     display: block;
@@ -162,14 +303,15 @@ const Table = styled.table`
 
 const Th = styled.th`
   text-align: left;
-  padding: 1.25rem 1rem;
+  padding: 0.875rem 0.75rem;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
   font-weight: 700;
   color: white;
-  font-size: 0.9rem;
+  font-size: 0.8rem;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   border-bottom: 3px solid rgba(255, 255, 255, 0.2);
+  white-space: nowrap;
 
   @media (max-width: 767px) {
     display: none;
@@ -186,7 +328,7 @@ const Tr = styled.tr`
       rgba(102, 126, 234, 0.05) 0%,
       rgba(118, 75, 162, 0.05) 100%
     );
-    transform: scale(1.01);
+    transform: scale(1.005);
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
   }
 
@@ -211,10 +353,10 @@ const Tr = styled.tr`
 `;
 
 const Td = styled.td`
-  padding: 1rem;
+  padding: 0.75rem 0.625rem;
   vertical-align: middle;
   color: #1f2937;
-  font-size: 0.95rem;
+  font-size: 0.875rem;
 
   @media (max-width: 767px) {
     display: block;
@@ -722,6 +864,7 @@ const DoctorPanel = () => {
   const [patientResponses, setPatientResponses] = useState({});
   const [filterPeriod, setFilterPeriod] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false);
   const callTimeoutRef = useRef(null);
 
   useEffect(() => {
@@ -1068,6 +1211,35 @@ const DoctorPanel = () => {
 
   return (
     <Container>
+      {/* Hamburger Menu Button - Mobile Only */}
+      <HamburgerButton onClick={() => setMenuOpen(true)}>
+        <FaBars />
+      </HamburgerButton>
+
+      {/* Mobile Menu Overlay */}
+      <MenuOverlay $isOpen={menuOpen} onClick={() => setMenuOpen(false)} />
+
+      {/* Mobile Menu Sidebar */}
+      <MobileMenu $isOpen={menuOpen}>
+        <MenuHeader>
+          <MenuTitle>Doctor Menu</MenuTitle>
+          <CloseMenuButton onClick={() => setMenuOpen(false)}>
+            <FaTimes />
+          </CloseMenuButton>
+        </MenuHeader>
+
+        <MenuItem
+          onClick={() => {
+            setMenuOpen(false);
+            // Scroll to appointments section
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+        >
+          <FaCalendarAlt />
+          My Appointments
+        </MenuItem>
+      </MobileMenu>
+
       <Header>🏥 Doctor Panel</Header>
       <WelcomeText>
         Welcome
@@ -1199,7 +1371,6 @@ const DoctorPanel = () => {
                 <Tr>
                   <Th>Patient</Th>
                   <Th>Father Name</Th>
-                  <Th>Contact Number</Th>
                   <Th>Date / Time</Th>
                   <Th>Mode</Th>
                   <Th>Time Remaining</Th>
@@ -1298,27 +1469,23 @@ const DoctorPanel = () => {
                       <Td data-label="Patient:">
                         <div style={{ fontWeight: 800 }}>{a.patientName}</div>
                         <Small>{a.patientEmail}</Small>
+                        <Small>{a.phone || a.patientPhone || "No phone"}</Small>
                         <Small>{a.gender || ""}</Small>
                         {a.cnic && <Small>CNIC: {a.cnic}</Small>}
                         {calculatedAge !== null &&
                           calculatedAge !== undefined && (
                             <Small>Age: {calculatedAge} years</Small>
                           )}
-                      </Td>
-                      <Td data-label="Father Name:">
-                        <div style={{ fontWeight: 700 }}>
-                          {a.fatherName || "-"}
-                        </div>
-                      </Td>
-                      <Td data-label="Contact Number:">
-                        <div style={{ fontWeight: 700 }}>
-                          {a.phone || a.patientPhone || "-"}
-                        </div>
                         {patientResponses[a._id] && (
                           <Small style={{ marginTop: 6 }}>
                             Response: {patientResponses[a._id]}
                           </Small>
                         )}
+                      </Td>
+                      <Td data-label="Father Name:">
+                        <div style={{ fontWeight: 700 }}>
+                          {a.fatherName || "-"}
+                        </div>
                       </Td>
                       <Td data-label="Date / Time:">
                         <div style={{ fontWeight: 700 }}>
@@ -1473,6 +1640,9 @@ const DoctorPanel = () => {
           onDecline={handleDeclineCall}
         />
       )}
+
+      {/* WhatsApp-style Floating Chat Button */}
+      <ChatFloatingButton />
     </Container>
   );
 };

@@ -203,6 +203,62 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
       fetchDoctors();
     }
   }, [isOpen]);
+
+  // Load logged-in user data when modal opens
+  useEffect(() => {
+    const loadUserData = async () => {
+      if (!isOpen) return;
+
+      try {
+        const token = localStorage.getItem("app_token");
+        if (!token) {
+          toast.error("Please login to book an appointment");
+          onClose();
+          return;
+        }
+
+        const response = await jsonFetch("/api/auth/me");
+        if (response && response.user) {
+          const user = response.user;
+
+          // Calculate age from dateOfBirth
+          let age = "";
+          if (user.dateOfBirth) {
+            const birthDate = new Date(user.dateOfBirth);
+            const today = new Date();
+            let calculatedAge = today.getFullYear() - birthDate.getFullYear();
+            const monthDiff = today.getMonth() - birthDate.getMonth();
+            if (
+              monthDiff < 0 ||
+              (monthDiff === 0 && today.getDate() < birthDate.getDate())
+            ) {
+              calculatedAge--;
+            }
+            age = calculatedAge.toString();
+          }
+
+          // Pre-fill form with user data
+          setFormData((prev) => ({
+            ...prev,
+            firstName: user.name?.split(" ")[0] || "",
+            lastName: user.name?.split(" ").slice(1).join(" ") || "",
+            fatherName: user.fatherName || "",
+            email: user.email || "",
+            mobileNumber: user.phone || "",
+            nic: user.nic || "",
+            age: age,
+            gender: user.gender || "",
+          }));
+        }
+      } catch (error) {
+        console.error("Error loading user data:", error);
+        toast.error("Please complete your profile before booking");
+      }
+    };
+
+    loadUserData();
+  }, [isOpen, onClose]);
+
   // when departments load, set default department if not already set
   useEffect(() => {
     if (departments.length > 0) {
@@ -731,66 +787,17 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                           value={formData.nic}
                           onChange={handleCnicChange}
                           placeholder="Enter 13-digit CNIC (e.g., 12345-6789012-3)"
+                          readOnly
                           style={{
                             borderColor: showPatientInfo
                               ? "rgba(34, 197, 94, 0.5)"
                               : undefined,
                             fontSize: "1.1rem",
                             padding: "1.3rem",
-                            flex: 1,
+                            cursor: "not-allowed",
+                            opacity: 0.7,
                           }}
                         />
-                        <button
-                          type="button"
-                          onClick={() => handleCnicLookup(formData.nic)}
-                          disabled={
-                            cnicLookupLoading ||
-                            formData.nic.replace(/[-\s]/g, "").length !== 13
-                          }
-                          style={{
-                            padding: "0 24px",
-                            background: cnicLookupLoading
-                              ? "rgba(99, 102, 241, 0.5)"
-                              : "linear-gradient(135deg, #6366f1, #a855f7)",
-                            color: "white",
-                            border: "none",
-                            borderRadius: "16px",
-                            cursor: cnicLookupLoading
-                              ? "not-allowed"
-                              : "pointer",
-                            fontWeight: 700,
-                            fontSize: "0.9rem",
-                            transition: "all 0.3s",
-                            opacity:
-                              formData.nic.replace(/[-\s]/g, "").length !== 13
-                                ? 0.5
-                                : 1,
-                          }}
-                        >
-                          {cnicLookupLoading ? "⏳ Checking..." : "🔍 Verify"}
-                        </button>
-                        {showPatientInfo && patientHistory && (
-                          <div
-                            style={{
-                              position: "absolute",
-                              left: "12px",
-                              top: "50%",
-                              transform: "translateY(-50%)",
-                              display: "flex",
-                              alignItems: "center",
-                              gap: "6px",
-                              background:
-                                "linear-gradient(135deg, #22c55e, #16a34a)",
-                              padding: "6px 12px",
-                              borderRadius: "12px",
-                              fontSize: "0.75rem",
-                              fontWeight: 700,
-                              color: "white",
-                            }}
-                          >
-                            <FaCheck /> Verified
-                          </div>
-                        )}
                       </div>
                       {showPatientInfo && patientHistory && (
                         <div
@@ -966,6 +973,8 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                               value={formData.firstName}
                               onChange={handleInputChange}
                               placeholder="John"
+                              readOnly
+                              style={{ cursor: "not-allowed", opacity: 0.7 }}
                             />
                           </div>
                           <div>
@@ -985,6 +994,8 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                               value={formData.lastName}
                               onChange={handleInputChange}
                               placeholder="Doe"
+                              readOnly
+                              style={{ cursor: "not-allowed", opacity: 0.7 }}
                             />
                           </div>
                         </div>
@@ -1005,6 +1016,8 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                             value={formData.fatherName}
                             onChange={handleInputChange}
                             placeholder="Father's full name"
+                            readOnly
+                            style={{ cursor: "not-allowed", opacity: 0.7 }}
                           />
                         </div>
                         <div style={{ marginBottom: "1.5rem" }}>
@@ -1025,6 +1038,8 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                             value={formData.email}
                             onChange={handleInputChange}
                             placeholder="john@example.com"
+                            readOnly
+                            style={{ cursor: "not-allowed", opacity: 0.7 }}
                           />
                         </div>
                         <div style={{ marginBottom: "1.5rem" }}>
@@ -1044,6 +1059,8 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                             value={formData.mobileNumber}
                             onChange={handleInputChange}
                             placeholder="+92-300-1234567"
+                            readOnly
+                            style={{ cursor: "not-allowed", opacity: 0.7 }}
                           />
                         </div>
                         <div
@@ -1074,6 +1091,8 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                               placeholder="25"
                               min="0"
                               max="150"
+                              readOnly
+                              style={{ cursor: "not-allowed", opacity: 0.7 }}
                             />
                           </div>
                           <div>
@@ -1099,7 +1118,10 @@ const AppointmentModal = ({ isOpen, onClose, showSuccess }) => {
                                 border: "1px solid rgba(255,255,255,0.1)",
                                 borderRadius: "16px",
                                 color: "white",
+                                cursor: "not-allowed",
+                                opacity: 0.7,
                               }}
+                              disabled
                             >
                               <option value="">Select</option>
                               <option value="male">Male</option>

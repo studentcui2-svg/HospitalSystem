@@ -40,8 +40,12 @@ const siteContentRoutes = require("./routes/siteContent");
 const paymentRoutes = require("./routes/payments");
 const doctorPanelRoutes = require("./routes/doctorPanel");
 const patientRecordRoutes = require("./routes/patientRecords");
+const chatRoutes = require("./routes/chat");
 const { initializeWebRTC } = require("./utils/webrtc");
 const Message = require("./models/Message");
+const Chat = require("./models/Chat");
+const User = require("./models/User");
+const Doctor = require("./models/Doctor");
 
 const app = express();
 
@@ -117,6 +121,7 @@ app.use("/api/site-content", siteContentRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/doctor", doctorPanelRoutes);
 app.use("/api/patient-records", patientRecordRoutes);
+app.use("/api/chat", chatRoutes);
 
 app.get("/", (req, res) => {
   res.json({ ok: true, message: "Backend running" });
@@ -250,6 +255,127 @@ try {
     socket.on("typing_stop", ({ email } = {}) => {
       if (!email) return;
       io.to("admins").emit("typing", { email, typing: false });
+    });
+
+    // =====================
+    // Chat Messaging
+    // =====================
+    socket.on("join_chat", ({ chatId }) => {
+      if (!chatId) return;
+      socket.join(`chat_${chatId}`);
+      console.log(`📨 User ${socket.id} joined chat room: chat_${chatId}`);
+    });
+
+    socket.on("leave_chat", ({ chatId }) => {
+      if (!chatId) return;
+      socket.leave(`chat_${chatId}`);
+      console.log(`📤 User ${socket.id} left chat room: chat_${chatId}`);
+    });
+
+    socket.on("send_chat_message", async (payload) => {
+      try {
+        const { chatId, content, senderRole, attachment } = payload;
+
+        if (!chatId || (!content && !attachment) || !socket.user?.id) {
+          return socket.emit("chat_error", { message: "Invalid message data" });
+        }
+
+        const chat = await Chat.findById(chatId);
+        if (!chat) {
+          return socket.emit("chat_error", { message: "Chat not found" });
+        }
+
+        // Verify sender has access
+        if (senderRole === "doctor") {
+          const user = await User.findById(socket.user.id);
+          const doctor = await Doctor.findOne({ email: user.email });
+          if (!doctor || chat.doctor.toString() !== doctor._id.toString()) {
+            return socket.emit("chat_error", { message: "Access denied" });
+          }
+        } else {
+          if (chat.patient.toString() !== socket.user.id) {
+            return socket.emit("chat_error", { message: "Access denied" });
+          }
+        }
+
+        // Add message to chat
+        const newMessage = {
+          sender: socket.user.id,
+          senderRole: senderRole,
+          content: content || undefined, // Content should be encrypted on client side
+          attachment: attachment || undefined,
+          timestamp: new Date(),
+          read: false,
+        };
+
+        chat.messages.push(newMessage);
+        if (content) {
+          chat.lastMessage = content.substring(0, 100);
+        } else if (attachment) {
+          chat.lastMessage = attachment.kind === "image" ? "[Image]" : "[File]";
+        }
+        chat.lastMessageTime = new Date();
+
+        // Update unread count
+        if (senderRole === "doctor") {
+          chat.unreadCount.patient += 1;
+        } else {
+          chat.unreadCount.doctor += 1;
+        }
+
+        await chat.save();
+
+        const messageWithId = chat.messages[chat.messages.length - 1];
+
+        // Emit to all users in this chat room
+        io.to(`chat_${chatId}`).emit("new_chat_message", {
+          chatId,
+          message: messageWithId,
+        });
+
+        console.log(`💬 Message sent in chat ${chatId} by ${senderRole}`);
+      } catch (error) {
+        console.error("send_chat_message error:", error);
+        socket.emit("chat_error", { message: "Failed to send message" });
+      }
+    });
+
+    socket.on("chat_typing", ({ chatId, isTyping }) => {
+      if (!chatId) return;
+      socket.to(`chat_${chatId}`).emit("chat_typing_status", {
+        chatId,
+        userId: socket.user?.id,
+        isTyping,
+      });
+    });
+
+    socket.on("mark_chat_read", async ({ chatId }) => {
+      try {
+        if (!chatId || !socket.user?.id) return;
+
+        const chat = await Chat.findById(chatId);
+        if (!chat) return;
+
+        const isDoctor = socket.user.role === "doctor";
+
+        if (isDoctor) {
+          chat.unreadCount.doctor = 0;
+          chat.messages.forEach((msg) => {
+            if (msg.senderRole === "user") msg.read = true;
+          });
+        } else {
+          chat.unreadCount.patient = 0;
+          chat.messages.forEach((msg) => {
+            if (msg.senderRole === "doctor") msg.read = true;
+          });
+        }
+
+        await chat.save();
+
+        io.to(`chat_${chatId}`).emit("chat_read_status", { chatId });
+      } catch (error) {
+        console.error("mark_chat_read error:", error);
+      }
     });
 
     socket.on("disconnect", () => {

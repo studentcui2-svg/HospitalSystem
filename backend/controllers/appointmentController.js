@@ -399,7 +399,7 @@ exports.getAppointments = async (req, res) => {
 
     // allow admin to request full list when needed via query param `all=true`
     let queryExec = Appointment.find(q)
-      .populate("doctor", "name email")
+      .populate("doctor", "name email phone nic")
       .sort({ date: -1 });
     if (String(req.query.all) !== "true") {
       const max = 1000; // safety cap
@@ -412,12 +412,15 @@ exports.getAppointments = async (req, res) => {
 
     const appointments = await queryExec;
 
-    // Map appointments to include doctor name for frontend compatibility
+    // Map appointments to include doctor details for frontend compatibility
     const mappedAppointments = appointments.map((appt) => {
       const apptObj = appt.toObject();
       // Ensure doctor field contains name for frontend compatibility
       if (apptObj.doctor && typeof apptObj.doctor === "object") {
         apptObj.doctorName = apptObj.doctor.name;
+        apptObj.doctorEmail = apptObj.doctor.email;
+        apptObj.doctorPhone = apptObj.doctor.phone;
+        apptObj.doctorNic = apptObj.doctor.nic;
         apptObj.doctor = apptObj.doctor.name;
       } else if (!apptObj.doctor && apptObj.doctorName) {
         apptObj.doctor = apptObj.doctorName;

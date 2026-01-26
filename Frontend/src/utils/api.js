@@ -83,7 +83,49 @@ export const jsonFetch = async (path, options = {}) => {
 
   if (!response.ok) {
     const error = new Error(
-      payload?.message || `Request failed with status ${response.status}`
+      payload?.message || `Request failed with status ${response.status}`,
+    );
+    error.status = response.status;
+    error.data = payload;
+    throw error;
+  }
+
+  return payload;
+};
+
+// Upload a file using FormData. Do not set Content-Type manually.
+export const uploadFile = async (path, file, fieldName = "file") => {
+  const base = getApiBase();
+  const url = path.startsWith("http") ? path : `${base}${path}`;
+  const form = new FormData();
+  form.append(fieldName, file);
+
+  const headers = {
+    ...buildAuthHeaders(),
+  };
+
+  console.log(`[API] POST (upload) ${url} -> ${file?.name}`);
+  const response = await fetch(url, {
+    method: "POST",
+    headers,
+    body: form,
+  });
+
+  const text = await response.text();
+  let payload = null;
+  if (text) {
+    try {
+      payload = JSON.parse(text);
+    } catch {
+      payload = text;
+    }
+  }
+
+  console.log(`[API] Response ${response.status} ${url}`, payload);
+
+  if (!response.ok) {
+    const error = new Error(
+      payload?.message || `Upload failed with status ${response.status}`,
     );
     error.status = response.status;
     error.data = payload;

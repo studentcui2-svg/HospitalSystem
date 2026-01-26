@@ -15,6 +15,9 @@ import AdminGate from "./Clientside/AdminGate";
 import DoctorPanel from "./Doctor/DoctorPanel";
 import PatientDetail from "./Doctor/PatientDetail";
 import MyAppointments from "./Clientside/MyAppointments";
+import DoctorDirectory from "./Clientside/DoctorDirectory";
+import PatientChatButton from "./Clientside/PatientChatButton";
+import PatientAppointmentsTable from "./Clientside/PatientAppointmentsTable";
 
 // --- 1. Global 3D & Glassmorphism Theme ---
 const GlobalStyle = createGlobalStyle`
@@ -107,15 +110,20 @@ const App = () => {
     handleNavigation("doctor", "/doctor");
   };
 
-  const navigateToMyAppointments = useCallback(() => {
-    handleNavigation("myappointments", "/my-appointments");
+  const navigateToDoctorDirectory = useCallback(() => {
+    handleNavigation("doctors", "/doctors");
+  }, [handleNavigation]);
+
+  const navigateToPatientRecords = useCallback(() => {
+    handleNavigation("patientrecords", "/patient-records");
   }, [handleNavigation]);
 
   // expose a small global helper used by NavBar (mobile menu nav)
   useEffect(() => {
     try {
       window.__NAV_TO__ = (key) => {
-        if (key === "myappointments") navigateToMyAppointments();
+        if (key === "doctors") navigateToDoctorDirectory();
+        if (key === "patientrecords") navigateToPatientRecords();
       };
     } catch (e) {
       console.error(e);
@@ -127,7 +135,7 @@ const App = () => {
         console.error(e);
       }
     };
-  }, [navigateToMyAppointments]);
+  }, [navigateToDoctorDirectory, navigateToPatientRecords]);
 
   // --- 4. Auth & State Handlers ---
   const handleLogin = (details) => {
@@ -193,10 +201,16 @@ const App = () => {
         return;
       }
 
+      if (hash === "#/doctors" || path === "/doctors") {
+        setCurrentPage("doctors");
+        return;
+      }
+
       if (path === "/login") handleNavigation("login", "/login", true);
       else if (path === "/signup") handleNavigation("signup", "/signup", true);
       else if (path === "/admin") setIsAdminGateOpen(true);
       else if (path === "/doctor") handleNavigation("doctor", "/doctor");
+      else if (path === "/doctors") handleNavigation("doctors", "/doctors");
       else setCurrentPage("home");
     };
 
@@ -284,7 +298,9 @@ const App = () => {
             />
           )}
 
-          {currentPage === "myappointments" && <MyAppointments />}
+          {currentPage === "patientrecords" && <PatientAppointmentsTable />}
+
+          {currentPage === "doctors" && <DoctorDirectory />}
 
           {currentPage === "login" && (
             <LoginPage
@@ -327,6 +343,12 @@ const App = () => {
         onClose={() => setIsAdminGateOpen(false)}
         onSuccess={handleLogin}
       />
+
+      {/* WhatsApp-style Floating Chat Button for Patients (shown on non-admin, non-doctor pages) */}
+      {isLoggedIn &&
+        userRole === "user" &&
+        currentPage !== "admin" &&
+        currentPage !== "doctor" && <PatientChatButton />}
 
       <ToastContainer theme="colored" position="bottom-right" limit={3} />
     </AppContainer>

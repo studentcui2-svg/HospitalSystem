@@ -20,7 +20,16 @@ const createToken = (user) => {
 exports.signup = async (req, res) => {
   try {
     console.log("[SIGNUP] Request body:", req.body);
-    const { name, email, password, nic, gender, dateOfBirth } = req.body;
+    const {
+      name,
+      fatherName,
+      email,
+      phone,
+      password,
+      nic,
+      gender,
+      dateOfBirth,
+    } = req.body;
 
     if (!name || !email)
       return res.status(400).json({ message: "Name and email required" });
@@ -65,7 +74,9 @@ exports.signup = async (req, res) => {
 
     user = new User({
       name: normalizedName,
+      fatherName,
       email,
+      phone,
       password,
       nic,
       gender: normalizedGender,
@@ -404,6 +415,61 @@ exports.updateAvatar = async (req, res) => {
     return res.json({ ok: true, avatarUrl: publicPath });
   } catch (err) {
     console.error("[UPDATE AVATAR]", err && err.message);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Get current user profile
+exports.getMe = async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+
+    const user = await User.findById(userId).select(
+      "-password -otp -otpExpires",
+    );
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    return res.json({ user });
+  } catch (err) {
+    console.error("[GET ME ERROR]", err && err.message);
+    return res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Update user profile (name, fatherName, phone, nic, gender, dateOfBirth)
+exports.updateProfile = async (req, res) => {
+  try {
+    const userId = req.userId;
+    if (!userId) return res.status(401).json({ message: "Not authenticated" });
+
+    const user = await User.findById(userId);
+    if (!user) return res.status(404).json({ message: "User not found" });
+
+    const { name, fatherName, phone, nic, gender, dateOfBirth } = req.body;
+
+    // Update allowed fields
+    if (name) user.name = name.trim();
+    if (fatherName !== undefined) user.fatherName = fatherName;
+    if (phone !== undefined) user.phone = phone;
+    if (nic !== undefined) user.nic = nic;
+    if (gender) user.gender = String(gender).toLowerCase();
+    if (dateOfBirth) {
+      const parsedDate = new Date(dateOfBirth);
+      if (!isNaN(parsedDate.getTime())) {
+        user.dateOfBirth = parsedDate;
+      }
+    }
+
+    await user.save();
+
+    const updatedUser = await User.findById(userId).select(
+      "-password -otp -otpExpires",
+    );
+
+    return res.json({ ok: true, user: updatedUser });
+  } catch (err) {
+    console.error("[UPDATE PROFILE ERROR]", err && err.message);
     return res.status(500).json({ message: "Server error" });
   }
 };

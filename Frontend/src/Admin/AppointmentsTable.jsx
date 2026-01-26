@@ -98,10 +98,11 @@ const ClearButton = styled.button`
 const Table = styled.table`
   width: 100%;
   border-collapse: collapse;
-  table-layout: auto;
+  table-layout: fixed;
+  border: 2px solid #d1d5db;
 
   @media (min-width: 768px) {
-    min-width: 900px;
+    min-width: unset;
   }
 
   @media (max-width: 767px) {
@@ -121,7 +122,11 @@ const Table = styled.table`
 `;
 
 const Tr = styled.tr`
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 2px solid #d1d5db;
+
+  &:hover {
+    background: #f9fafb;
+  }
 
   @media (max-width: 767px) {
     display: block;
@@ -140,8 +145,25 @@ const Th = styled.th`
   background: #f3f4f6;
   font-weight: 700;
   color: #374151;
-  font-size: 0.875rem;
-  white-space: nowrap;
+  font-size: 0.85rem;
+  border: 1px solid #d1d5db;
+  vertical-align: top;
+
+  &:nth-child(1) {
+    width: 33%;
+  } /* Patient Details */
+  &:nth-child(2) {
+    width: 28%;
+  } /* Doctor Details */
+  &:nth-child(3) {
+    width: 12%;
+  } /* Appointment Info */
+  &:nth-child(4) {
+    width: 13%;
+  } /* Status & Remarks */
+  &:nth-child(5) {
+    width: 14%;
+  } /* Action */
 
   @media (max-width: 767px) {
     display: none;
@@ -150,12 +172,28 @@ const Th = styled.th`
 
 const Td = styled.td`
   padding: 0.75rem 0.5rem;
-  font-size: 0.875rem;
+  font-size: 0.85rem;
   color: #111827;
-  vertical-align: middle;
-  max-width: 200px;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  vertical-align: top;
+  border: 1px solid #e5e7eb;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+
+  &:nth-child(1) {
+    width: 33%;
+  } /* Patient Details */
+  &:nth-child(2) {
+    width: 28%;
+  } /* Doctor Details */
+  &:nth-child(3) {
+    width: 12%;
+  } /* Appointment Info */
+  &:nth-child(4) {
+    width: 13%;
+  } /* Status & Remarks */
+  &:nth-child(5) {
+    width: 14%;
+  } /* Action */
 
   @media (max-width: 767px) {
     display: block;
@@ -165,6 +203,7 @@ const Td = styled.td`
     max-width: 100%;
     white-space: normal;
     word-break: break-word;
+    width: 100% !important;
 
     &::before {
       content: attr(data-label);
@@ -270,14 +309,16 @@ const ActionButton = styled.button`
   border-radius: 8px;
   background: #4f46e5;
   color: white;
-  border: none;
+  border: 2px solid #3730a3;
   cursor: pointer;
   font-weight: 600;
   font-size: 0.875rem;
   white-space: nowrap;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 
   &:hover {
     background: #4338ca;
+    border-color: #312e81;
   }
 
   @media (max-width: 767px) {
@@ -714,15 +755,10 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
       <Table>
         <thead>
           <Tr>
-            <Th>Patient Name</Th>
-            <Th>Father Name</Th>
-            <Th>Age</Th>
-            <Th>Email</Th>
-            <Th>Contact Number</Th>
-            <Th>Mode</Th>
-            <Th>Time Remaining</Th>
-            <Th>Status</Th>
-            <Th>Remarks</Th>
+            <Th>Patient Details</Th>
+            <Th>Doctor Details</Th>
+            <Th>Appointment Info</Th>
+            <Th>Status & Remarks</Th>
             <Th>Action</Th>
           </Tr>
         </thead>
@@ -800,44 +836,120 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
 
               return (
                 <Tr key={row._id || row.id}>
-                  <Td data-label="Patient Name:">
-                    {row.patientName || "Unknown"}
+                  <Td data-label="Patient Details:">
+                    <div style={{ fontWeight: 800, marginBottom: 4 }}>
+                      {row.patientName || "Unknown"}
+                    </div>
+                    {row.fatherName && (
+                      <div
+                        style={{
+                          fontSize: "0.85rem",
+                          color: "#6b7280",
+                          marginBottom: 2,
+                        }}
+                      >
+                        Father: {row.fatherName}
+                      </div>
+                    )}
+                    {calculatedAge !== null && calculatedAge !== undefined && (
+                      <div
+                        style={{
+                          fontSize: "0.85rem",
+                          color: "#6b7280",
+                          marginBottom: 2,
+                        }}
+                      >
+                        Age: {calculatedAge} years
+                      </div>
+                    )}
+                    {row.patientEmail && (
+                      <div
+                        style={{
+                          fontSize: "0.85rem",
+                          color: "#6b7280",
+                          marginBottom: 2,
+                        }}
+                      >
+                        {row.patientEmail}
+                      </div>
+                    )}
+                    {(row.phone || row.patientPhone) && (
+                      <div style={{ fontSize: "0.85rem", color: "#6b7280" }}>
+                        {row.phone || row.patientPhone}
+                      </div>
+                    )}
                   </Td>
-                  <Td data-label="Father Name:">{row.fatherName || "-"}</Td>
-                  <Td data-label="Age:">
-                    {calculatedAge !== null && calculatedAge !== undefined
-                      ? `${calculatedAge} years`
-                      : "-"}
+                  <Td data-label="Doctor Details:">
+                    <div style={{ fontWeight: 700, marginBottom: 2 }}>
+                      {row.doctorName || row.doctor || "-"}
+                    </div>
+                    {row.department && (
+                      <div
+                        style={{
+                          fontSize: "0.85rem",
+                          color: "#6b7280",
+                          marginBottom: 2,
+                        }}
+                      >
+                        Dept: {row.department}
+                      </div>
+                    )}
+                    {row.doctorEmail && (
+                      <div
+                        style={{
+                          fontSize: "0.85rem",
+                          color: "#6b7280",
+                          marginBottom: 2,
+                        }}
+                      >
+                        {row.doctorEmail}
+                      </div>
+                    )}
+                    {row.doctorPhone && (
+                      <div
+                        style={{
+                          fontSize: "0.85rem",
+                          color: "#6b7280",
+                          marginBottom: 2,
+                        }}
+                      >
+                        {row.doctorPhone}
+                      </div>
+                    )}
+                    {row.doctorNic && (
+                      <div style={{ fontSize: "0.85rem", color: "#6b7280" }}>
+                        NIC: {row.doctorNic}
+                      </div>
+                    )}
                   </Td>
-                  <Td data-label="Email:">{row.patientEmail || "-"}</Td>
-                  <Td data-label="Contact Number:">
-                    {row.phone || row.patientPhone || "-"}
-                  </Td>
-                  <Td data-label="Mode:">
+                  <Td data-label="Appointment Info:">
                     <Status
                       $status={isOnline ? "Online" : "Clinic"}
-                      style={{ background: isOnline ? "#7c3aed" : "#f59e0b" }}
+                      style={{
+                        background: isOnline ? "#7c3aed" : "#f59e0b",
+                        marginBottom: 6,
+                      }}
                     >
                       {isOnline ? "ONLINE" : "CLINIC"}
                     </Status>
-                  </Td>
-                  <Td data-label="Time Remaining:">
                     <div
                       style={{
                         fontWeight: 700,
                         color: isMeetingTimeNear ? "#ef4444" : "#111827",
+                        fontSize: "0.875rem",
                       }}
                     >
                       {timeRemaining}
                     </div>
                   </Td>
-                  <Td data-label="Status:">
-                    <Status $status={row.status}>{row.status}</Status>
-                  </Td>
-                  <Td data-label="Remarks:">
+                  <Td data-label="Status & Remarks:">
+                    <Status $status={row.status} style={{ marginBottom: 6 }}>
+                      {row.status}
+                    </Status>
                     <div
                       style={{
                         fontWeight: 600,
+                        fontSize: "0.875rem",
                         color:
                           remarks === "In Meeting"
                             ? "#10b981"
@@ -850,37 +962,32 @@ const AppointmentsTable = ({ data = [], onStatusUpdate, loading = false }) => {
                     </div>
                   </Td>
                   <Td data-label="Action:">
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "6px",
-                        alignItems: "center",
-                        flexWrap: "nowrap",
-                      }}
+                    <StatusSelect
+                      value={row.status}
+                      onChange={(e) =>
+                        handleStatusChange(row._id || row.id, e.target.value)
+                      }
+                      disabled={
+                        updatingId === (row._id || row.id) ||
+                        row.status !== "Pending"
+                      }
+                      title={
+                        row.status !== "Pending"
+                          ? "Status already finalised"
+                          : undefined
+                      }
+                      style={{ marginBottom: "8px", width: "100%" }}
                     >
-                      <StatusSelect
-                        value={row.status}
-                        onChange={(e) =>
-                          handleStatusChange(row._id || row.id, e.target.value)
-                        }
-                        disabled={
-                          updatingId === (row._id || row.id) ||
-                          row.status !== "Pending"
-                        }
-                        title={
-                          row.status !== "Pending"
-                            ? "Status already finalised"
-                            : undefined
-                        }
-                      >
-                        <option value="Pending">Pending</option>
-                        <option value="Accepted">Accepted</option>
-                        <option value="Rejected">Rejected</option>
-                      </StatusSelect>
-                      <ActionButton onClick={() => setSelectedAppointment(row)}>
-                        View
-                      </ActionButton>
-                    </div>
+                      <option value="Pending">Pending</option>
+                      <option value="Accepted">Accepted</option>
+                      <option value="Rejected">Rejected</option>
+                    </StatusSelect>
+                    <ActionButton
+                      onClick={() => setSelectedAppointment(row)}
+                      style={{ width: "100%", padding: "0.5rem 0.8rem" }}
+                    >
+                      Patient Details
+                    </ActionButton>
                   </Td>
                 </Tr>
               );

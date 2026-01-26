@@ -86,8 +86,16 @@ exports.getPatientRecords = async (req, res) => {
     };
 
     // Add doctor filter to records if provided
+    // But also include records where patient has uploaded files (patientUploads array is not empty)
     if (doctorName) {
-      query.doctorName = doctorName;
+      query.$and = [
+        {
+          $or: [
+            { doctorName: doctorName },
+            { patientUploads: { $exists: true, $ne: [] } },
+          ],
+        },
+      ];
     }
 
     const records = await PatientRecord.find(query)
@@ -106,7 +114,7 @@ exports.getPatientRecords = async (req, res) => {
 
     // Add doctor filter to appointments if provided
     if (doctorName) {
-      appointmentQuery.doctor = doctorName;
+      appointmentQuery.doctorName = doctorName;
     }
 
     console.log(
@@ -412,5 +420,163 @@ exports.getPatientSummary = async (req, res) => {
   } catch (error) {
     console.error("[GET PATIENT SUMMARY ERROR]", error);
     res.status(500).json({ message: "Server error" });
+  }
+};
+
+// Get records by appointment ID
+exports.getRecordsByAppointment = async (req, res) => {
+  try {
+    const { appointmentId } = req.params;
+
+    // Get appointment details to find patient info
+    const appointment = await Appointment.findById(appointmentId);
+    if (!appointment) {
+      return res.status(404).json({ error: "Appointment not found" });
+    }
+
+    // Find all patient records for this appointment OR for this patient (by email/phone)
+    const query = {
+      $or: [
+        { appointmentId: appointmentId },
+        { patientEmail: appointment.patientEmail },
+        { phone: appointment.phone },
+      ],
+      status: { $ne: "deleted" },
+    };
+
+    const records = await PatientRecord.find(query).sort({ createdAt: -1 });
+
+    // Flatten patient uploads from all records
+    const allUploads = [];
+    records.forEach((record) => {
+      if (record.patientUploads && record.patientUploads.length > 0) {
+        record.patientUploads.forEach((upload) => {
+          allUploads.push({
+            _id: record._id + "-" + upload._id,
+            recordId: record._id,
+            uploadId: upload._id,
+            title: upload.title,
+            description: upload.description,
+            originalName: upload.originalName,
+            path: upload.path,
+            fileUrl: upload.path
+              ? `/uploads/patient-records/${path.basename(upload.path)}`
+              : upload.fileUrl,
+            mimetype: upload.mimetype,
+            size: upload.size,
+            uploadedBy: upload.uploadedBy,
+            uploadedAt: upload.uploadedAt,
+          });
+        });
+      }
+
+      // Also include doctor attachments
+      if (record.attachments && record.attachments.length > 0) {
+        record.attachments.forEach((attachment) => {
+          allUploads.push({
+            _id: record._id + "-" + attachment._id,
+            recordId: record._id,
+            uploadId: attachment._id,
+            title: record.diagnosis || "Medical Record",
+            description: record.prescription || "",
+            originalName: attachment.originalName,
+            path: attachment.path,
+            fileUrl: attachment.path
+              ? `/uploads/patient-records/${path.basename(attachment.path)}`
+              : "",
+            mimetype: attachment.mimetype,
+            size: attachment.size,
+            uploadedBy: "doctor",
+            uploadedAt: attachment.uploadedAt,
+          });
+        });
+      }
+    });
+
+    res.json({
+      success: true,
+      records: allUploads,
+    });
+  } catch (error) {
+    console.error("[GET RECORDS BY APPOINTMENT ERROR]", error);
+    res.status(500).json({ error: "Failed to fetch records" });
+  }
+};
+
+// Upload patient medical report
+exports.uploadPatientReport = async (req, res) => {
+  try {
+    const { title, description, appointmentId, uploadedBy } = req.body;
+    const file = req.file;
+
+    if (!file) {
+      return res.status(400).json({ error: "No file uploaded" });
+    }
+
+    if (!title || !appointmentId) {
+      return res
+        .status(400)
+        .json({ error: "Title and appointment ID are required" });
+    }
+
+    // Get patient info from token (auth middleware sets req.userId, req.userEmail)
+    const userId = req.userId;
+    const userEmail = req.userEmail;
+
+    if (!userId || !userEmail) {
+      return res.status(401).json({ error: "Authentication required" });
+    }
+
+    // Find or create patient record for this appointment
+    let patientRecord = await PatientRecord.findOne({
+      appointmentId: appointmentId,
+    });
+
+    const uploadData = {
+      title: title,
+      description: description || "",
+      filename: file.filename,
+      originalName: file.originalname,
+      path: file.path,
+      fileUrl: `/uploads/patient-records/${file.filename}`,
+      mimetype: file.mimetype,
+      size: file.size,
+      uploadedBy: uploadedBy || "patient",
+      uploadedAt: new Date(),
+    };
+
+    if (patientRecord) {
+      // Add to existing record
+      patientRecord.patientUploads.push(uploadData);
+      await patientRecord.save();
+    } else {
+      // Get appointment details
+      const appointment = await Appointment.findById(appointmentId);
+      if (!appointment) {
+        return res.status(404).json({ error: "Appointment not found" });
+      }
+
+      // Create new patient record
+      patientRecord = new PatientRecord({
+        patientName: appointment.patientName || userEmail,
+        patientEmail: appointment.patientEmail || userEmail,
+        phone: appointment.phone || "",
+        visitDate: appointment.date,
+        doctorName: appointment.doctor || appointment.doctorName,
+        appointmentId: appointmentId,
+        createdBy: userId,
+        patientUploads: [uploadData],
+      });
+      await patientRecord.save();
+    }
+
+    res.json({
+      success: true,
+      message: "Report uploaded successfully",
+      upload: uploadData,
+    });
+  } catch (error) {
+    console.error("[UPLOAD PATIENT REPORT ERROR]", error);
+    res.status(500).json({ error: "Failed to upload report" });
   }
 };

@@ -43,4 +43,19 @@ router.delete(
   patientRecordController.deletePatientRecord,
 );
 
+// Get records for a specific appointment
+router.get(
+  "/appointment/:appointmentId",
+  authenticate,
+  patientRecordController.getRecordsByAppointment,
+);
+
+// Upload patient medical report
+router.post(
+  "/upload",
+  authenticate,
+  patientRecordController.upload.single("file"),
+  patientRecordController.uploadPatientReport,
+);
+
 module.exports = router;
