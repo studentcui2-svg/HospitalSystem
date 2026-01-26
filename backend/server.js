@@ -57,7 +57,8 @@ if (helmet) app.use(helmet());
 
 // CORS - allow origins from environment variable or fallback to localhost/dev
 const allowedOrigins = (
-  process.env.CORS_ORIGINS || "http://localhost:5173"
+  process.env.CORS_ORIGINS ||
+  "http://localhost:5173,https://frontend-delta-black-25.vercel.app"
 ).split(",");
 app.use(
   cors({
