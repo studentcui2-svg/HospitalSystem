@@ -15,6 +15,7 @@ import {
   Smile,
 } from "lucide-react";
 import io from "socket.io-client";
+import { jsonFetch, getApiBase } from "../utils/api";
 
 const ENCRYPTION_KEY = "HospitalManagement2026SecureKey";
 
@@ -285,14 +286,10 @@ const ChatInterface = ({
       try {
         setLoading(true);
         const chatParams = userRole === "doctor" ? { patientId } : { doctorId };
-        const response = await fetch("/api/chat", {
+        const response = await jsonFetch("/api/chat", {
           method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            Authorization: `Bearer ${localStorage.getItem("app_token")}`,
-          },
-          body: JSON.stringify(chatParams),
-        }).then((r) => r.json());
+          body: chatParams,
+        });
 
         if (response && response.chat) {
           setChat(response.chat);
@@ -317,7 +314,8 @@ const ChatInterface = ({
     if (!chat || !isOpen) return;
 
     const token = localStorage.getItem("app_token");
-    const newSocket = io("http://localhost:5000", { auth: { token } });
+    const apiBase = getApiBase();
+    const newSocket = io(apiBase, { auth: { token } });
     setSocket(newSocket);
     newSocket.emit("join_chat", { chatId: chat._id });
 
@@ -391,7 +389,8 @@ const ChatInterface = ({
       setUploading(true);
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch(`/api/chat/${chat._id}/attachments`, {
+      const apiBase = getApiBase();
+      const res = await fetch(`${apiBase}/api/chat/${chat._id}/attachments`, {
         method: "POST",
         headers: {
           Authorization: `Bearer ${localStorage.getItem("app_token")}`,
