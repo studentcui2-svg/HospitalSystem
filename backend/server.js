@@ -65,12 +65,13 @@ app.use(
     origin: function (origin, callback) {
       // allow requests with no origin (mobile apps, curl, server-to-server)
       if (!origin) return callback(null, true);
-      if (allowedOrigins.indexOf(origin) !== -1) {
+      if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
       const msg = `The CORS policy for this site does not allow access from the specified Origin.`;
       return callback(new Error(msg), false);
     },
+    credentials: true, // Allow cookies and credentials
   }),
 );
 
