@@ -104,6 +104,23 @@ exports.getPatientRecords = async (req, res) => {
 
     console.log("[GET PATIENT RECORDS] Records found:", records.length);
 
+    // Log details about patient uploads
+    records.forEach((record, idx) => {
+      const uploadsCount = record.patientUploads
+        ? record.patientUploads.length
+        : 0;
+      if (uploadsCount > 0) {
+        console.log(
+          `[GET PATIENT RECORDS] Record ${idx + 1}: ${record.patientName} has ${uploadsCount} patient uploads`,
+        );
+        record.patientUploads.forEach((upload, uIdx) => {
+          console.log(
+            `  Upload ${uIdx + 1}: ${upload.title} (by ${upload.uploadedBy})`,
+          );
+        });
+      }
+    });
+
     const appointmentQuery = {
       $or: [
         { patientEmail: identifier },

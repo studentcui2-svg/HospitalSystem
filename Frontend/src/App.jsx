@@ -13,6 +13,7 @@ import NavBar from "./Clientside/NavBar";
 import AdminDashboard from "./Admin/AdminDashboard";
 import AdminGate from "./Clientside/AdminGate";
 import DoctorPanel from "./Doctor/DoctorPanel";
+import LabPortal from "./Lab/LabPortal";
 import PatientDetail from "./Doctor/PatientDetail";
 import MyAppointments from "./Clientside/MyAppointments";
 import DoctorDirectory from "./Clientside/DoctorDirectory";
@@ -108,6 +109,9 @@ const App = () => {
 
   const navigateToDoctorPanel = () => {
     handleNavigation("doctor", "/doctor");
+  };
+  const navigateToLabPortal = () => {
+    handleNavigation("lab", "/lab");
   };
 
   const navigateToDoctorDirectory = useCallback(() => {
@@ -230,6 +234,18 @@ const App = () => {
     return true;
   };
 
+  // LAB-ONLY VIEW: If userRole is 'lab', show ONLY LabPortal, nothing else
+  if (userRole === "lab") {
+    return (
+      <AppContainer>
+        <GlobalStyle />
+        <LabPortal />
+        <ToastContainer theme="colored" position="bottom-right" limit={3} />
+      </AppContainer>
+    );
+  }
+
+  // Default: normal app rendering
   return (
     <AppContainer>
       <GlobalStyle />
@@ -260,6 +276,7 @@ const App = () => {
               userRole={userRole}
               onNavigateToAdmin={navigateToAdmin}
               onNavigateToDoctor={navigateToDoctorPanel}
+              onNavigateToLab={navigateToLabPortal}
             />
           </M.div>
         )}
@@ -287,6 +304,8 @@ const App = () => {
           {currentPage === "doctor" && (
             <DoctorPanel onNavigateToHome={navigateToHome} />
           )}
+
+          {currentPage === "lab" && userRole === "lab" && <LabPortal />}
 
           {currentPage === "patientdetail" && (
             <PatientDetail

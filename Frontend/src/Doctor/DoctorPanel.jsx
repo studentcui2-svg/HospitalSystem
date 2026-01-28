@@ -884,6 +884,7 @@ const DoctorPanel = () => {
     setRejectingId(null);
     setRejectionReason("");
   };
+
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [doctorName, setDoctorName] = useState("");

@@ -10,10 +10,11 @@ const doctorSchema = new mongoose.Schema(
     nic: { type: String },
     gender: { type: String },
     bio: { type: String },
+    role: { type: String, enum: ["doctor", "lab"], default: "doctor" },
     dateOfBirth: { type: Date },
     photo: { type: String },
   },
-  { timestamps: true }
+  { timestamps: true },
 );
 
 const Doctor = mongoose.model("Doctor", doctorSchema);

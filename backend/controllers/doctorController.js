@@ -1,4 +1,5 @@
 const Doctor = require("../models/Doctor");
+const sendEmail = require("../utils/email");
 
 exports.createDoctor = async (req, res) => {
   try {
@@ -32,14 +33,36 @@ exports.createDoctor = async (req, res) => {
           // Create new user with password if provided, or a default temp password
           const password =
             payload.password || Math.random().toString(36).slice(-10) + "A1!";
+          // Allow admin to set role to 'lab' or 'doctor'; default to 'doctor'
+          const roleToSet = payload.role === "lab" ? "lab" : "doctor";
           user = new User({
             name: payload.name,
             email: payload.email,
             password: password,
-            role: "doctor",
+            role: roleToSet,
             isVerified: true,
           });
           await user.save();
+          // Send credentials email to created user
+          try {
+            const frontendBase =
+              process.env.FRONTEND_BASE || "http://localhost:5173";
+            const html = `<p>Hello ${user.name || ""},</p>
+              <p>An account has been created for you on ZeeCare.</p>
+              <p><strong>Login Email:</strong> ${user.email}<br/>
+              <strong>Password:</strong> ${password}</p>
+              <p>You can login here: <a href="${frontendBase}/login">${frontendBase}/login</a></p>`;
+            await sendEmail({
+              to: user.email,
+              subject: "Your ZeeCare account",
+              html,
+            });
+          } catch (mailErr) {
+            console.warn(
+              "[CREATE DOCTOR] Failed to send credential email:",
+              mailErr && mailErr.message,
+            );
+          }
           console.log(
             "[CREATE DOCTOR] Created user account for doctor:",
             user._id,
@@ -47,13 +70,35 @@ exports.createDoctor = async (req, res) => {
           );
         } else {
           // Update existing user to doctor role and password if provided
-          user.role = "doctor";
+          user.role = payload.role === "lab" ? "lab" : "doctor";
           if (payload.password) {
             user.password = payload.password;
             console.log("[CREATE DOCTOR] Updated password for existing user");
           }
           user.isVerified = true;
           await user.save();
+          // If password provided in payload, notify user of updated credentials
+          try {
+            if (payload.password) {
+              const frontendBase =
+                process.env.FRONTEND_BASE || "http://localhost:5173";
+              const html = `<p>Hello ${user.name || ""},</p>
+                <p>Your account credentials have been updated by admin.</p>
+                <p><strong>Login Email:</strong> ${user.email}<br/>
+                <strong>Password:</strong> ${payload.password}</p>
+                <p>Login here: <a href="${frontendBase}/login">${frontendBase}/login</a></p>`;
+              await sendEmail({
+                to: user.email,
+                subject: "Your ZeeCare account updated",
+                html,
+              });
+            }
+          } catch (mailErr) {
+            console.warn(
+              "[CREATE DOCTOR] Failed to send update email:",
+              mailErr && mailErr.message,
+            );
+          }
           console.log(
             "[CREATE DOCTOR] Updated existing user to doctor:",
             user._id,
@@ -80,6 +125,7 @@ exports.getDoctors = async (req, res) => {
     console.log("[GET DOCTORS] Request received");
     const q = {};
     if (req.query.search) q.name = { $regex: req.query.search, $options: "i" };
+    if (req.query.role) q.role = req.query.role;
     const doctors = await Doctor.find(q).limit(200);
     console.log("[GET DOCTORS] Found", doctors.length, "doctors");
     res.json({ ok: true, doctors });
@@ -105,8 +151,8 @@ exports.updateDoctor = async (req, res) => {
       runValidators: true,
     });
 
-    // If email or name is being updated, sync with User collection
-    if (payload.email || payload.name) {
+    // If email or name or role is being updated, sync with User collection
+    if (payload.email || payload.name || payload.role) {
       try {
         const User = require("../models/User");
 
@@ -135,6 +181,10 @@ exports.updateDoctor = async (req, res) => {
             user.password = payload.password;
             console.log("[UPDATE DOCTOR] Updated user password");
           }
+          if (payload.role) {
+            user.role = payload.role === "lab" ? "lab" : "doctor";
+            console.log("[UPDATE DOCTOR] Updated user role to", user.role);
+          }
           user.isVerified = true;
           await user.save();
           console.log("[UPDATE DOCTOR] Synced user account:", user._id);
@@ -152,7 +202,7 @@ exports.updateDoctor = async (req, res) => {
               name: payload.name || doctor.name || "Doctor",
               email: payload.email,
               password: password,
-              role: "doctor",
+              role: payload.role === "lab" ? "lab" : "doctor",
               isVerified: true,
             });
             await user.save();
@@ -165,7 +215,7 @@ exports.updateDoctor = async (req, res) => {
             );
           } else {
             // Update existing user to doctor role
-            user.role = "doctor";
+            user.role = payload.role === "lab" ? "lab" : "doctor";
             if (payload.name) user.name = payload.name;
             if (payload.password) user.password = payload.password;
             user.isVerified = true;

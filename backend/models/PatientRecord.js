@@ -51,7 +51,7 @@ const patientRecordSchema = new mongoose.Schema(
         size: { type: Number },
         uploadedBy: {
           type: String,
-          enum: ["patient", "doctor"],
+          enum: ["patient", "doctor", "lab"],
           default: "patient",
         },
         uploadedAt: { type: Date, default: Date.now },

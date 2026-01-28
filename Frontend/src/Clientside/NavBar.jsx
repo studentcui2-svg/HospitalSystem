@@ -213,6 +213,7 @@ const NavBar = ({
   onNavigateToHome,
   userRole,
   onNavigateToDoctor,
+  onNavigateToLab,
 }) => {
   const [menuOpen, setMenuOpen] = useState(false);
   const [avatarOpen, setAvatarOpen] = useState(false);
@@ -357,6 +358,19 @@ const NavBar = ({
                   }}
                 >
                   Doctor Panel
+                </NavLink>
+              )}
+              {isLoggedIn && userRole === "lab" && (
+                <NavLink
+                  href="/lab"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setMenuOpen(false);
+                    if (!isLoggedIn) onNavigateToLogin?.(true);
+                    else onNavigateToLab?.();
+                  }}
+                >
+                  Lab Portal
                 </NavLink>
               )}
               {isLoggedIn && (

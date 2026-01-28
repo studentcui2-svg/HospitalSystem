@@ -247,9 +247,13 @@ const AdminSidebar = ({ activeSection, setActiveSection, onLogout }) => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const menuItems = [
     { id: "dashboard", label: "Dashboard", icon: FaTachometerAlt },
-    { id: "doctors", label: "Doctors List", icon: FaUserMd },
+    { id: "doctors", label: "Doctors/Lab Attendant List", icon: FaUserMd },
     { id: "add-admin", label: "Add New Admin", icon: FaUserPlus },
-    { id: "add-doctor", label: "Register Doctor", icon: FaStethoscope },
+    {
+      id: "add-doctor",
+      label: "Register Doctor/Lab Attendant",
+      icon: FaStethoscope,
+    },
     { id: "appointments", label: "Appointments", icon: FaCalendarCheck },
     { id: "messages", label: "Messages", icon: FaEnvelope },
     { id: "landing", label: "Landing Page", icon: FaPalette },

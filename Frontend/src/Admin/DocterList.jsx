@@ -291,6 +291,7 @@ const PhotoEditButton = styled.label`
 `;
 
 const DoctorsList = ({ doctors = [], onUpdateDoctor, onDeleteDoctor }) => {
+  const [roleFilter, setRoleFilter] = useState("all");
   const [editingId, setEditingId] = useState(null);
   const [editForm, setEditForm] = useState({});
   const [showPassword, setShowPassword] = useState(false);
@@ -351,245 +352,296 @@ const DoctorsList = ({ doctors = [], onUpdateDoctor, onDeleteDoctor }) => {
   return (
     <DoctorsContainer>
       <Header>
-        <Title>DOCTORS</Title>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+          }}
+        >
+          <Title>DOCTORS & LAB</Title>
+          <div>
+            <button
+              onClick={() => setRoleFilter("all")}
+              style={{
+                marginRight: 8,
+                padding: 8,
+                borderRadius: 6,
+                background: roleFilter === "all" ? "#4f46e5" : "#f3f4f6",
+                color: roleFilter === "all" ? "white" : "#374151",
+              }}
+            >
+              All
+            </button>
+            <button
+              onClick={() => setRoleFilter("doctor")}
+              style={{
+                marginRight: 8,
+                padding: 8,
+                borderRadius: 6,
+                background: roleFilter === "doctor" ? "#4f46e5" : "#f3f4f6",
+                color: roleFilter === "doctor" ? "white" : "#374151",
+              }}
+            >
+              Doctors
+            </button>
+            <button
+              onClick={() => setRoleFilter("lab")}
+              style={{
+                padding: 8,
+                borderRadius: 6,
+                background: roleFilter === "lab" ? "#4f46e5" : "#f3f4f6",
+                color: roleFilter === "lab" ? "white" : "#374151",
+              }}
+            >
+              Lab
+            </button>
+          </div>
+        </div>
       </Header>
 
       <DoctorsGrid>
-        {doctors.length === 0 ? (
+        {doctors.filter((d) =>
+          roleFilter === "all" ? true : (d.role || "doctor") === roleFilter,
+        ).length === 0 ? (
           <div style={{ padding: 20 }}>No doctors found.</div>
         ) : (
-          doctors.map((doctor, index) => {
-            const isEditing = editingId === doctor._id;
-            return (
-              <DoctorCard key={doctor._id || index}>
-                <DoctorHeader>
-                  {isEditing ? (
-                    <AvatarEditWrapper>
-                      {editForm.photo ? (
-                        <DoctorAvatarImage
-                          src={editForm.photo}
-                          alt="Doctor avatar"
-                        />
-                      ) : (
-                        <DoctorAvatar>
-                          {(editForm.name || "DR")
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </DoctorAvatar>
-                      )}
-                      <PhotoEditButton>
-                        <input
-                          type="file"
-                          accept="image/*"
-                          onChange={handlePhotoUpload}
-                        />
-                        <FaCamera size={16} />
-                      </PhotoEditButton>
-                    </AvatarEditWrapper>
-                  ) : doctor.photo ? (
-                    <DoctorAvatarImage
-                      src={doctor.photo}
-                      alt={`${doctor.name || "Doctor"} avatar`}
-                    />
-                  ) : (
-                    <DoctorAvatar>
-                      {(doctor.name || "DR")
-                        .split(" ")
-                        .map((n) => n[0])
-                        .join("")}
-                    </DoctorAvatar>
-                  )}
-                  <DoctorInfo>
-                    <DoctorName>
-                      {isEditing ? (
-                        <EditInput
-                          value={editForm.name}
-                          onChange={(e) =>
-                            handleInputChange("name", e.target.value)
-                          }
-                          placeholder="Doctor Name"
-                        />
-                      ) : (
-                        doctor.name
-                      )}
-                    </DoctorName>
-                    <DoctorDepartment>
-                      {isEditing ? (
-                        <EditInput
-                          value={editForm.department}
-                          onChange={(e) =>
-                            handleInputChange("department", e.target.value)
-                          }
-                          placeholder="Department"
-                        />
-                      ) : (
-                        `Department of ${doctor.department}`
-                      )}
-                    </DoctorDepartment>
-                  </DoctorInfo>
-                </DoctorHeader>
-
-                <DoctorDetails>
-                  <DetailItem>
-                    <DetailIcon>
-                      <FaEnvelope />
-                    </DetailIcon>
-                    <DetailContent>
-                      <DetailLabel>Email</DetailLabel>
-                      {isEditing ? (
-                        <EditInput
-                          type="email"
-                          value={editForm.email}
-                          onChange={(e) =>
-                            handleInputChange("email", e.target.value)
-                          }
-                          placeholder="Email"
-                        />
-                      ) : (
-                        <DetailValue>{doctor.email}</DetailValue>
-                      )}
-                    </DetailContent>
-                  </DetailItem>
-
-                  <DetailItem>
-                    <DetailIcon>
-                      <FaLock />
-                    </DetailIcon>
-                    <DetailContent>
-                      <DetailLabel>Set / Update Password</DetailLabel>
-                      {isEditing ? (
-                        <div style={{ position: "relative" }}>
-                          <EditInput
-                            type={showPassword ? "text" : "password"}
-                            value={editForm.password || ""}
-                            onChange={(e) =>
-                              handleInputChange("password", e.target.value)
-                            }
-                            placeholder="Leave blank to keep existing"
+          doctors
+            .filter((d) =>
+              roleFilter === "all" ? true : (d.role || "doctor") === roleFilter,
+            )
+            .map((doctor, index) => {
+              const isEditing = editingId === doctor._id;
+              return (
+                <DoctorCard key={doctor._id || index}>
+                  <DoctorHeader>
+                    {isEditing ? (
+                      <AvatarEditWrapper>
+                        {editForm.photo ? (
+                          <DoctorAvatarImage
+                            src={editForm.photo}
+                            alt="Doctor avatar"
                           />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword((s) => !s)}
-                            style={{
-                              position: "absolute",
-                              right: 8,
-                              top: "50%",
-                              transform: "translateY(-50%)",
-                              background: "none",
-                              border: "none",
-                              color: "#6b7280",
-                              cursor: "pointer",
-                              fontSize: 14,
-                              padding: 4,
-                            }}
-                            aria-label={
-                              showPassword ? "Hide password" : "Show password"
+                        ) : (
+                          <DoctorAvatar>
+                            {(editForm.name || "DR")
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")}
+                          </DoctorAvatar>
+                        )}
+                        <PhotoEditButton>
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handlePhotoUpload}
+                          />
+                          <FaCamera size={16} />
+                        </PhotoEditButton>
+                      </AvatarEditWrapper>
+                    ) : doctor.photo ? (
+                      <DoctorAvatarImage
+                        src={doctor.photo}
+                        alt={`${doctor.name || "Doctor"} avatar`}
+                      />
+                    ) : (
+                      <DoctorAvatar>
+                        {(doctor.name || "DR")
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")}
+                      </DoctorAvatar>
+                    )}
+                    <DoctorInfo>
+                      <DoctorName>
+                        {isEditing ? (
+                          <EditInput
+                            value={editForm.name}
+                            onChange={(e) =>
+                              handleInputChange("name", e.target.value)
                             }
-                          >
-                            {showPassword ? <FaEyeSlash /> : <FaEye />}
-                          </button>
-                        </div>
-                      ) : (
-                        <DetailValue>********</DetailValue>
-                      )}
-                    </DetailContent>
-                  </DetailItem>
+                            placeholder="Doctor Name"
+                          />
+                        ) : (
+                          doctor.name
+                        )}
+                      </DoctorName>
+                      <DoctorDepartment>
+                        {isEditing ? (
+                          <EditInput
+                            value={editForm.department}
+                            onChange={(e) =>
+                              handleInputChange("department", e.target.value)
+                            }
+                            placeholder="Department"
+                          />
+                        ) : (
+                          `Department of ${doctor.department}`
+                        )}
+                      </DoctorDepartment>
+                    </DoctorInfo>
+                  </DoctorHeader>
 
-                  <DetailItem>
-                    <DetailIcon>
-                      <FaPhone />
-                    </DetailIcon>
-                    <DetailContent>
-                      <DetailLabel>Phone</DetailLabel>
-                      {isEditing ? (
-                        <EditInput
-                          value={editForm.phone}
-                          onChange={(e) =>
-                            handleInputChange("phone", e.target.value)
-                          }
-                          placeholder="Phone"
-                        />
-                      ) : (
-                        <DetailValue>{doctor.phone}</DetailValue>
-                      )}
-                    </DetailContent>
-                  </DetailItem>
+                  <DoctorDetails>
+                    <DetailItem>
+                      <DetailIcon>
+                        <FaEnvelope />
+                      </DetailIcon>
+                      <DetailContent>
+                        <DetailLabel>Email</DetailLabel>
+                        {isEditing ? (
+                          <EditInput
+                            type="email"
+                            value={editForm.email}
+                            onChange={(e) =>
+                              handleInputChange("email", e.target.value)
+                            }
+                            placeholder="Email"
+                          />
+                        ) : (
+                          <DetailValue>{doctor.email}</DetailValue>
+                        )}
+                      </DetailContent>
+                    </DetailItem>
 
-                  <DetailItem>
-                    <DetailIcon>
-                      <FaIdCard />
-                    </DetailIcon>
-                    <DetailContent>
-                      <DetailLabel>NIC</DetailLabel>
-                      {isEditing ? (
-                        <EditInput
-                          value={editForm.nic}
-                          onChange={(e) =>
-                            handleInputChange("nic", e.target.value)
-                          }
-                          placeholder="NIC"
-                        />
-                      ) : (
-                        <DetailValue>{doctor.nic}</DetailValue>
-                      )}
-                    </DetailContent>
-                  </DetailItem>
+                    <DetailItem>
+                      <DetailIcon>
+                        <FaLock />
+                      </DetailIcon>
+                      <DetailContent>
+                        <DetailLabel>Set / Update Password</DetailLabel>
+                        {isEditing ? (
+                          <div style={{ position: "relative" }}>
+                            <EditInput
+                              type={showPassword ? "text" : "password"}
+                              value={editForm.password || ""}
+                              onChange={(e) =>
+                                handleInputChange("password", e.target.value)
+                              }
+                              placeholder="Leave blank to keep existing"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword((s) => !s)}
+                              style={{
+                                position: "absolute",
+                                right: 8,
+                                top: "50%",
+                                transform: "translateY(-50%)",
+                                background: "none",
+                                border: "none",
+                                color: "#6b7280",
+                                cursor: "pointer",
+                                fontSize: 14,
+                                padding: 4,
+                              }}
+                              aria-label={
+                                showPassword ? "Hide password" : "Show password"
+                              }
+                            >
+                              {showPassword ? <FaEyeSlash /> : <FaEye />}
+                            </button>
+                          </div>
+                        ) : (
+                          <DetailValue>********</DetailValue>
+                        )}
+                      </DetailContent>
+                    </DetailItem>
 
-                  <DetailItem>
-                    <DetailIcon>
-                      <FaVenusMars />
-                    </DetailIcon>
-                    <DetailContent>
-                      <DetailLabel>Gender</DetailLabel>
-                      {isEditing ? (
-                        <EditInput
-                          value={editForm.gender}
-                          onChange={(e) =>
-                            handleInputChange("gender", e.target.value)
-                          }
-                          placeholder="Gender"
-                        />
-                      ) : (
-                        <DetailValue>{doctor.gender}</DetailValue>
-                      )}
-                    </DetailContent>
-                  </DetailItem>
-                </DoctorDetails>
+                    <DetailItem>
+                      <DetailIcon>
+                        <FaPhone />
+                      </DetailIcon>
+                      <DetailContent>
+                        <DetailLabel>Phone</DetailLabel>
+                        {isEditing ? (
+                          <EditInput
+                            value={editForm.phone}
+                            onChange={(e) =>
+                              handleInputChange("phone", e.target.value)
+                            }
+                            placeholder="Phone"
+                          />
+                        ) : (
+                          <DetailValue>{doctor.phone}</DetailValue>
+                        )}
+                      </DetailContent>
+                    </DetailItem>
 
-                <ActionButtons>
-                  {isEditing ? (
-                    <>
-                      <ActionButton
-                        className="save"
-                        onClick={() => handleSave(doctor._id)}
-                      >
-                        <FaSave /> Save
-                      </ActionButton>
-                      <ActionButton className="cancel" onClick={handleCancel}>
-                        <FaTimes /> Cancel
-                      </ActionButton>
-                    </>
-                  ) : (
-                    <>
-                      <ActionButton
-                        className="edit"
-                        onClick={() => handleEdit(doctor)}
-                      >
-                        <FaEdit /> Edit
-                      </ActionButton>
-                      <ActionButton
-                        className="delete"
-                        onClick={() => handleDelete(doctor._id)}
-                      >
-                        <FaTrash /> Delete
-                      </ActionButton>
-                    </>
-                  )}
-                </ActionButtons>
-              </DoctorCard>
-            );
-          })
+                    <DetailItem>
+                      <DetailIcon>
+                        <FaIdCard />
+                      </DetailIcon>
+                      <DetailContent>
+                        <DetailLabel>NIC</DetailLabel>
+                        {isEditing ? (
+                          <EditInput
+                            value={editForm.nic}
+                            onChange={(e) =>
+                              handleInputChange("nic", e.target.value)
+                            }
+                            placeholder="NIC"
+                          />
+                        ) : (
+                          <DetailValue>{doctor.nic}</DetailValue>
+                        )}
+                      </DetailContent>
+                    </DetailItem>
+
+                    <DetailItem>
+                      <DetailIcon>
+                        <FaVenusMars />
+                      </DetailIcon>
+                      <DetailContent>
+                        <DetailLabel>Gender</DetailLabel>
+                        {isEditing ? (
+                          <EditInput
+                            value={editForm.gender}
+                            onChange={(e) =>
+                              handleInputChange("gender", e.target.value)
+                            }
+                            placeholder="Gender"
+                          />
+                        ) : (
+                          <DetailValue>{doctor.gender}</DetailValue>
+                        )}
+                      </DetailContent>
+                    </DetailItem>
+                  </DoctorDetails>
+
+                  <ActionButtons>
+                    {isEditing ? (
+                      <>
+                        <ActionButton
+                          className="save"
+                          onClick={() => handleSave(doctor._id)}
+                        >
+                          <FaSave /> Save
+                        </ActionButton>
+                        <ActionButton className="cancel" onClick={handleCancel}>
+                          <FaTimes /> Cancel
+                        </ActionButton>
+                      </>
+                    ) : (
+                      <>
+                        <ActionButton
+                          className="edit"
+                          onClick={() => handleEdit(doctor)}
+                        >
+                          <FaEdit /> Edit
+                        </ActionButton>
+                        <ActionButton
+                          className="delete"
+                          onClick={() => handleDelete(doctor._id)}
+                        >
+                          <FaTrash /> Delete
+                        </ActionButton>
+                      </>
+                    )}
+                  </ActionButtons>
+                </DoctorCard>
+              );
+            })
         )}
       </DoctorsGrid>
     </DoctorsContainer>

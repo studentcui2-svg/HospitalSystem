@@ -663,7 +663,9 @@ const PatientDetail = ({ identifier, onBack }) => {
     followUpDate: "",
     followUpNotes: "",
     files: [],
+    labTests: "",
   });
+  const [orderedLabTests, setOrderedLabTests] = useState([]);
 
   // Helper function to format file size
   const formatFileSize = (bytes) => {
@@ -846,7 +848,9 @@ const PatientDetail = ({ identifier, onBack }) => {
         followUpDate: "",
         followUpNotes: "",
         files: [],
+        labTests: "",
       });
+      setOrderedLabTests([]);
       fetchPatientData();
     } catch (error) {
       toast.error("Failed to save record");
@@ -882,7 +886,9 @@ const PatientDetail = ({ identifier, onBack }) => {
         : "",
       followUpNotes: record.followUpNotes || "",
       files: [],
+      labTests: "",
     });
+    setOrderedLabTests([]);
     setShowModal(true);
   };
 
@@ -926,6 +932,53 @@ const PatientDetail = ({ identifier, onBack }) => {
   const handleRemoveFile = (index) => {
     const newFiles = formData.files.filter((_, i) => i !== index);
     setFormData({ ...formData, files: newFiles });
+  };
+
+  const handleOrderLabTest = async () => {
+    if (!formData.labTests.trim()) {
+      toast.error("Please enter a test name");
+      return;
+    }
+
+    try {
+      const doctorName =
+        window.__APP_USER__?.name ||
+        localStorage.getItem("userName") ||
+        "Dr. Unknown";
+      const doctorId =
+        window.__APP_USER__?._id || localStorage.getItem("userId") || null;
+
+      const response = await fetch("/api/lab/order", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getAuthToken()}`,
+        },
+        body: JSON.stringify({
+          patientName: patient?.name || "Unknown Patient",
+          patientEmail: patient?.email || "",
+          phone: patient?.phone || "",
+          cnic: patient?.cnic || "",
+          gender: patient?.gender || "",
+          doctor: doctorId,
+          doctorName: doctorName,
+          testName: formData.labTests.trim(),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        toast.success(`Lab test "${formData.labTests}" ordered successfully!`);
+        setOrderedLabTests([...orderedLabTests, formData.labTests.trim()]);
+        setFormData({ ...formData, labTests: "" });
+      } else {
+        toast.error(data.message || "Failed to order lab test");
+      }
+    } catch (error) {
+      console.error("Error ordering lab test:", error);
+      toast.error("Failed to order lab test");
+    }
   };
 
   const renderFormFields = () => {
@@ -1020,6 +1073,67 @@ const PatientDetail = ({ identifier, onBack }) => {
             }
             placeholder="Instructions for next visit..."
           />
+        </FormGroup>
+
+        <h3 style={{ color: "#667eea", marginTop: "1.5rem" }}>🧪 Lab Tests</h3>
+        <FormGroup>
+          <Label>Order Lab Test</Label>
+          <div
+            style={{ display: "flex", gap: "12px", alignItems: "flex-start" }}
+          >
+            <Input
+              type="text"
+              value={formData.labTests}
+              onChange={(e) =>
+                setFormData({ ...formData, labTests: e.target.value })
+              }
+              placeholder="Enter test name (e.g., CBC, Blood Sugar, X-Ray...)"
+              onKeyPress={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleOrderLabTest();
+                }
+              }}
+            />
+            <Button
+              type="button"
+              onClick={handleOrderLabTest}
+              style={{ minWidth: "120px", whiteSpace: "nowrap" }}
+            >
+              Send to Lab
+            </Button>
+          </div>
+          {orderedLabTests.length > 0 && (
+            <div style={{ marginTop: "12px" }}>
+              <p
+                style={{
+                  color: "#10b981",
+                  fontSize: "0.9rem",
+                  marginBottom: "8px",
+                  fontWeight: 600,
+                }}
+              >
+                ✅ Ordered Tests ({orderedLabTests.length}):
+              </p>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
+                {orderedLabTests.map((test, idx) => (
+                  <span
+                    key={idx}
+                    style={{
+                      background: "#d1fae5",
+                      color: "#065f46",
+                      padding: "6px 12px",
+                      borderRadius: "6px",
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
+                    }}
+                  >
+                    🧪 {test}
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
         </FormGroup>
 
         <h3 style={{ color: "#667eea", marginTop: "1.5rem" }}>
@@ -1127,6 +1241,7 @@ const PatientDetail = ({ identifier, onBack }) => {
         <Button
           onClick={() => {
             setEditingRecord(null);
+            setOrderedLabTests([]);
             setShowModal(true);
           }}
         >
@@ -1269,51 +1384,69 @@ const PatientDetail = ({ identifier, onBack }) => {
                   }}
                 >
                   <strong style={{ color: "#1e40af" }}>
-                    👤 Patient Uploaded Reports ({record.patientUploads.length}
+                    � Patient & Lab Reports ({record.patientUploads.length}
                     ):
                   </strong>
                   <AttachmentsList>
-                    {record.patientUploads.map((upload, idx) => (
-                      <AttachmentItem
-                        key={idx}
-                        href={
-                          upload.fileUrl || `${getApiBase()}/${upload.path}`
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        download={upload.originalName}
-                        style={{
-                          background: "#f0f9ff",
-                          border: "2px solid #3b82f6",
-                        }}
-                      >
-                        {getFileIcon(upload.mimetype)}
-                        <AttachmentInfo>
-                          <AttachmentName
-                            title={upload.title || upload.originalName}
-                          >
-                            {upload.title || upload.originalName}
-                          </AttachmentName>
-                          {upload.description && (
-                            <div
-                              style={{
-                                fontSize: "0.85rem",
-                                color: "#6b7280",
-                                marginTop: "0.25rem",
-                              }}
+                    {record.patientUploads.map((upload, idx) => {
+                      const isLabUpload = upload.uploadedBy === "lab";
+                      const uploaderLabel =
+                        upload.uploadedBy === "lab"
+                          ? "Lab"
+                          : upload.uploadedBy === "doctor"
+                            ? "Doctor"
+                            : "Patient";
+                      const uploaderIcon =
+                        upload.uploadedBy === "lab"
+                          ? "🧪"
+                          : upload.uploadedBy === "doctor"
+                            ? "👨‍⚕️"
+                            : "👤";
+
+                      return (
+                        <AttachmentItem
+                          key={idx}
+                          href={
+                            upload.fileUrl || `${getApiBase()}/${upload.path}`
+                          }
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          download={upload.originalName}
+                          style={{
+                            background: isLabUpload ? "#ecfdf5" : "#f0f9ff",
+                            border: isLabUpload
+                              ? "2px solid #10b981"
+                              : "2px solid #3b82f6",
+                          }}
+                        >
+                          {getFileIcon(upload.mimetype)}
+                          <AttachmentInfo>
+                            <AttachmentName
+                              title={upload.title || upload.originalName}
                             >
-                              {upload.description}
-                            </div>
-                          )}
-                          <AttachmentSize>
-                            {formatFileSize(upload.size)} • Uploaded by Patient
-                            on{" "}
-                            {new Date(upload.uploadedAt).toLocaleDateString()}
-                          </AttachmentSize>
-                        </AttachmentInfo>
-                        <FiDownload size={16} />
-                      </AttachmentItem>
-                    ))}
+                              {upload.title || upload.originalName}
+                            </AttachmentName>
+                            {upload.description && (
+                              <div
+                                style={{
+                                  fontSize: "0.85rem",
+                                  color: "#6b7280",
+                                  marginTop: "0.25rem",
+                                }}
+                              >
+                                {upload.description}
+                              </div>
+                            )}
+                            <AttachmentSize>
+                              {formatFileSize(upload.size)} • {uploaderIcon}{" "}
+                              Uploaded by {uploaderLabel} on{" "}
+                              {new Date(upload.uploadedAt).toLocaleDateString()}
+                            </AttachmentSize>
+                          </AttachmentInfo>
+                          <FiDownload size={16} />
+                        </AttachmentItem>
+                      );
+                    })}
                   </AttachmentsList>
                 </AttachmentsSection>
               )}
