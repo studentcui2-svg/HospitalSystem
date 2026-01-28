@@ -347,6 +347,60 @@ exports.createAppointment = async (req, res) => {
 
     await appt.save();
     console.log("[CREATE APPOINTMENT] Saved appointment:", appt._id);
+
+    // Send email to doctor to notify about new booking
+    if (doctorId) {
+      try {
+        const Doctor = require("../models/Doctor");
+        const doctorDoc = await Doctor.findById(doctorId);
+        if (doctorDoc && doctorDoc.email) {
+          const doctorEmail = doctorDoc.email;
+          const doctorName = doctorDoc.name || "Doctor";
+          const readableDate = appointmentDate.toLocaleString("en-US", {
+            dateStyle: "medium",
+            timeStyle: "short",
+          });
+          const subject = `New Appointment Booking - Action Required`;
+          const html = `
+            <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #111827;">
+              <h2 style="color: #4f46e5;">Hello Dr. ${doctorName},</h2>
+              <p>Someone has booked an appointment with you. Please visit the portal to accept or reject this booking.</p>
+              <div style="background: #f3f4f6; border-radius: 8px; padding: 16px; margin: 16px 0;">
+                <p style="margin: 0 0 12px 0; color: #374151; font-weight: 600;">📋 Appointment Details:</p>
+                <table style="width: 100%; border-collapse: collapse;">
+                  <tr><td style="padding: 4px 0; color: #6b7280;">Patient Name:</td><td style="padding: 4px 0; color: #111827; font-weight: 600;">${patientName}</td></tr>
+                  <tr><td style="padding: 4px 0; color: #6b7280;">Date & Time:</td><td style="padding: 4px 0; color: #111827; font-weight: 600;">${readableDate}</td></tr>
+                  <tr><td style="padding: 4px 0; color: #6b7280;">Department:</td><td style="padding: 4px 0; color: #111827;">${department || "N/A"}</td></tr>
+                  <tr><td style="padding: 4px 0; color: #6b7280;">Mode:</td><td style="padding: 4px 0; color: #111827; font-weight: 600;">${req.body.mode === "online" ? "🎥 Online" : "🏥 Physical"}</td></tr>
+                </table>
+              </div>
+              <p style="margin-top: 18px;">Please log in to the portal to accept or reject this appointment.</p>
+              <p style="margin-top: 24px;">Best regards,<br/>Hospital Management System</p>
+            </div>
+          `;
+          const text = `Hello Dr. ${doctorName},\nSomeone has booked an appointment with you. Please visit the portal to accept or reject this booking.\nPatient: ${patientName}\nDate & Time: ${readableDate}`;
+          const noReplyFrom =
+            process.env.SMTP_NO_REPLY ||
+            `No Reply <${process.env.SMTP_FROM || process.env.SMTP_USER}>`;
+          await sendEmail({
+            to: doctorEmail,
+            subject,
+            html,
+            text,
+            from: noReplyFrom,
+          });
+          console.log(
+            `[EMAIL] ✓ Doctor booking notification sent to ${doctorEmail}`,
+          );
+        }
+      } catch (err) {
+        console.error(
+          "[EMAIL ERROR] Failed to send doctor booking notification:",
+          err.message,
+        );
+      }
+    }
+
     res.status(201).json({ ok: true, appointment: appt });
   } catch (err) {
     console.error("[CREATE APPOINTMENT ERROR]", err);

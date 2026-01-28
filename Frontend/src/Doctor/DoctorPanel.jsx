@@ -1,3 +1,4 @@
+import Modal from "../components/Modal";
 import React, { useEffect, useState, useRef } from "react";
 import {
   FaEye,
@@ -849,6 +850,40 @@ const RecordsLinkButton = styled.button`
 `;
 
 const DoctorPanel = () => {
+  // Reject modal state/hooks must be inside the component
+  const [showRejectModal, setShowRejectModal] = useState(false);
+  const [rejectingId, setRejectingId] = useState(null);
+  const [rejectionReason, setRejectionReason] = useState("");
+
+  const rejectAppointment = async (id, reason) => {
+    try {
+      const res = await jsonFetch(`/api/doctor/appointments/${id}/status`, {
+        method: "PATCH",
+        body: { status: "Rejected", rejectionReason: reason },
+      });
+      if (res && res.appointment) {
+        setAppointments((s) =>
+          s.map((a) => (a._id === id ? res.appointment : a)),
+        );
+      }
+    } catch (err) {
+      console.error("[DoctorPanel] Reject failed", err);
+    }
+  };
+
+  const openRejectModal = (id) => {
+    setRejectingId(id);
+    setRejectionReason("");
+    setShowRejectModal(true);
+  };
+
+  const handleRejectSubmit = async () => {
+    if (!rejectionReason.trim()) return;
+    await rejectAppointment(rejectingId, rejectionReason);
+    setShowRejectModal(false);
+    setRejectingId(null);
+    setRejectionReason("");
+  };
   const [appointments, setAppointments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [doctorName, setDoctorName] = useState("");
@@ -1369,7 +1404,7 @@ const DoctorPanel = () => {
             <Table>
               <thead>
                 <Tr>
-                  <Th>Patient</Th>
+                  <Th>Patient Details</Th>
                   <Th>Father Name</Th>
                   <Th>Date / Time</Th>
                   <Th>Mode</Th>
@@ -1530,12 +1565,65 @@ const DoctorPanel = () => {
                       </Td>
                       <Td data-label="Actions:" style={{ textAlign: "right" }}>
                         {isPending && !needsPayment && (
-                          <ActionButton
-                            $bg="#2563eb"
-                            onClick={() => acceptAppointment(a._id)}
-                          >
-                            Accept
-                          </ActionButton>
+                          <>
+                            <ActionButton
+                              $bg="#2563eb"
+                              onClick={() => acceptAppointment(a._id)}
+                            >
+                              Accept
+                            </ActionButton>
+                            <ActionButton
+                              $bg="#ef4444"
+                              style={{ marginLeft: 8 }}
+                              onClick={() => openRejectModal(a._id)}
+                            >
+                              Reject
+                            </ActionButton>
+                          </>
+                        )}
+                        {/* Reject Reason Modal */}
+                        {showRejectModal && (
+                          <Modal onClose={() => setShowRejectModal(false)}>
+                            <div style={{ padding: 24, minWidth: 320 }}>
+                              <h3>Reject Appointment</h3>
+                              <p>Please provide a reason for rejection:</p>
+                              <textarea
+                                value={rejectionReason}
+                                onChange={(e) =>
+                                  setRejectionReason(e.target.value)
+                                }
+                                rows={4}
+                                style={{ width: "100%", marginBottom: 16 }}
+                                placeholder="Enter reason..."
+                              />
+                              <div
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "flex-end",
+                                  gap: 8,
+                                }}
+                              >
+                                <button
+                                  onClick={() => setShowRejectModal(false)}
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  style={{
+                                    background: "#ef4444",
+                                    color: "white",
+                                    padding: "8px 16px",
+                                    border: "none",
+                                    borderRadius: 4,
+                                  }}
+                                  onClick={handleRejectSubmit}
+                                  disabled={!rejectionReason.trim()}
+                                >
+                                  Reject
+                                </button>
+                              </div>
+                            </div>
+                          </Modal>
                         )}
 
                         {needsPayment &&
