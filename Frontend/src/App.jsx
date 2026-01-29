@@ -14,6 +14,7 @@ import AdminDashboard from "./Admin/AdminDashboard";
 import AdminGate from "./Clientside/AdminGate";
 import DoctorPanel from "./Doctor/DoctorPanel";
 import LabPortal from "./Lab/LabPortal";
+import PharmacyPortal from "./Pharmacy/PharmacyPortal";
 import PatientDetail from "./Doctor/PatientDetail";
 import MyAppointments from "./Clientside/MyAppointments";
 import DoctorDirectory from "./Clientside/DoctorDirectory";
@@ -157,9 +158,18 @@ const App = () => {
     }
 
     toast.success(`Welcome back, ${role}!`);
-    setCurrentPage(
-      role === "admin" ? "admin" : role === "doctor" ? "doctor" : "home",
-    );
+
+    // Route users based on role
+    if (role === "admin") {
+      setCurrentPage("admin");
+    } else if (role === "doctor") {
+      setCurrentPage("doctor");
+    } else if (role === "pharmacy") {
+      window.location.hash = "#/pharmacy";
+      setCurrentPage("pharmacy");
+    } else {
+      setCurrentPage("home");
+    }
   };
 
   const handleLogout = () => {
@@ -202,6 +212,11 @@ const App = () => {
 
       if (hash === "#/doctor/panel" || hash === "#/doctor") {
         setCurrentPage("doctor");
+        return;
+      }
+
+      if (hash === "#/pharmacy") {
+        setCurrentPage("pharmacy");
         return;
       }
 
@@ -306,6 +321,8 @@ const App = () => {
           )}
 
           {currentPage === "lab" && userRole === "lab" && <LabPortal />}
+
+          {currentPage === "pharmacy" && <PharmacyPortal />}
 
           {currentPage === "patientdetail" && (
             <PatientDetail

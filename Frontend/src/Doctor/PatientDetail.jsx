@@ -241,7 +241,7 @@ const RecordCard = styled.div`
   border-radius: 16px;
   padding: 24px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  border-left: 6px solid ${(props) => props.borderColor || "#667eea"};
+  border-left: 6px solid ${(props) => props.$borderColor || "#667eea"};
   backdrop-filter: blur(10px);
   transition: all 0.3s ease;
 
@@ -512,6 +512,42 @@ const ModalContent = styled.div`
   }
 `;
 
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e5e7eb;
+
+  h2 {
+    margin: 0;
+    color: #1f2937;
+    font-size: 1.5rem;
+    font-weight: 700;
+  }
+`;
+
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  font-size: 2rem;
+  color: #6b7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+
+  &:hover {
+    background: rgba(239, 68, 68, 0.1);
+    color: #ef4444;
+  }
+`;
+
 const FormGroup = styled.div`
   margin-bottom: 20px;
 `;
@@ -667,6 +703,15 @@ const PatientDetail = ({ identifier, onBack }) => {
   });
   const [orderedLabTests, setOrderedLabTests] = useState([]);
   const [showReferralModal, setShowReferralModal] = useState(false);
+  const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
+  const [medicines, setMedicines] = useState([]);
+  const [prescriptionData, setPrescriptionData] = useState({
+    diagnosis: "",
+    medicines: [],
+    generalInstructions: "",
+    dietaryAdvice: "",
+    followUpDate: "",
+  });
   const [doctors, setDoctors] = useState([]);
   const [referralData, setReferralData] = useState({
     referredDoctorId: "",
@@ -1324,6 +1369,21 @@ const PatientDetail = ({ identifier, onBack }) => {
           >
             👨‍⚕️ Refer to Specialist
           </Button>
+          <Button
+            onClick={() => {
+              setPrescriptionData({
+                diagnosis: "",
+                medicines: [],
+                generalInstructions: "",
+                dietaryAdvice: "",
+                followUpDate: "",
+              });
+              setShowPrescriptionModal(true);
+            }}
+            bg="linear-gradient(135deg, #f59e0b, #d97706)"
+          >
+            💊 Create Prescription
+          </Button>
         </div>
       </Header>
 
@@ -1364,7 +1424,7 @@ const PatientDetail = ({ identifier, onBack }) => {
 
       <RecordsList>
         {filteredRecords().map((record) => (
-          <RecordCard key={record._id} borderColor="#667eea">
+          <RecordCard key={record._id} $borderColor="#667eea">
             <RecordHeader>
               <div>
                 <RecordTitle>
@@ -1788,6 +1848,449 @@ const PatientDetail = ({ identifier, onBack }) => {
             <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
               <Button onClick={handleReferPatient}>Send Referral</Button>
               <Button bg="#6b7280" onClick={() => setShowReferralModal(false)}>
+                Cancel
+              </Button>
+            </div>
+          </ModalContent>
+        </Modal>
+      )}
+
+      {/* Prescription Modal */}
+      {showPrescriptionModal && (
+        <Modal onClick={() => setShowPrescriptionModal(false)}>
+          <ModalContent
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "900px", maxHeight: "90vh", overflowY: "auto" }}
+          >
+            <ModalHeader>
+              <h2 style={{ margin: 0, fontSize: "1.5rem" }}>
+                💊 Create Prescription
+              </h2>
+              <CloseButton onClick={() => setShowPrescriptionModal(false)}>
+                ×
+              </CloseButton>
+            </ModalHeader>
+
+            <p style={{ color: "#6b7280", marginBottom: "20px" }}>
+              Patient: <strong>{patient?.name || patient?.patientName}</strong>
+            </p>
+
+            <FormGroup>
+              <Label>Diagnosis *</Label>
+              <TextArea
+                value={prescriptionData.diagnosis}
+                onChange={(e) =>
+                  setPrescriptionData({
+                    ...prescriptionData,
+                    diagnosis: e.target.value,
+                  })
+                }
+                placeholder="Primary diagnosis for this prescription..."
+                rows={3}
+                required
+              />
+            </FormGroup>
+
+            <div
+              style={{
+                background: "#f0f9ff",
+                padding: "16px",
+                borderRadius: "8px",
+                marginBottom: "20px",
+              }}
+            >
+              <h3
+                style={{
+                  margin: "0 0 12px 0",
+                  fontSize: "1.1rem",
+                  color: "#1e40af",
+                }}
+              >
+                Medicines
+              </h3>
+
+              <Button
+                onClick={async () => {
+                  if (!medicines || medicines.length === 0) {
+                    try {
+                      const res = await jsonFetch("/api/pharmacy/medicines");
+                      setMedicines(res.medicines || []);
+                    } catch (err) {
+                      console.error("Failed to load medicines:", err);
+                    }
+                  }
+                  setPrescriptionData({
+                    ...prescriptionData,
+                    medicines: [
+                      ...prescriptionData.medicines,
+                      {
+                        medicine: "",
+                        medicineName: "",
+                        dosage: "",
+                        frequency: "",
+                        duration: "",
+                        instructions: "",
+                        quantity: 1,
+                      },
+                    ],
+                  });
+                }}
+                style={{ marginBottom: "16px" }}
+              >
+                + Add Medicine
+              </Button>
+
+              {prescriptionData.medicines.map((med, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    background: "white",
+                    padding: "16px",
+                    borderRadius: "8px",
+                    marginBottom: "12px",
+                    border: "1px solid #e5e7eb",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    <strong style={{ color: "#1f2937" }}>
+                      Medicine {idx + 1}
+                    </strong>
+                    <button
+                      onClick={() =>
+                        setPrescriptionData({
+                          ...prescriptionData,
+                          medicines: prescriptionData.medicines.filter(
+                            (_, i) => i !== idx,
+                          ),
+                        })
+                      }
+                      style={{
+                        background: "#ef4444",
+                        color: "white",
+                        border: "none",
+                        padding: "6px 12px",
+                        borderRadius: "6px",
+                        cursor: "pointer",
+                        fontSize: "0.85rem",
+                      }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+
+                  <FormGroup style={{ marginBottom: "12px" }}>
+                    <Label>Medicine Name *</Label>
+                    <select
+                      value={med.medicine}
+                      onChange={(e) => {
+                        const selectedMed = medicines.find(
+                          (m) => m._id === e.target.value,
+                        );
+                        const newMeds = [...prescriptionData.medicines];
+                        newMeds[idx] = {
+                          ...newMeds[idx],
+                          medicine: e.target.value,
+                          medicineName: selectedMed?.name || "",
+                          dosage: selectedMed?.strength || "",
+                        };
+                        setPrescriptionData({
+                          ...prescriptionData,
+                          medicines: newMeds,
+                        });
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "10px",
+                        border: "1px solid #e5e7eb",
+                        borderRadius: "6px",
+                        fontSize: "0.95rem",
+                      }}
+                      required
+                    >
+                      <option value="">-- Select Medicine --</option>
+                      {medicines.map((m) => (
+                        <option key={m._id} value={m._id}>
+                          {m.name} - {m.strength} ({m.form})
+                        </option>
+                      ))}
+                    </select>
+                  </FormGroup>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "12px",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    <FormGroup>
+                      <Label>Dosage</Label>
+                      <Input
+                        value={med.dosage}
+                        onChange={(e) => {
+                          const newMeds = [...prescriptionData.medicines];
+                          newMeds[idx].dosage = e.target.value;
+                          setPrescriptionData({
+                            ...prescriptionData,
+                            medicines: newMeds,
+                          });
+                        }}
+                        placeholder="e.g., 500mg"
+                      />
+                    </FormGroup>
+
+                    <FormGroup>
+                      <Label>Quantity</Label>
+                      <Input
+                        type="number"
+                        value={med.quantity}
+                        onChange={(e) => {
+                          const newMeds = [...prescriptionData.medicines];
+                          newMeds[idx].quantity = parseInt(e.target.value) || 1;
+                          setPrescriptionData({
+                            ...prescriptionData,
+                            medicines: newMeds,
+                          });
+                        }}
+                        min="1"
+                      />
+                    </FormGroup>
+                  </div>
+
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "12px",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    <FormGroup>
+                      <Label>Frequency *</Label>
+                      <select
+                        value={med.frequency}
+                        onChange={(e) => {
+                          const newMeds = [...prescriptionData.medicines];
+                          newMeds[idx].frequency = e.target.value;
+                          setPrescriptionData({
+                            ...prescriptionData,
+                            medicines: newMeds,
+                          });
+                        }}
+                        style={{
+                          width: "100%",
+                          padding: "10px",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: "6px",
+                          fontSize: "0.95rem",
+                        }}
+                        required
+                      >
+                        <option value="">-- Select Frequency --</option>
+                        <option value="Once daily">Once daily</option>
+                        <option value="Twice daily">Twice daily</option>
+                        <option value="Three times daily">
+                          Three times daily
+                        </option>
+                        <option value="Four times daily">
+                          Four times daily
+                        </option>
+                        <option value="Every 4 hours">Every 4 hours</option>
+                        <option value="Every 6 hours">Every 6 hours</option>
+                        <option value="Every 8 hours">Every 8 hours</option>
+                        <option value="Before bed">Before bed</option>
+                        <option value="As needed">As needed</option>
+                      </select>
+                    </FormGroup>
+
+                    <FormGroup>
+                      <Label>Duration *</Label>
+                      <select
+                        value={med.duration}
+                        onChange={(e) => {
+                          const newMeds = [...prescriptionData.medicines];
+                          newMeds[idx].duration = e.target.value;
+                          setPrescriptionData({
+                            ...prescriptionData,
+                            medicines: newMeds,
+                          });
+                        }}
+                        style={{
+                          width: "100%",
+                          padding: "10px",
+                          border: "1px solid #e5e7eb",
+                          borderRadius: "6px",
+                          fontSize: "0.95rem",
+                        }}
+                        required
+                      >
+                        <option value="">-- Select Duration --</option>
+                        <option value="3 days">3 days</option>
+                        <option value="5 days">5 days</option>
+                        <option value="7 days">7 days</option>
+                        <option value="10 days">10 days</option>
+                        <option value="14 days">14 days</option>
+                        <option value="1 month">1 month</option>
+                        <option value="2 months">2 months</option>
+                        <option value="3 months">3 months</option>
+                        <option value="Continuous">Continuous</option>
+                      </select>
+                    </FormGroup>
+                  </div>
+
+                  <FormGroup>
+                    <Label>Instructions</Label>
+                    <Input
+                      value={med.instructions}
+                      onChange={(e) => {
+                        const newMeds = [...prescriptionData.medicines];
+                        newMeds[idx].instructions = e.target.value;
+                        setPrescriptionData({
+                          ...prescriptionData,
+                          medicines: newMeds,
+                        });
+                      }}
+                      placeholder="e.g., Take after meals, Avoid alcohol"
+                    />
+                  </FormGroup>
+                </div>
+              ))}
+
+              {prescriptionData.medicines.length === 0 && (
+                <p style={{ color: "#6b7280", textAlign: "center" }}>
+                  No medicines added yet. Click "Add Medicine" to start.
+                </p>
+              )}
+            </div>
+
+            <FormGroup>
+              <Label>General Instructions</Label>
+              <TextArea
+                value={prescriptionData.generalInstructions}
+                onChange={(e) =>
+                  setPrescriptionData({
+                    ...prescriptionData,
+                    generalInstructions: e.target.value,
+                  })
+                }
+                placeholder="e.g., Get adequate rest, Drink plenty of water..."
+                rows={3}
+              />
+            </FormGroup>
+
+            <FormGroup>
+              <Label>Dietary Advice</Label>
+              <TextArea
+                value={prescriptionData.dietaryAdvice}
+                onChange={(e) =>
+                  setPrescriptionData({
+                    ...prescriptionData,
+                    dietaryAdvice: e.target.value,
+                  })
+                }
+                placeholder="e.g., Avoid spicy food, Increase protein intake..."
+                rows={3}
+              />
+            </FormGroup>
+
+            <FormGroup>
+              <Label>Follow-up Date</Label>
+              <Input
+                type="date"
+                value={prescriptionData.followUpDate}
+                onChange={(e) =>
+                  setPrescriptionData({
+                    ...prescriptionData,
+                    followUpDate: e.target.value,
+                  })
+                }
+                min={new Date().toISOString().split("T")[0]}
+              />
+            </FormGroup>
+
+            <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
+              <Button
+                onClick={async () => {
+                  if (!prescriptionData.diagnosis) {
+                    toast.error("Please enter diagnosis");
+                    return;
+                  }
+                  if (prescriptionData.medicines.length === 0) {
+                    toast.error("Please add at least one medicine");
+                    return;
+                  }
+
+                  // Validate all medicines
+                  for (let med of prescriptionData.medicines) {
+                    if (!med.medicine || !med.frequency || !med.duration) {
+                      toast.error(
+                        "Please fill all required fields for medicines",
+                      );
+                      return;
+                    }
+                  }
+
+                  try {
+                    const doctorName =
+                      window.__APP_USER__?.name ||
+                      localStorage.getItem("userName") ||
+                      "Doctor";
+                    const doctorEmail =
+                      window.__APP_USER__?.email ||
+                      localStorage.getItem("userEmail");
+
+                    const res = await jsonFetch("/api/prescriptions", {
+                      method: "POST",
+                      body: JSON.stringify({
+                        patientName:
+                          patient?.name || patient?.patientName || identifier,
+                        patientEmail: patient?.email || patient?.patientEmail,
+                        patientPhone: patient?.phone || patient?.patientPhone,
+                        doctorName,
+                        doctorEmail,
+                        ...prescriptionData,
+                      }),
+                    });
+
+                    if (res.warnings && res.warnings.length > 0) {
+                      toast.warning(
+                        `Prescription created with warnings:\n${res.warnings.join("\n")}`,
+                        { autoClose: 8000 },
+                      );
+                    } else {
+                      toast.success(
+                        "Prescription created and sent to patient!",
+                      );
+                    }
+
+                    setShowPrescriptionModal(false);
+                    setPrescriptionData({
+                      diagnosis: "",
+                      medicines: [],
+                      generalInstructions: "",
+                      dietaryAdvice: "",
+                      followUpDate: "",
+                    });
+                  } catch (err) {
+                    console.error("Failed to create prescription:", err);
+                    toast.error(err.message || "Failed to create prescription");
+                  }
+                }}
+              >
+                Create Prescription
+              </Button>
+              <Button
+                bg="#6b7280"
+                onClick={() => setShowPrescriptionModal(false)}
+              >
                 Cancel
               </Button>
             </div>

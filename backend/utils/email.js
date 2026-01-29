@@ -9,7 +9,7 @@ console.log("[EMAIL CONFIG] Pass exists:", !!process.env.SMTP_PASS);
 
 if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
   console.warn(
-    "[EMAIL CONFIG] ⚠️  SMTP_USER or SMTP_PASS missing. OTP emails cannot be sent until these are set."
+    "[EMAIL CONFIG] ⚠️  SMTP_USER or SMTP_PASS missing. OTP emails cannot be sent until these are set.",
   );
 }
 
@@ -35,7 +35,7 @@ transporter
     console.error("  Code:", error.code);
     console.error("  Message:", error.message);
     console.error(
-      "  Hint: Double-check SMTP_HOST/PORT/USER/PASS and that the provider allows programmatic sign-in (for Gmail, use a 16-character app password)."
+      "  Hint: Double-check SMTP_HOST/PORT/USER/PASS and that the provider allows programmatic sign-in (for Gmail, use a 16-character app password).",
     );
   });
 
@@ -46,11 +46,13 @@ module.exports = async function sendEmail({
   text,
   from,
   replyTo,
+  attachments, // Add support for attachments
 }) {
   console.log("[SEND EMAIL] Called with params:");
   console.log("  To:", to);
   console.log("  Subject:", subject);
   console.log("  HTML length:", html?.length || 0);
+  console.log("  Attachments:", attachments?.length || 0);
 
   // Determine the From address priority:
   // 1. explicit `from` param
@@ -71,6 +73,11 @@ module.exports = async function sendEmail({
   if (replyTo) {
     mailOptions.replyTo = replyTo;
     console.log("[SEND EMAIL] replyTo:", replyTo);
+  }
+
+  if (attachments && attachments.length > 0) {
+    mailOptions.attachments = attachments;
+    console.log("[SEND EMAIL] Attachments added:", attachments.length);
   }
 
   try {

@@ -10,7 +10,7 @@ const userSchema = new mongoose.Schema(
     password: { type: String },
     role: {
       type: String,
-      enum: ["user", "admin", "doctor", "lab"],
+      enum: ["user", "admin", "doctor", "lab", "pharmacy"],
       default: "user",
     },
     isVerified: { type: Boolean, default: false },

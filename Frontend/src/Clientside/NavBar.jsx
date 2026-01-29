@@ -320,6 +320,37 @@ const NavBar = ({
                 </LoginButton>
               </AuthButtons>
             </NavLinks>
+          ) : userRole === "pharmacy" ? (
+            <NavLinks style={{ justifyContent: "flex-end" }}>
+              <NavLink
+                href="#/pharmacy"
+                onClick={(e) => {
+                  e.preventDefault();
+                  setMenuOpen(false);
+                  window.location.hash = "#/pharmacy";
+                }}
+              >
+                💊 Pharmacy Portal
+              </NavLink>
+              <AuthButtons>
+                <LoginButton
+                  as="button"
+                  onClick={() => {
+                    setConfirmAction("logout");
+                    setConfirmOpen(true);
+                  }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    color: "#059669",
+                    borderColor: "#059669",
+                  }}
+                >
+                  <FaSignOutAlt style={{ marginRight: 8, color: "#059669" }} />
+                  <span style={{ color: "#059669" }}>Logout</span>
+                </LoginButton>
+              </AuthButtons>
+            </NavLinks>
           ) : (
             <NavLinks>
               <NavLink
@@ -551,125 +582,161 @@ const NavBar = ({
                           minWidth: 180,
                         }}
                       >
-                        <button
-                          onClick={() => {
-                            setProfileEditOpen(true);
-                            setAvatarOpen(false);
-                          }}
-                          style={{
-                            display: "block",
-                            width: "100%",
-                            padding: "10px 14px",
-                            border: "none",
-                            background: "transparent",
-                            textAlign: "left",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <span
+                        {userRole === "pharmacy" ? (
+                          // Pharmacy users only see logout
+                          <button
+                            onClick={() => {
+                              setConfirmAction("logout");
+                              setConfirmOpen(true);
+                              setAvatarOpen(false);
+                            }}
                             style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 8,
+                              display: "block",
+                              width: "100%",
+                              padding: "10px 14px",
+                              border: "none",
+                              background: "transparent",
+                              textAlign: "left",
+                              cursor: "pointer",
                             }}
                           >
-                            <FaUser style={{ color: "#0ea5e9" }} />
-                            <span style={{ color: "#0ea5e9" }}>
-                              Edit Profile
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                alignItems: "center",
+                                gap: 8,
+                              }}
+                            >
+                              <FaSignOutAlt style={{ color: "#059669" }} />
+                              <span style={{ color: "#059669" }}>Logout</span>
                             </span>
-                          </span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setConfirmAction("delete");
-                            setConfirmOpen(true);
-                            setAvatarOpen(false);
-                          }}
-                          style={{
-                            display: "block",
-                            width: "100%",
-                            padding: "10px 14px",
-                            border: "none",
-                            background: "transparent",
-                            textAlign: "left",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 8,
-                            }}
-                          >
-                            <FaTrashAlt style={{ color: "#0ea5e9" }} />
-                            <span style={{ color: "#0ea5e9" }}>
-                              {" "}
-                              Delete Account
-                            </span>
-                          </span>
-                        </button>
-                        <button
-                          onClick={() => {
-                            setAvatarOpen(false);
-                            try {
-                              fileInputRef.current &&
-                                fileInputRef.current.click();
-                            } catch (e) {
-                              console.error(e);
-                            }
-                          }}
-                          style={{
-                            display: "block",
-                            width: "100%",
-                            padding: "10px 14px",
-                            border: "none",
-                            background: "transparent",
-                            textAlign: "left",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 8,
-                            }}
-                          >
-                            <FaCamera style={{ color: "#0ea5e9" }} />
-                            <span style={{ color: "#0ea5e9" }}>
-                              Change Photo
-                            </span>
-                          </span>
-                        </button>
-                        <hr style={{ margin: 0 }} />
-                        <button
-                          onClick={() => {
-                            setConfirmAction("logout");
-                            setConfirmOpen(true);
-                            setAvatarOpen(false);
-                          }}
-                          style={{
-                            display: "block",
-                            width: "100%",
-                            padding: "10px 14px",
-                            border: "none",
-                            background: "transparent",
-                            textAlign: "left",
-                            cursor: "pointer",
-                          }}
-                        >
-                          <span
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                              gap: 8,
-                            }}
-                          >
-                            <FaSignOutAlt style={{ color: "#0ea5e9" }} />
-                            <span style={{ color: "#0ea5e9" }}> Logout</span>
-                          </span>
-                        </button>
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={() => {
+                                setProfileEditOpen(true);
+                                setAvatarOpen(false);
+                              }}
+                              style={{
+                                display: "block",
+                                width: "100%",
+                                padding: "10px 14px",
+                                border: "none",
+                                background: "transparent",
+                                textAlign: "left",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                }}
+                              >
+                                <FaUser style={{ color: "#0ea5e9" }} />
+                                <span style={{ color: "#0ea5e9" }}>
+                                  Edit Profile
+                                </span>
+                              </span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                setConfirmAction("delete");
+                                setConfirmOpen(true);
+                                setAvatarOpen(false);
+                              }}
+                              style={{
+                                display: "block",
+                                width: "100%",
+                                padding: "10px 14px",
+                                border: "none",
+                                background: "transparent",
+                                textAlign: "left",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                }}
+                              >
+                                <FaTrashAlt style={{ color: "#0ea5e9" }} />
+                                <span style={{ color: "#0ea5e9" }}>
+                                  {" "}
+                                  Delete Account
+                                </span>
+                              </span>
+                            </button>
+                            <button
+                              onClick={() => {
+                                setAvatarOpen(false);
+                                try {
+                                  fileInputRef.current &&
+                                    fileInputRef.current.click();
+                                } catch (e) {
+                                  console.error(e);
+                                }
+                              }}
+                              style={{
+                                display: "block",
+                                width: "100%",
+                                padding: "10px 14px",
+                                border: "none",
+                                background: "transparent",
+                                textAlign: "left",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                }}
+                              >
+                                <FaCamera style={{ color: "#0ea5e9" }} />
+                                <span style={{ color: "#0ea5e9" }}>
+                                  Change Photo
+                                </span>
+                              </span>
+                            </button>
+                            <hr style={{ margin: 0 }} />
+                            <button
+                              onClick={() => {
+                                setConfirmAction("logout");
+                                setConfirmOpen(true);
+                                setAvatarOpen(false);
+                              }}
+                              style={{
+                                display: "block",
+                                width: "100%",
+                                padding: "10px 14px",
+                                border: "none",
+                                background: "transparent",
+                                textAlign: "left",
+                                cursor: "pointer",
+                              }}
+                            >
+                              <span
+                                style={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  gap: 8,
+                                }}
+                              >
+                                <FaSignOutAlt style={{ color: "#0ea5e9" }} />
+                                <span style={{ color: "#0ea5e9" }}>
+                                  {" "}
+                                  Logout
+                                </span>
+                              </span>
+                            </button>
+                          </>
+                        )}
                       </div>
                     )}
                   </div>
