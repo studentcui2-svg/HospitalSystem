@@ -705,6 +705,7 @@ const PatientDetail = ({ identifier, onBack }) => {
   const [showReferralModal, setShowReferralModal] = useState(false);
   const [showPrescriptionModal, setShowPrescriptionModal] = useState(false);
   const [medicines, setMedicines] = useState([]);
+  const [prescriptions, setPrescriptions] = useState([]);
   const [prescriptionData, setPrescriptionData] = useState({
     diagnosis: "",
     medicines: [],
@@ -745,6 +746,7 @@ const PatientDetail = ({ identifier, onBack }) => {
     if (identifier) {
       fetchPatientData();
       fetchDoctors();
+      fetchPrescriptions();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [identifier]);
@@ -761,6 +763,31 @@ const PatientDetail = ({ identifier, onBack }) => {
       setDoctors(otherDoctors);
     } catch (error) {
       console.error("Failed to fetch doctors:", error);
+    }
+  };
+
+  const fetchPrescriptions = async () => {
+    try {
+      // Try to fetch by email or phone
+      const patientIdentifier = identifier;
+      let prescriptionsData = [];
+
+      // If identifier looks like email, use patient email endpoint
+      if (patientIdentifier && patientIdentifier.includes("@")) {
+        const res = await jsonFetch(
+          `/api/prescriptions/patient/${patientIdentifier}`,
+        );
+        prescriptionsData = res.prescriptions || [];
+      }
+
+      console.log(
+        "[PATIENT DETAIL] Loaded prescriptions:",
+        prescriptionsData.length,
+      );
+      setPrescriptions(prescriptionsData);
+    } catch (error) {
+      console.error("Failed to fetch prescriptions:", error);
+      setPrescriptions([]);
     }
   };
 
@@ -1465,6 +1492,195 @@ const PatientDetail = ({ identifier, onBack }) => {
                   <strong>Prescription:</strong> {record.prescription}
                 </p>
               )}
+
+              {/* Detailed Prescription from Prescription System */}
+              {(() => {
+                // Find prescription(s) related to this record
+                const relatedPrescriptions = prescriptions.filter(
+                  (p) =>
+                    p.patientRecord === record._id ||
+                    new Date(p.createdAt).toDateString() ===
+                      new Date(record.visitDate).toDateString(),
+                );
+
+                if (relatedPrescriptions.length === 0) return null;
+
+                return (
+                  <div
+                    style={{
+                      marginTop: "1rem",
+                      padding: "1rem",
+                      background: "#f0fdf4",
+                      borderRadius: "8px",
+                      border: "2px solid #10b981",
+                    }}
+                  >
+                    <strong
+                      style={{
+                        display: "block",
+                        marginBottom: "0.75rem",
+                        color: "#065f46",
+                        fontSize: "1rem",
+                      }}
+                    >
+                      💊 Detailed Prescription ({relatedPrescriptions.length})
+                    </strong>
+                    {relatedPrescriptions.map((prescription, idx) => (
+                      <div
+                        key={prescription._id}
+                        style={{
+                          marginTop: idx > 0 ? "1rem" : "0",
+                          padding: "1rem",
+                          background: "white",
+                          borderRadius: "6px",
+                        }}
+                      >
+                        <div
+                          style={{
+                            marginBottom: "0.75rem",
+                            paddingBottom: "0.5rem",
+                            borderBottom: "1px solid #e5e7eb",
+                          }}
+                        >
+                          <div style={{ fontWeight: "700", color: "#1f2937" }}>
+                            Diagnosis: {prescription.diagnosis}
+                          </div>
+                          <div
+                            style={{
+                              fontSize: "0.85rem",
+                              color: "#6b7280",
+                              marginTop: "0.25rem",
+                            }}
+                          >
+                            Issued:{" "}
+                            {new Date(prescription.createdAt).toLocaleString()}
+                          </div>
+                          {prescription.status && (
+                            <div
+                              style={{
+                                fontSize: "0.85rem",
+                                marginTop: "0.25rem",
+                              }}
+                            >
+                              Status:{" "}
+                              <span
+                                style={{
+                                  padding: "0.2rem 0.5rem",
+                                  borderRadius: "4px",
+                                  background:
+                                    prescription.status === "Dispensed"
+                                      ? "#dcfce7"
+                                      : "#fef3c7",
+                                  color:
+                                    prescription.status === "Dispensed"
+                                      ? "#166534"
+                                      : "#92400e",
+                                  fontWeight: "600",
+                                }}
+                              >
+                                {prescription.status}
+                              </span>
+                            </div>
+                          )}
+                        </div>
+
+                        <div
+                          style={{
+                            marginBottom: "0.5rem",
+                            fontWeight: "600",
+                            color: "#065f46",
+                          }}
+                        >
+                          Medicines:
+                        </div>
+                        {prescription.medicines.map((med, medIdx) => (
+                          <div
+                            key={medIdx}
+                            style={{
+                              padding: "0.75rem",
+                              background: "#f9fafb",
+                              borderRadius: "6px",
+                              marginBottom: "0.5rem",
+                              fontSize: "0.9rem",
+                            }}
+                          >
+                            <div
+                              style={{
+                                fontWeight: "700",
+                                marginBottom: "0.25rem",
+                                color: "#1f2937",
+                              }}
+                            >
+                              {medIdx + 1}. {med.medicineName}
+                            </div>
+                            <div
+                              style={{ color: "#6b7280", fontSize: "0.85rem" }}
+                            >
+                              <div>💊 Dosage: {med.dosage}</div>
+                              <div>⏰ Frequency: {med.frequency}</div>
+                              <div>📅 Duration: {med.duration}</div>
+                              {med.quantity && (
+                                <div>📊 Quantity: {med.quantity}</div>
+                              )}
+                              {med.instructions && (
+                                <div>📝 {med.instructions}</div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+
+                        {prescription.generalInstructions && (
+                          <div
+                            style={{
+                              marginTop: "0.75rem",
+                              padding: "0.75rem",
+                              background: "#fef3c7",
+                              borderRadius: "6px",
+                              fontSize: "0.85rem",
+                            }}
+                          >
+                            <strong>General Instructions:</strong>{" "}
+                            {prescription.generalInstructions}
+                          </div>
+                        )}
+
+                        {prescription.dietaryAdvice && (
+                          <div
+                            style={{
+                              marginTop: "0.5rem",
+                              padding: "0.75rem",
+                              background: "#dbeafe",
+                              borderRadius: "6px",
+                              fontSize: "0.85rem",
+                            }}
+                          >
+                            <strong>Dietary Advice:</strong>{" "}
+                            {prescription.dietaryAdvice}
+                          </div>
+                        )}
+
+                        {prescription.followUpDate && (
+                          <div
+                            style={{
+                              marginTop: "0.5rem",
+                              padding: "0.75rem",
+                              background: "#f3e8ff",
+                              borderRadius: "6px",
+                              fontSize: "0.85rem",
+                            }}
+                          >
+                            <strong>Prescription Follow-up:</strong>{" "}
+                            {new Date(
+                              prescription.followUpDate,
+                            ).toLocaleDateString()}
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
               {(record.bloodPressure || record.temperature) && (
                 <p>
                   <strong>Vitals:</strong>

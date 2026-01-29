@@ -1,7 +1,8 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import styled from "styled-components";
 import { toast } from "react-toastify";
 import { jsonFetch } from "../utils/api";
+import { Html5Qrcode } from "html5-qrcode";
 import {
   FiPackage,
   FiAlertCircle,
@@ -550,6 +551,10 @@ const PharmacyPortal = () => {
   const [prescriptions, setPrescriptions] = useState([]);
   const [medicines, setMedicines] = useState([]);
   const [filteredMedicines, setFilteredMedicines] = useState([]);
+  const [showQRScanner, setShowQRScanner] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const qrScannerRef = useRef(null);
+  const html5QrCodeRef = useRef(null);
 
   // Search & Filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -587,6 +592,98 @@ const PharmacyPortal = () => {
   useEffect(() => {
     applyFilters();
   }, [medicines, searchQuery, categoryFilter, sortBy]);
+
+  // Clean up QR scanner on unmount
+  useEffect(() => {
+    return () => {
+      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+        html5QrCodeRef.current.stop().catch(console.error);
+      }
+    };
+  }, []);
+
+  const startQRScanner = async () => {
+    setShowQRScanner(true);
+    setScanning(true);
+
+    try {
+      // Wait for the DOM element to be available
+      await new Promise((resolve) => setTimeout(resolve, 100));
+
+      if (!qrScannerRef.current) {
+        toast.error("Scanner container not found");
+        return;
+      }
+
+      const html5QrCode = new Html5Qrcode("qr-reader");
+      html5QrCodeRef.current = html5QrCode;
+
+      await html5QrCode.start(
+        { facingMode: "environment" },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+        },
+        async (decodedText) => {
+          // QR code successfully scanned
+          try {
+            // Parse QR code data - it should contain prescriptionId
+            let prescriptionId;
+            try {
+              const qrData = JSON.parse(decodedText);
+              prescriptionId = qrData.prescriptionId || decodedText;
+            } catch {
+              prescriptionId = decodedText;
+            }
+
+            // Fetch prescription
+            const res = await jsonFetch(`/api/prescriptions/${prescriptionId}`);
+            if (res.prescription) {
+              toast.success(
+                `✅ Prescription found for ${res.prescription.patientName}!`,
+              );
+
+              // Add to list if not already present
+              if (!prescriptions.find((p) => p._id === res.prescription._id)) {
+                setPrescriptions([res.prescription, ...prescriptions]);
+              }
+
+              // Stop scanner after successful scan
+              stopQRScanner();
+            }
+          } catch (err) {
+            toast.error(err.message || "Prescription not found");
+            stopQRScanner();
+          }
+        },
+        (errorMessage) => {
+          console.warn("QR Code Scan Error:", errorMessage);
+          // QR code scan error (not critical, happens frequently)
+          // Only log, don't show error to user
+        },
+      );
+    } catch (err) {
+      console.error("Failed to start QR scanner:", err);
+      toast.error("Failed to start camera. Please allow camera access.");
+      setShowQRScanner(false);
+      setScanning(false);
+    }
+  };
+
+  const stopQRScanner = async () => {
+    try {
+      if (html5QrCodeRef.current && html5QrCodeRef.current.isScanning) {
+        await html5QrCodeRef.current.stop();
+        html5QrCodeRef.current.clear();
+      }
+    } catch (err) {
+      console.error("Error stopping scanner:", err);
+    } finally {
+      setShowQRScanner(false);
+      setScanning(false);
+      html5QrCodeRef.current = null;
+    }
+  };
 
   const loadData = async () => {
     try {
@@ -984,13 +1081,10 @@ const PharmacyPortal = () => {
                 />
                 <Button
                   bg="linear-gradient(135deg, #3b82f6, #2563eb)"
-                  onClick={() =>
-                    toast.info(
-                      "QR Scanner coming soon! Enter Prescription ID manually for now.",
-                    )
-                  }
+                  onClick={startQRScanner}
+                  disabled={scanning}
                 >
-                  📷 Scan QR
+                  📷 {scanning ? "Scanning..." : "Scan QR"}
                 </Button>
               </div>
               <p
@@ -1698,6 +1792,102 @@ const PharmacyPortal = () => {
                 </Button>
               </div>
             </form>
+          </ModalContent>
+        </Modal>
+      )}
+
+      {/* QR Scanner Modal */}
+      {showQRScanner && (
+        <Modal onClick={stopQRScanner}>
+          <ModalContent
+            onClick={(e) => e.stopPropagation()}
+            style={{ maxWidth: "500px" }}
+          >
+            <div
+              style={{
+                padding: "1.5rem",
+                background: "linear-gradient(135deg, #3b82f6, #2563eb)",
+                color: "white",
+                borderRadius: "12px 12px 0 0",
+                marginBottom: "1.5rem",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <h3 style={{ margin: 0, fontSize: "1.3rem" }}>
+                  📷 Scan Prescription QR Code
+                </h3>
+                <button
+                  onClick={stopQRScanner}
+                  style={{
+                    background: "rgba(255,255,255,0.2)",
+                    border: "none",
+                    borderRadius: "50%",
+                    width: "32px",
+                    height: "32px",
+                    cursor: "pointer",
+                    color: "white",
+                    fontSize: "1.2rem",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  ×
+                </button>
+              </div>
+              <p style={{ margin: "0.5rem 0 0 0", fontSize: "0.9rem" }}>
+                Point your camera at the prescription QR code
+              </p>
+            </div>
+
+            <div style={{ padding: "0 1.5rem 1.5rem 1.5rem" }}>
+              {/* QR Scanner Container */}
+              <div
+                id="qr-reader"
+                ref={qrScannerRef}
+                style={{
+                  width: "100%",
+                  borderRadius: "8px",
+                  overflow: "hidden",
+                  border: "2px solid #e5e7eb",
+                }}
+              ></div>
+
+              <div
+                style={{
+                  marginTop: "1rem",
+                  padding: "1rem",
+                  background: "#f0f9ff",
+                  borderRadius: "8px",
+                  border: "1px solid #bfdbfe",
+                }}
+              >
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: "0.9rem",
+                    color: "#1e40af",
+                  }}
+                >
+                  💡 <strong>Tip:</strong> Make sure the QR code is well-lit and
+                  centered in the camera view
+                </p>
+              </div>
+
+              <Button
+                bg="#6b7280"
+                onClick={stopQRScanner}
+                style={{ width: "100%", marginTop: "1rem" }}
+              >
+                Cancel
+              </Button>
+            </div>
           </ModalContent>
         </Modal>
       )}

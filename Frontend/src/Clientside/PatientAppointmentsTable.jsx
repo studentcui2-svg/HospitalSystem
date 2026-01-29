@@ -1697,6 +1697,203 @@ const PatientAppointmentsTable = () => {
                                     </MedicalDetailSection>
                                   )}
 
+                                  {/* Prescription Details from Prescription System */}
+                                  {(() => {
+                                    // Find prescription(s) related to this visit
+                                    const relatedPrescriptions =
+                                      prescriptions.filter(
+                                        (p) =>
+                                          p.patientRecord === record._id ||
+                                          (p.doctorName === record.doctorName &&
+                                            new Date(
+                                              p.createdAt,
+                                            ).toDateString() ===
+                                              new Date(
+                                                record.visitDate,
+                                              ).toDateString()),
+                                      );
+
+                                    if (relatedPrescriptions.length === 0)
+                                      return null;
+
+                                    return (
+                                      <MedicalDetailSection>
+                                        <DetailLabel>
+                                          💊{" "}
+                                          <strong>
+                                            Detailed Prescription (
+                                            {relatedPrescriptions.length})
+                                          </strong>
+                                        </DetailLabel>
+                                        {relatedPrescriptions.map(
+                                          (prescription, idx) => (
+                                            <div
+                                              key={prescription._id}
+                                              style={{
+                                                marginTop:
+                                                  idx > 0 ? "1rem" : "0.5rem",
+                                                padding: "1rem",
+                                                background: "#f0fdf4",
+                                                borderRadius: "8px",
+                                                border: "2px solid #10b981",
+                                              }}
+                                            >
+                                              <div
+                                                style={{
+                                                  marginBottom: "0.75rem",
+                                                  paddingBottom: "0.5rem",
+                                                  borderBottom:
+                                                    "1px solid #10b981",
+                                                }}
+                                              >
+                                                <div
+                                                  style={{
+                                                    fontWeight: "700",
+                                                    color: "#065f46",
+                                                  }}
+                                                >
+                                                  Diagnosis:{" "}
+                                                  {prescription.diagnosis}
+                                                </div>
+                                                <div
+                                                  style={{
+                                                    fontSize: "0.85rem",
+                                                    color: "#6b7280",
+                                                    marginTop: "0.25rem",
+                                                  }}
+                                                >
+                                                  Issued:{" "}
+                                                  {new Date(
+                                                    prescription.createdAt,
+                                                  ).toLocaleString()}
+                                                </div>
+                                              </div>
+
+                                              <div
+                                                style={{
+                                                  marginBottom: "0.5rem",
+                                                  fontWeight: "600",
+                                                  color: "#065f46",
+                                                }}
+                                              >
+                                                Medicines:
+                                              </div>
+                                              {prescription.medicines.map(
+                                                (med, medIdx) => (
+                                                  <div
+                                                    key={medIdx}
+                                                    style={{
+                                                      padding: "0.75rem",
+                                                      background: "white",
+                                                      borderRadius: "6px",
+                                                      marginBottom: "0.5rem",
+                                                      fontSize: "0.9rem",
+                                                    }}
+                                                  >
+                                                    <div
+                                                      style={{
+                                                        fontWeight: "700",
+                                                        marginBottom: "0.25rem",
+                                                        color: "#1f2937",
+                                                      }}
+                                                    >
+                                                      {medIdx + 1}.{" "}
+                                                      {med.medicineName}
+                                                    </div>
+                                                    <div
+                                                      style={{
+                                                        color: "#6b7280",
+                                                        fontSize: "0.85rem",
+                                                      }}
+                                                    >
+                                                      <div>
+                                                        💊 Dosage: {med.dosage}
+                                                      </div>
+                                                      <div>
+                                                        ⏰ Frequency:{" "}
+                                                        {med.frequency}
+                                                      </div>
+                                                      <div>
+                                                        📅 Duration:{" "}
+                                                        {med.duration}
+                                                      </div>
+                                                      {med.instructions && (
+                                                        <div>
+                                                          📝 Instructions:{" "}
+                                                          {med.instructions}
+                                                        </div>
+                                                      )}
+                                                    </div>
+                                                  </div>
+                                                ),
+                                              )}
+
+                                              {prescription.generalInstructions && (
+                                                <div
+                                                  style={{
+                                                    marginTop: "0.75rem",
+                                                    padding: "0.75rem",
+                                                    background: "#fef3c7",
+                                                    borderRadius: "6px",
+                                                    fontSize: "0.85rem",
+                                                  }}
+                                                >
+                                                  <strong>Instructions:</strong>{" "}
+                                                  {
+                                                    prescription.generalInstructions
+                                                  }
+                                                </div>
+                                              )}
+
+                                              {prescription.dietaryAdvice && (
+                                                <div
+                                                  style={{
+                                                    marginTop: "0.5rem",
+                                                    padding: "0.75rem",
+                                                    background: "#dbeafe",
+                                                    borderRadius: "6px",
+                                                    fontSize: "0.85rem",
+                                                  }}
+                                                >
+                                                  <strong>
+                                                    Dietary Advice:
+                                                  </strong>{" "}
+                                                  {prescription.dietaryAdvice}
+                                                </div>
+                                              )}
+
+                                              <div
+                                                style={{
+                                                  marginTop: "0.75rem",
+                                                  display: "flex",
+                                                  gap: "0.5rem",
+                                                  flexWrap: "wrap",
+                                                }}
+                                              >
+                                                <Button
+                                                  $bg="#667eea"
+                                                  onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    setSelectedPrescription(
+                                                      prescription,
+                                                    );
+                                                    setShowPrescriptionQR(true);
+                                                  }}
+                                                  style={{
+                                                    fontSize: "0.8rem",
+                                                    padding: "0.5rem 1rem",
+                                                  }}
+                                                >
+                                                  <FaQrcode /> View QR Code
+                                                </Button>
+                                              </div>
+                                            </div>
+                                          ),
+                                        )}
+                                      </MedicalDetailSection>
+                                    );
+                                  })()}
+
                                   {record.followUpDate && (
                                     <MedicalDetailSection>
                                       <DetailLabel>

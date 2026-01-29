@@ -14,6 +14,7 @@ import {
   X,
   Plus,
 } from "lucide-react";
+import { jsonFetch, getApiBase } from "../utils/api";
 
 // --- Custom Styled Engine ---
 const styled =
@@ -231,17 +232,16 @@ const LabPortal = () => {
   const fileInputRef = useRef();
 
   // Fetch tests function (reusable)
-  const fetchTests = () => {
+  const fetchTests = async () => {
     setLoading(true);
-    fetch("/api/lab", {
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("app_token")}`,
-      },
-    })
-      .then((res) => res.json())
-      .then((data) => setTests(data.tests || []))
-      .catch((err) => console.error("Failed to fetch tests:", err))
-      .finally(() => setLoading(false));
+    try {
+      const data = await jsonFetch("/api/lab");
+      setTests(data.tests || []);
+    } catch (err) {
+      console.error("Failed to fetch tests:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Fetch tests on mount
@@ -255,54 +255,59 @@ const LabPortal = () => {
   };
 
   // Mark test as in progress (minimal working logic)
-  const markInProgress = (id) => {
+  const markInProgress = async (id) => {
     setLoading(true);
-    fetch(`/api/lab/${id}`, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${localStorage.getItem("app_token")}`,
-      },
-      body: JSON.stringify({ status: "InProgress" }),
-    })
-      .then(() => {
-        setTests((prev) =>
-          prev.map((t) => (t._id === id ? { ...t, status: "InProgress" } : t)),
-        );
-      })
-      .finally(() => setLoading(false));
+    try {
+      await jsonFetch(`/api/lab/${id}`, {
+        method: "PATCH",
+        body: { status: "InProgress" },
+      });
+      setTests((prev) =>
+        prev.map((t) => (t._id === id ? { ...t, status: "InProgress" } : t)),
+      );
+    } catch (err) {
+      console.error("Failed to update test status:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // File upload handler (minimal working logic)
-  const handleFileChange = (e) => {
+  const handleFileChange = async (e) => {
     const file = e.target.files && e.target.files[0];
     if (!file || !uploadingId) return;
     setLoading(true);
     const formData = new FormData();
     formData.append("report", file);
-    fetch(`/api/lab/${uploadingId}/report`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${localStorage.getItem("app_token")}`,
-      },
-      body: formData,
-    })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.ok) {
-          alert(
-            `Report uploaded successfully for test: ${data.labTest.testName}`,
-          );
-          // Refresh tests to get updated data
-          fetchTests();
-        }
-        setUploadingId(null);
-      })
-      .catch((err) => {
-        console.error("Upload failed:", err);
-        alert("Failed to upload report");
-      })
-      .finally(() => setLoading(false));
+
+    try {
+      const apiBase = getApiBase();
+      const token = localStorage.getItem("app_token");
+      const response = await fetch(`${apiBase}/api/lab/${uploadingId}/report`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+      if (data.ok) {
+        alert(
+          `Report uploaded successfully for test: ${data.labTest.testName}`,
+        );
+        // Refresh tests to get updated data
+        fetchTests();
+      } else {
+        throw new Error(data.message || "Upload failed");
+      }
+      setUploadingId(null);
+    } catch (err) {
+      console.error("Upload failed:", err);
+      alert("Failed to upload report");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (

@@ -64,15 +64,40 @@ const allowedOrigins = (
   process.env.CORS_ORIGINS ||
   "http://localhost:5173,https://frontend-delta-black-25.vercel.app"
 ).split(",");
+
 app.use(
   cors({
     origin: function (origin, callback) {
       // allow requests with no origin (mobile apps, curl, server-to-server)
       if (!origin) return callback(null, true);
+
+      // Check if origin is in allowed list
       if (allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
-      const msg = `The CORS policy for this site does not allow access from the specified Origin.`;
+
+      // Allow local network IPs (192.168.x.x, 10.x.x.x, 172.16-31.x.x) for development
+      // This allows access from other devices on the same network
+      if (origin) {
+        const originUrl = new URL(origin);
+        const hostname = originUrl.hostname;
+
+        // Allow localhost and 127.0.0.1
+        if (hostname === "localhost" || hostname === "127.0.0.1") {
+          return callback(null, true);
+        }
+
+        // Allow private IP ranges (192.168.x.x, 10.x.x.x, 172.16-31.x.x)
+        if (
+          /^192\.168\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+          /^10\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
+          /^172\.(1[6-9]|2\d|3[01])\.\d{1,3}\.\d{1,3}$/.test(hostname)
+        ) {
+          return callback(null, true);
+        }
+      }
+
+      const msg = `The CORS policy for this site does not allow access from the specified Origin: ${origin}`;
       return callback(new Error(msg), false);
     },
     credentials: true, // Allow cookies and credentials
@@ -148,8 +173,24 @@ app.get("/health", (req, res) => {
 // Start Server
 // =====================
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
+const HOST = process.env.HOST || "0.0.0.0"; // Listen on all network interfaces
+const server = app.listen(PORT, HOST, () => {
+  const os = require("os");
+  const networkInterfaces = os.networkInterfaces();
+
   console.log(`✅ Server listening on port ${PORT}`);
+  console.log(`\n📡 Access URLs:`);
+  console.log(`   Local:   http://localhost:${PORT}`);
+
+  // Show all network IPs
+  Object.keys(networkInterfaces).forEach((interfaceName) => {
+    networkInterfaces[interfaceName].forEach((iface) => {
+      if (iface.family === "IPv4" && !iface.internal) {
+        console.log(`   Network: http://${iface.address}:${PORT}`);
+      }
+    });
+  });
+  console.log("");
 });
 
 // =====================
