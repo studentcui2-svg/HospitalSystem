@@ -666,6 +666,17 @@ const PatientDetail = ({ identifier, onBack }) => {
     labTests: "",
   });
   const [orderedLabTests, setOrderedLabTests] = useState([]);
+  const [showReferralModal, setShowReferralModal] = useState(false);
+  const [doctors, setDoctors] = useState([]);
+  const [referralData, setReferralData] = useState({
+    referredDoctorId: "",
+    reason: "",
+    notes: "",
+    urgency: "routine",
+    patientHistory: "",
+    diagnosis: "",
+    currentMedications: "",
+  });
 
   // Helper function to format file size
   const formatFileSize = (bytes) => {
@@ -688,9 +699,25 @@ const PatientDetail = ({ identifier, onBack }) => {
     console.log("[PATIENT DETAIL] Identifier prop:", identifier);
     if (identifier) {
       fetchPatientData();
+      fetchDoctors();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [identifier]);
+
+  const fetchDoctors = async () => {
+    try {
+      const data = await jsonFetch("/api/doctors");
+      // Filter out current doctor
+      const currentUserId =
+        window.__APP_USER__?._id || localStorage.getItem("userId");
+      const otherDoctors = (data.doctors || []).filter(
+        (doc) => doc._id !== currentUserId,
+      );
+      setDoctors(otherDoctors);
+    } catch (error) {
+      console.error("Failed to fetch doctors:", error);
+    }
+  };
 
   const fetchPatientData = async () => {
     try {
@@ -869,6 +896,49 @@ const PatientDetail = ({ identifier, onBack }) => {
       fetchPatientData();
     } catch (error) {
       toast.error("Failed to delete record");
+      console.error(error);
+    }
+  };
+
+  const handleReferPatient = async () => {
+    try {
+      if (!referralData.referredDoctorId) {
+        toast.error("Please select a doctor");
+        return;
+      }
+      if (!referralData.reason) {
+        toast.error("Please provide a reason for referral");
+        return;
+      }
+
+      const response = await jsonFetch("/api/referrals", {
+        method: "POST",
+        body: JSON.stringify({
+          patientId: patient._id || null,
+          patientName: patient.name,
+          patientEmail: patient.email,
+          patientPhone: patient.phone,
+          ...referralData,
+        }),
+      });
+
+      if (response.ok) {
+        toast.success(
+          "Patient referred successfully! Emails sent to patient and doctor.",
+        );
+        setShowReferralModal(false);
+        setReferralData({
+          referredDoctorId: "",
+          reason: "",
+          notes: "",
+          urgency: "routine",
+          patientHistory: "",
+          diagnosis: "",
+          currentMedications: "",
+        });
+      }
+    } catch (error) {
+      toast.error("Failed to create referral");
       console.error(error);
     }
   };
@@ -1238,15 +1308,23 @@ const PatientDetail = ({ identifier, onBack }) => {
             </div>
           </div>
         </div>
-        <Button
-          onClick={() => {
-            setEditingRecord(null);
-            setOrderedLabTests([]);
-            setShowModal(true);
-          }}
-        >
-          + Add New Record
-        </Button>
+        <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
+          <Button
+            onClick={() => {
+              setEditingRecord(null);
+              setOrderedLabTests([]);
+              setShowModal(true);
+            }}
+          >
+            + Add New Record
+          </Button>
+          <Button
+            onClick={() => setShowReferralModal(true)}
+            bg="linear-gradient(135deg, #10b981, #059669)"
+          >
+            👨‍⚕️ Refer to Specialist
+          </Button>
+        </div>
       </Header>
 
       <SummaryCard>
@@ -1490,6 +1568,226 @@ const PatientDetail = ({ identifier, onBack }) => {
                 {editingRecord ? "Update Record" : "Save Record"}
               </Button>
               <Button bg="#6b7280" onClick={() => setShowModal(false)}>
+                Cancel
+              </Button>
+            </div>
+          </ModalContent>
+        </Modal>
+      )}
+
+      {showReferralModal && (
+        <Modal onClick={() => setShowReferralModal(false)}>
+          <ModalContent onClick={(e) => e.stopPropagation()}>
+            <h2
+              style={{
+                marginTop: 0,
+                background: "linear-gradient(135deg, #10b981 0%, #059669 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              👨‍⚕️ Refer Patient to Specialist
+            </h2>
+
+            <FormGroup>
+              <Label>Select Specialist Doctor *</Label>
+              <select
+                value={referralData.referredDoctorId}
+                onChange={(e) =>
+                  setReferralData({
+                    ...referralData,
+                    referredDoctorId: e.target.value,
+                  })
+                }
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  border: "2px solid #e5e7eb",
+                  fontSize: "0.95rem",
+                  background: "white",
+                }}
+              >
+                <option value="">-- Select Doctor --</option>
+                {doctors.map((doc) => (
+                  <option key={doc._id} value={doc._id}>
+                    Dr. {doc.name} {doc.department ? `(${doc.department})` : ""}
+                  </option>
+                ))}
+              </select>
+            </FormGroup>
+
+            <FormGroup>
+              <Label>Urgency Level *</Label>
+              <select
+                value={referralData.urgency}
+                onChange={(e) =>
+                  setReferralData({ ...referralData, urgency: e.target.value })
+                }
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  border: "2px solid #e5e7eb",
+                  fontSize: "0.95rem",
+                  background: "white",
+                }}
+              >
+                <option value="routine">Routine</option>
+                <option value="urgent">Urgent</option>
+                <option value="emergency">Emergency</option>
+              </select>
+            </FormGroup>
+
+            <FormGroup>
+              <Label>Reason for Referral *</Label>
+              <textarea
+                value={referralData.reason}
+                onChange={(e) =>
+                  setReferralData({ ...referralData, reason: e.target.value })
+                }
+                placeholder="Why are you referring this patient?"
+                rows={4}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  border: "2px solid #e5e7eb",
+                  fontSize: "0.95rem",
+                  fontFamily: "inherit",
+                  resize: "vertical",
+                }}
+              />
+            </FormGroup>
+
+            <FormGroup>
+              <Label>Additional Notes</Label>
+              <textarea
+                value={referralData.notes}
+                onChange={(e) =>
+                  setReferralData({ ...referralData, notes: e.target.value })
+                }
+                placeholder="Any additional information for the specialist"
+                rows={3}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  border: "2px solid #e5e7eb",
+                  fontSize: "0.95rem",
+                  fontFamily: "inherit",
+                  resize: "vertical",
+                }}
+              />
+            </FormGroup>
+
+            <FormGroup>
+              <Label>Patient History (Optional)</Label>
+              <textarea
+                value={referralData.patientHistory}
+                onChange={(e) =>
+                  setReferralData({
+                    ...referralData,
+                    patientHistory: e.target.value,
+                  })
+                }
+                placeholder="Relevant medical history"
+                rows={3}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  border: "2px solid #e5e7eb",
+                  fontSize: "0.95rem",
+                  fontFamily: "inherit",
+                  resize: "vertical",
+                }}
+              />
+            </FormGroup>
+
+            <FormGroup>
+              <Label>Current Diagnosis (Optional)</Label>
+              <textarea
+                value={referralData.diagnosis}
+                onChange={(e) =>
+                  setReferralData({
+                    ...referralData,
+                    diagnosis: e.target.value,
+                  })
+                }
+                placeholder="Current diagnosis"
+                rows={2}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  border: "2px solid #e5e7eb",
+                  fontSize: "0.95rem",
+                  fontFamily: "inherit",
+                  resize: "vertical",
+                }}
+              />
+            </FormGroup>
+
+            <FormGroup>
+              <Label>Current Medications (Optional)</Label>
+              <textarea
+                value={referralData.currentMedications}
+                onChange={(e) =>
+                  setReferralData({
+                    ...referralData,
+                    currentMedications: e.target.value,
+                  })
+                }
+                placeholder="List current medications"
+                rows={2}
+                style={{
+                  width: "100%",
+                  padding: "12px",
+                  borderRadius: "8px",
+                  border: "2px solid #e5e7eb",
+                  fontSize: "0.95rem",
+                  fontFamily: "inherit",
+                  resize: "vertical",
+                }}
+              />
+            </FormGroup>
+
+            <div
+              style={{
+                background: "#dbeafe",
+                padding: "16px",
+                borderRadius: "8px",
+                marginTop: "20px",
+              }}
+            >
+              <p
+                style={{
+                  margin: "0 0 8px 0",
+                  fontWeight: "600",
+                  color: "#1e40af",
+                }}
+              >
+                ℹ️ What happens next:
+              </p>
+              <ul style={{ margin: 0, paddingLeft: "20px", color: "#1e40af" }}>
+                <li>
+                  Patient will receive an email to book appointment with the
+                  specialist
+                </li>
+                <li>
+                  Specialist doctor will receive all patient details via email
+                </li>
+                <li>
+                  Specialist can view this referral in their doctor portal
+                </li>
+              </ul>
+            </div>
+
+            <div style={{ display: "flex", gap: "12px", marginTop: "24px" }}>
+              <Button onClick={handleReferPatient}>Send Referral</Button>
+              <Button bg="#6b7280" onClick={() => setShowReferralModal(false)}>
                 Cancel
               </Button>
             </div>

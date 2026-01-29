@@ -901,16 +901,23 @@ const DoctorPanel = () => {
   const [filterPeriod, setFilterPeriod] = useState("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
+  const [referrals, setReferrals] = useState([]);
+  const [showReferrals, setShowReferrals] = useState(false);
+  const [expandedReferralId, setExpandedReferralId] = useState(null);
+  const [referralRecords, setReferralRecords] = useState({});
   const callTimeoutRef = useRef(null);
 
   useEffect(() => {
     const load = async () => {
       setLoading(true);
       try {
-        const [profileRes, apptRes] = await Promise.all([
+        const [profileRes, apptRes, refRes] = await Promise.all([
           jsonFetch(`/api/doctor/me`).catch(() => null),
           jsonFetch(`/api/doctor/appointments`).catch(() => ({
             appointments: [],
+          })),
+          jsonFetch(`/api/referrals?type=received`).catch(() => ({
+            referrals: [],
           })),
         ]);
         if (profileRes && profileRes.profile) {
@@ -920,6 +927,7 @@ const DoctorPanel = () => {
           );
         }
         setAppointments((apptRes && apptRes.appointments) || []);
+        setReferrals((refRes && refRes.referrals) || []);
       } catch (err) {
         console.error("[DoctorPanel] Failed to load appointments", err);
       } finally {
@@ -1131,6 +1139,35 @@ const DoctorPanel = () => {
       if (res && res.appointments) setAppointments(res.appointments);
     } catch (err) {
       console.error("[DoctorPanel] Failed to refresh appointments", err);
+    }
+  };
+
+  const fetchPatientRecords = async (referralId, patientEmail) => {
+    try {
+      const doctorName =
+        window.__APP_USER__?.name ||
+        localStorage.getItem("userName") ||
+        "Dr. Unknown";
+      const response = await jsonFetch(
+        `/api/patient-records/patients/${encodeURIComponent(patientEmail)}/records?doctorName=${encodeURIComponent(doctorName)}`,
+      );
+      setReferralRecords((prev) => ({
+        ...prev,
+        [referralId]: response.records || [],
+      }));
+    } catch (err) {
+      console.error("[DoctorPanel] Failed to fetch patient records:", err);
+    }
+  };
+
+  const toggleReferralRecords = async (referralId, patientEmail) => {
+    if (expandedReferralId === referralId) {
+      setExpandedReferralId(null);
+    } else {
+      setExpandedReferralId(referralId);
+      if (!referralRecords[referralId]) {
+        await fetchPatientRecords(referralId, patientEmail);
+      }
     }
   };
 
@@ -1390,16 +1427,532 @@ const DoctorPanel = () => {
           >
             Monthly
           </FilterButton>
+          <FilterButton
+            $active={showReferrals}
+            onClick={() => setShowReferrals(!showReferrals)}
+            style={{
+              background: showReferrals ? "#10b981" : "#667eea",
+              marginLeft: "auto",
+            }}
+          >
+            {showReferrals
+              ? "📋 Show Appointments"
+              : `👨‍⚕️ Referrals (${referrals.length})`}
+          </FilterButton>
         </FilterButtons>
       </FilterToolbar>
 
-      {filteredAndSortedAppointments.length === 0 && !loading && (
-        <WelcomeText style={{ textAlign: "center", marginTop: "2rem" }}>
-          📭 No appointments found.
-        </WelcomeText>
+      {showReferrals && (
+        <>
+          <WelcomeText style={{ marginTop: "2rem", color: "#10b981" }}>
+            👨‍⚕️ Patient Referrals ({referrals.length})
+          </WelcomeText>
+          {referrals.length === 0 ? (
+            <WelcomeText style={{ textAlign: "center", marginTop: "1rem" }}>
+              📭 No referrals yet.
+            </WelcomeText>
+          ) : (
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: "16px",
+                marginTop: "16px",
+              }}
+            >
+              {referrals.map((ref) => (
+                <div
+                  key={ref._id}
+                  style={{
+                    background: "white",
+                    borderRadius: "16px",
+                    padding: "24px",
+                    boxShadow: "0 4px 12px rgba(0, 0, 0, 0.1)",
+                    border: `3px solid ${
+                      ref.urgency === "emergency"
+                        ? "#ef4444"
+                        : ref.urgency === "urgent"
+                          ? "#f59e0b"
+                          : "#10b981"
+                    }`,
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "start",
+                      marginBottom: "16px",
+                      flexWrap: "wrap",
+                      gap: "12px",
+                    }}
+                  >
+                    <div>
+                      <h3
+                        style={{
+                          margin: "0 0 8px 0",
+                          color: "#1f2937",
+                          fontSize: "1.25rem",
+                        }}
+                      >
+                        {ref.patientName}
+                      </h3>
+                      <div style={{ fontSize: "0.9rem", color: "#6b7280" }}>
+                        📧 {ref.patientEmail}
+                        {ref.patientPhone && ` | 📞 ${ref.patientPhone}`}
+                      </div>
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "8px",
+                        alignItems: "center",
+                      }}
+                    >
+                      <span
+                        style={{
+                          padding: "6px 16px",
+                          borderRadius: "20px",
+                          fontSize: "0.85rem",
+                          fontWeight: "700",
+                          background:
+                            ref.urgency === "emergency"
+                              ? "#fee2e2"
+                              : ref.urgency === "urgent"
+                                ? "#fed7aa"
+                                : "#d1fae5",
+                          color:
+                            ref.urgency === "emergency"
+                              ? "#991b1b"
+                              : ref.urgency === "urgent"
+                                ? "#92400e"
+                                : "#065f46",
+                        }}
+                      >
+                        {ref.urgency === "emergency" && "⚠️ "}
+                        {ref.urgency.toUpperCase()}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      background: "#f9fafb",
+                      padding: "16px",
+                      borderRadius: "8px",
+                      marginBottom: "12px",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontWeight: "700",
+                        color: "#4f46e5",
+                        marginBottom: "8px",
+                      }}
+                    >
+                      Referred by: Dr. {ref.referringDoctorName}
+                      {ref.referringDepartment &&
+                        ` (${ref.referringDepartment})`}
+                    </div>
+                    <div style={{ fontSize: "0.85rem", color: "#6b7280" }}>
+                      📅 {new Date(ref.createdAt).toLocaleDateString()} at{" "}
+                      {new Date(ref.createdAt).toLocaleTimeString()}
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: "12px" }}>
+                    <div
+                      style={{
+                        fontWeight: "700",
+                        color: "#1f2937",
+                        marginBottom: "4px",
+                      }}
+                    >
+                      Reason for Referral:
+                    </div>
+                    <div style={{ color: "#4b5563", whiteSpace: "pre-wrap" }}>
+                      {ref.reason}
+                    </div>
+                  </div>
+
+                  {ref.notes && (
+                    <div style={{ marginBottom: "12px" }}>
+                      <div
+                        style={{
+                          fontWeight: "700",
+                          color: "#1f2937",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        Additional Notes:
+                      </div>
+                      <div style={{ color: "#4b5563", whiteSpace: "pre-wrap" }}>
+                        {ref.notes}
+                      </div>
+                    </div>
+                  )}
+
+                  {ref.diagnosis && (
+                    <div
+                      style={{
+                        background: "#fef3c7",
+                        padding: "12px",
+                        borderRadius: "8px",
+                        marginBottom: "12px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontWeight: "700",
+                          color: "#92400e",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        Diagnosis:
+                      </div>
+                      <div style={{ color: "#78350f", whiteSpace: "pre-wrap" }}>
+                        {ref.diagnosis}
+                      </div>
+                    </div>
+                  )}
+
+                  {ref.patientHistory && (
+                    <div style={{ marginBottom: "12px" }}>
+                      <div
+                        style={{
+                          fontWeight: "700",
+                          color: "#1f2937",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        Patient History:
+                      </div>
+                      <div style={{ color: "#4b5563", whiteSpace: "pre-wrap" }}>
+                        {ref.patientHistory}
+                      </div>
+                    </div>
+                  )}
+
+                  {ref.currentMedications && (
+                    <div
+                      style={{
+                        background: "#fef3c7",
+                        padding: "12px",
+                        borderRadius: "8px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontWeight: "700",
+                          color: "#92400e",
+                          marginBottom: "4px",
+                        }}
+                      >
+                        Current Medications:
+                      </div>
+                      <div style={{ color: "#78350f", whiteSpace: "pre-wrap" }}>
+                        {ref.currentMedications}
+                      </div>
+                    </div>
+                  )}
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "12px",
+                      marginTop: "16px",
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    <button
+                      onClick={() =>
+                        toggleReferralRecords(ref._id, ref.patientEmail)
+                      }
+                      style={{
+                        padding: "10px 20px",
+                        background:
+                          expandedReferralId === ref._id
+                            ? "#f59e0b"
+                            : "#667eea",
+                        color: "white",
+                        border: "none",
+                        borderRadius: "8px",
+                        fontWeight: "600",
+                        cursor: "pointer",
+                      }}
+                    >
+                      {expandedReferralId === ref._id
+                        ? "🔼 Hide Records"
+                        : "📋 View All Patient Records"}
+                    </button>
+                  </div>
+
+                  {expandedReferralId === ref._id && (
+                    <div
+                      style={{
+                        marginTop: "20px",
+                        padding: "20px",
+                        background: "#f0fdf4",
+                        borderRadius: "8px",
+                        border: "2px solid #10b981",
+                      }}
+                    >
+                      <h4
+                        style={{
+                          margin: "0 0 16px 0",
+                          color: "#065f46",
+                          background: "transparent",
+                        }}
+                      >
+                        📋 Complete Medical Records (
+                        {referralRecords[ref._id]?.length || 0} visits)
+                      </h4>
+                      {referralRecords[ref._id] &&
+                      referralRecords[ref._id].length > 0 ? (
+                        <div
+                          style={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: "12px",
+                          }}
+                        >
+                          {referralRecords[ref._id].map((record, idx) => (
+                            <div
+                              key={record._id}
+                              style={{
+                                background: "white",
+                                padding: "16px",
+                                borderRadius: "8px",
+                                border: "1px solid #d1fae5",
+                              }}
+                            >
+                              <div
+                                style={{
+                                  fontWeight: "700",
+                                  color: "#047857",
+                                  marginBottom: "8px",
+                                  background: "transparent",
+                                }}
+                              >
+                                Visit #{idx + 1} -{" "}
+                                {new Date(
+                                  record.visitDate,
+                                ).toLocaleDateString()}
+                                {record.doctorName &&
+                                  ` (Dr. ${record.doctorName})`}
+                              </div>
+                              {record.complaints && (
+                                <p
+                                  style={{
+                                    margin: "4px 0",
+                                    background: "transparent",
+                                    color: "#4b5563",
+                                  }}
+                                >
+                                  <strong
+                                    style={{
+                                      background: "transparent",
+                                      color: "#1f2937",
+                                    }}
+                                  >
+                                    Complaints:
+                                  </strong>{" "}
+                                  {record.complaints}
+                                </p>
+                              )}
+                              {record.diagnosis && (
+                                <p
+                                  style={{
+                                    margin: "4px 0",
+                                    background: "transparent",
+                                    color: "#4b5563",
+                                  }}
+                                >
+                                  <strong
+                                    style={{
+                                      background: "transparent",
+                                      color: "#1f2937",
+                                    }}
+                                  >
+                                    Diagnosis:
+                                  </strong>{" "}
+                                  {record.diagnosis}
+                                </p>
+                              )}
+                              {record.prescription && (
+                                <p
+                                  style={{
+                                    margin: "4px 0",
+                                    background: "transparent",
+                                    color: "#4b5563",
+                                  }}
+                                >
+                                  <strong
+                                    style={{
+                                      background: "transparent",
+                                      color: "#1f2937",
+                                    }}
+                                  >
+                                    Prescription:
+                                  </strong>{" "}
+                                  {record.prescription}
+                                </p>
+                              )}
+                              {(record.bloodPressure || record.temperature) && (
+                                <p
+                                  style={{
+                                    margin: "4px 0",
+                                    background: "transparent",
+                                    color: "#4b5563",
+                                  }}
+                                >
+                                  <strong
+                                    style={{
+                                      background: "transparent",
+                                      color: "#1f2937",
+                                    }}
+                                  >
+                                    Vitals:
+                                  </strong>
+                                  {record.bloodPressure &&
+                                    ` BP: ${record.bloodPressure}`}
+                                  {record.temperature &&
+                                    ` | Temp: ${record.temperature}`}
+                                </p>
+                              )}
+                              {record.attachments &&
+                                record.attachments.length > 0 && (
+                                  <div
+                                    style={{
+                                      marginTop: "8px",
+                                      padding: "8px",
+                                      background: "#f9fafb",
+                                      borderRadius: "4px",
+                                    }}
+                                  >
+                                    <strong
+                                      style={{
+                                        background: "transparent",
+                                        color: "#1f2937",
+                                      }}
+                                    >
+                                      📎 Doctor Attachments (
+                                      {record.attachments.length}):
+                                    </strong>
+                                    <ul
+                                      style={{
+                                        margin: "4px 0",
+                                        paddingLeft: "20px",
+                                      }}
+                                    >
+                                      {record.attachments.map(
+                                        (file, fileIdx) => (
+                                          <li key={fileIdx}>
+                                            <a
+                                              href={`http://localhost:5000/${file.path}`}
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              style={{
+                                                color: "#4f46e5",
+                                                textDecoration: "none",
+                                              }}
+                                            >
+                                              {file.originalName} (
+                                              {(file.size / 1024).toFixed(1)}{" "}
+                                              KB)
+                                            </a>
+                                          </li>
+                                        ),
+                                      )}
+                                    </ul>
+                                  </div>
+                                )}
+                              {record.patientUploads &&
+                                record.patientUploads.length > 0 && (
+                                  <div
+                                    style={{
+                                      marginTop: "8px",
+                                      padding: "8px",
+                                      background: "#dbeafe",
+                                      borderRadius: "4px",
+                                    }}
+                                  >
+                                    <strong
+                                      style={{
+                                        background: "transparent",
+                                        color: "#1f2937",
+                                      }}
+                                    >
+                                      📄 Lab Reports & Patient Uploads (
+                                      {record.patientUploads.length}):
+                                    </strong>
+                                    <ul
+                                      style={{
+                                        margin: "4px 0",
+                                        paddingLeft: "20px",
+                                      }}
+                                    >
+                                      {record.patientUploads.map(
+                                        (upload, uploadIdx) => (
+                                          <li key={uploadIdx}>
+                                            {upload.uploadedBy === "lab"
+                                              ? "🧪"
+                                              : upload.uploadedBy === "doctor"
+                                                ? "👨‍⚕️"
+                                                : "👤"}{" "}
+                                            <a
+                                              href={
+                                                upload.fileUrl ||
+                                                `http://localhost:5000/${upload.path}`
+                                              }
+                                              target="_blank"
+                                              rel="noopener noreferrer"
+                                              style={{
+                                                color: "#1e40af",
+                                                textDecoration: "none",
+                                              }}
+                                            >
+                                              {upload.title ||
+                                                upload.originalName}
+                                            </a>
+                                            {upload.description &&
+                                              ` - ${upload.description}`}
+                                            ({(upload.size / 1024).toFixed(1)}{" "}
+                                            KB, by {upload.uploadedBy})
+                                          </li>
+                                        ),
+                                      )}
+                                    </ul>
+                                  </div>
+                                )}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p style={{ color: "#6b7280", margin: 0 }}>
+                          {referralRecords[ref._id] === undefined
+                            ? "Loading records..."
+                            : "No previous medical records found for this patient."}
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
-      {filteredAndSortedAppointments.length > 0 && (
+      {filteredAndSortedAppointments.length === 0 &&
+        !loading &&
+        !showReferrals && (
+          <WelcomeText style={{ textAlign: "center", marginTop: "2rem" }}>
+            📭 No appointments found.
+          </WelcomeText>
+        )}
+
+      {!showReferrals && filteredAndSortedAppointments.length > 0 && (
         <TableCard>
           <TableWrapper>
             <Table>

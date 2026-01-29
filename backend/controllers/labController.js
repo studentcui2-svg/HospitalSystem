@@ -54,6 +54,99 @@ exports.orderTest = async (req, res) => {
 
     await lt.save();
 
+    // Send email to patient
+    if (patientEmail) {
+      try {
+        const emailHtml = `
+<!DOCTYPE html>
+<html>
+<head>
+  <style>
+    body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
+    .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f9fafb; }
+    .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; border-radius: 10px 10px 0 0; text-align: center; }
+    .header h1 { margin: 0; font-size: 24px; }
+    .content { background: white; padding: 30px; border-radius: 0 0 10px 10px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
+    .test-box { background: #f0f9ff; border-left: 4px solid #3b82f6; padding: 15px; margin: 20px 0; border-radius: 4px; }
+    .test-name { font-size: 18px; font-weight: 700; color: #1e40af; margin-bottom: 5px; }
+    .doctor-info { background: #f9fafb; padding: 15px; border-radius: 8px; margin: 20px 0; }
+    .info-label { font-weight: 600; color: #4b5563; }
+    .cta-button { display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: 700; margin-top: 20px; }
+    .footer { text-align: center; margin-top: 20px; padding: 20px; color: #6b7280; font-size: 14px; }
+    .alert { background: #fef3c7; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>🏥 Lab Test Requested</h1>
+    </div>
+    <div class="content">
+      <p>Dear <strong>${patientName}</strong>,</p>
+      
+      <p>Your physician has requested the following laboratory test(s) for your medical evaluation:</p>
+      
+      <div class="test-box">
+        <div class="test-name">🔬 ${testName}</div>
+        <p style="margin: 5px 0 0 0; color: #6b7280;">Status: <span style="color: #f59e0b; font-weight: 600;">Ordered - Pending Sample Collection</span></p>
+      </div>
+
+      <div class="doctor-info">
+        <p style="margin: 5px 0;"><span class="info-label">👨‍⚕️ Ordered by:</span> Dr. ${doctorName || "Your Physician"}</p>
+        <p style="margin: 5px 0;"><span class="info-label">📅 Order Date:</span> ${new Date().toLocaleDateString()}</p>
+      </div>
+
+      <div class="alert">
+        <strong>⚠️ Important Instructions:</strong>
+        <ul style="margin: 10px 0; padding-left: 20px;">
+          <li>Please visit our hospital laboratory to complete this test</li>
+          <li>Bring a valid ID and this email confirmation</li>
+          <li>Fasting may be required for certain tests - please call us to confirm</li>
+          <li>Lab hours: Monday - Saturday, 7:00 AM - 2:00 PM</li>
+        </ul>
+      </div>
+
+      <p><strong>What to bring:</strong></p>
+      <ul>
+        <li>Valid identification (CNIC/Passport)</li>
+        <li>Any previous medical reports (if applicable)</li>
+        <li>Prescription or referral letter (if available)</li>
+      </ul>
+
+      <p>If you have any questions or need to schedule your lab visit, please contact our laboratory department.</p>
+
+      <center>
+        <a href="tel:+92XXXXXXXXXX" class="cta-button">📞 Call Lab: +92-XXX-XXXXXXX</a>
+      </center>
+
+      <p style="margin-top: 30px; color: #6b7280; font-size: 14px;">
+        <strong>Note:</strong> Test results will be made available to your doctor within 24-48 hours of sample collection. You will be notified once results are ready.
+      </p>
+    </div>
+    
+    <div class="footer">
+      <p><strong>Hospital Management System</strong></p>
+      <p>This is an automated notification. Please do not reply to this email.</p>
+      <p>For assistance, contact our support team.</p>
+    </div>
+  </div>
+</body>
+</html>
+        `;
+
+        await sendEmail({
+          to: patientEmail,
+          subject: `🔬 Lab Test Requested: ${testName}`,
+          html: emailHtml,
+        });
+      } catch (emailErr) {
+        console.warn(
+          "Failed to send patient test notification:",
+          emailErr?.message,
+        );
+      }
+    }
+
     // Optionally notify lab email
     const labEmail = process.env.LAB_EMAIL;
     if (labEmail) {

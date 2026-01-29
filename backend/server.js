@@ -42,6 +42,7 @@ const doctorPanelRoutes = require("./routes/doctorPanel");
 const patientRecordRoutes = require("./routes/patientRecords");
 const chatRoutes = require("./routes/chat");
 const labRoutes = require("./routes/lab");
+const referralRoutes = require("./routes/referrals");
 const { initializeWebRTC } = require("./utils/webrtc");
 const Message = require("./models/Message");
 const Chat = require("./models/Chat");
@@ -126,6 +127,7 @@ app.use("/api/doctor", doctorPanelRoutes);
 app.use("/api/patient-records", patientRecordRoutes);
 app.use("/api/chat", chatRoutes);
 app.use("/api/lab", labRoutes);
+app.use("/api/referrals", referralRoutes);
 
 app.get("/", (req, res) => {
   res.json({ ok: true, message: "Backend running" });
