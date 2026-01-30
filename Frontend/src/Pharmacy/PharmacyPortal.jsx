@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import styled from "styled-components";
 import { toast } from "react-toastify";
 import { jsonFetch } from "../utils/api";
@@ -585,13 +585,51 @@ const PharmacyPortal = () => {
     operation: "add",
   });
 
+  // Define applyFilters before useEffect that uses it
+  const applyFilters = useCallback(() => {
+    let filtered = [...medicines];
+
+    // Search filter
+    if (searchQuery) {
+      filtered = filtered.filter(
+        (med) =>
+          med.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          (med.genericName &&
+            med.genericName.toLowerCase().includes(searchQuery.toLowerCase())),
+      );
+    }
+
+    // Category filter
+    if (categoryFilter !== "all") {
+      filtered = filtered.filter((med) => med.category === categoryFilter);
+    }
+
+    // Sort
+    filtered.sort((a, b) => {
+      switch (sortBy) {
+        case "name":
+          return a.name.localeCompare(b.name);
+        case "stock":
+          return a.stockQuantity - b.stockQuantity;
+        case "price":
+          return a.price - b.price;
+        case "category":
+          return a.category.localeCompare(b.category);
+        default:
+          return 0;
+      }
+    });
+
+    setFilteredMedicines(filtered);
+  }, [medicines, searchQuery, categoryFilter, sortBy]);
+
   useEffect(() => {
     loadData();
   }, [activeTab]);
 
   useEffect(() => {
     applyFilters();
-  }, [medicines, searchQuery, categoryFilter, sortBy]);
+  }, [applyFilters]);
 
   // Clean up QR scanner on unmount
   useEffect(() => {
@@ -700,43 +738,6 @@ const PharmacyPortal = () => {
       console.error("Failed to load pharmacy data:", err);
       toast.error("Failed to load data");
     }
-  };
-
-  const applyFilters = () => {
-    let filtered = [...medicines];
-
-    // Search filter
-    if (searchQuery) {
-      filtered = filtered.filter(
-        (med) =>
-          med.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          (med.genericName &&
-            med.genericName.toLowerCase().includes(searchQuery.toLowerCase())),
-      );
-    }
-
-    // Category filter
-    if (categoryFilter !== "all") {
-      filtered = filtered.filter((med) => med.category === categoryFilter);
-    }
-
-    // Sort
-    filtered.sort((a, b) => {
-      switch (sortBy) {
-        case "name":
-          return a.name.localeCompare(b.name);
-        case "stock":
-          return a.stockQuantity - b.stockQuantity;
-        case "price":
-          return a.price - b.price;
-        case "category":
-          return a.category.localeCompare(b.category);
-        default:
-          return 0;
-      }
-    });
-
-    setFilteredMedicines(filtered);
   };
 
   const dispensePrescription = async (prescriptionId, status) => {

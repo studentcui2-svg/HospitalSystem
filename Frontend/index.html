@@ -6,28 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ZeeCare - Hospital Management System</title>
     <script>
-      // Automatically detect the correct API base URL for network access
-      (function () {
-        // Get current hostname (e.g., 192.168.0.145 when accessed from other devices)
-        const currentHost = window.location.hostname;
-
-        // If accessing via IP address or hostname (not localhost), use that for API
-        if (currentHost !== "localhost" && currentHost !== "127.0.0.1") {
-          // Accessing from network - use current host IP with backend port
-          window.__API_BASE__ = `http://${currentHost}:5000`;
-          console.log(
-            "[CONFIG] Network access detected. API base:",
-            window.__API_BASE__,
-          );
-        } else {
-          // Local development - use localhost
-          window.__API_BASE__ = "http://localhost:5000";
-          console.log(
-            "[CONFIG] Local access detected. API base:",
-            window.__API_BASE__,
-          );
-        }
-      })();
+      // Set API base URL for production
+      // This can be overridden by setting window.__API_BASE__ in deployment
+      window.__API_BASE__ = window.__API_BASE__ || "http://localhost:5000";
     </script>
   </head>
   <body>

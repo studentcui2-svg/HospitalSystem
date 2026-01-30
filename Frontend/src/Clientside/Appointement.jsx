@@ -43,6 +43,14 @@ const Overlay = styled(motion.div)`
   z-index: 3000;
   perspective: 2000px;
   padding: 20px;
+
+  @media (max-width: 768px) {
+    padding: 12px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 8px;
+  }
 `;
 
 const ModalBox = styled(motion.div)`
@@ -67,6 +75,18 @@ const ModalBox = styled(motion.div)`
     background: rgba(99, 102, 241, 0.3);
     border-radius: 10px;
   }
+
+  @media (max-width: 768px) {
+    padding: 2rem;
+    border-radius: 24px;
+    max-height: 92vh;
+  }
+
+  @media (max-width: 480px) {
+    padding: 1.5rem;
+    border-radius: 20px;
+    max-height: 95vh;
+  }
 `;
 
 const StepIndicator = styled.div`
@@ -74,6 +94,16 @@ const StepIndicator = styled.div`
   gap: 1rem;
   margin-bottom: 2.5rem;
   justify-content: center;
+
+  @media (max-width: 768px) {
+    gap: 0.75rem;
+    margin-bottom: 2rem;
+  }
+
+  @media (max-width: 480px) {
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
 `;
 
 const StepDot = styled.div`
@@ -85,6 +115,16 @@ const StepDot = styled.div`
       : "rgba(255,255,255,0.1)"};
   border-radius: 10px;
   transition: all 0.4s ease;
+
+  @media (max-width: 768px) {
+    width: 32px;
+    height: 5px;
+  }
+
+  @media (max-width: 480px) {
+    width: 24px;
+    height: 4px;
+  }
 `;
 
 const GlassInput = styled.input`
@@ -103,6 +143,16 @@ const GlassInput = styled.input`
     background: rgba(255, 255, 255, 0.08);
     box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
   }
+
+  @media (max-width: 768px) {
+    padding: 0.9rem;
+    font-size: 0.95rem;
+  }
+
+  @media (max-width: 480px) {
+    padding: 0.75rem;
+    font-size: 0.9rem;
+  }
 `;
 
 const PreviewCard = styled.div`
@@ -118,6 +168,18 @@ const PreviewCard = styled.div`
   display: flex;
   align-items: center;
   justify-content: space-between;
+
+  @media (max-width: 768px) {
+    padding: 1.2rem;
+    flex-direction: column;
+    gap: 1rem;
+    align-items: stretch;
+  }
+
+  @media (max-width: 480px) {
+    padding: 1rem;
+    border-radius: 16px;
+  }
 `;
 
 const ActionButton = styled(motion.button)`
@@ -134,6 +196,19 @@ const ActionButton = styled(motion.button)`
   align-items: center;
   gap: 12px;
   animation: ${pulse} 3s infinite;
+
+  @media (max-width: 768px) {
+    padding: 1rem 2rem;
+    font-size: 1rem;
+    gap: 10px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 0.9rem 1.5rem;
+    font-size: 0.95rem;
+    width: 100%;
+    justify-content: center;
+  }
 `;
 
 // --- 3. The Main Component Logic ---

@@ -77,6 +77,14 @@ const PageContainer = styled.div`
     -apple-system,
     sans-serif;
   color: #0f172a;
+
+  @media (max-width: 768px) {
+    padding: 16px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 12px;
+  }
 `;
 
 const Header = styled.header`
@@ -92,12 +100,45 @@ const Header = styled.header`
   margin-bottom: 32px;
   border-radius: 24px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+
+  @media (max-width: 768px) {
+    padding: 16px 20px;
+    flex-direction: column;
+    gap: 16px;
+    border-radius: 16px;
+    margin-bottom: 20px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 12px 16px;
+    gap: 12px;
+  }
 `;
 
 const Branding = styled.div`
   display: flex;
   align-items: center;
   gap: 16px;
+
+  h1 {
+    @media (max-width: 768px) {
+      font-size: 18px;
+    }
+
+    @media (max-width: 480px) {
+      font-size: 16px;
+    }
+  }
+
+  p {
+    @media (max-width: 768px) {
+      font-size: 11px;
+    }
+
+    @media (max-width: 480px) {
+      font-size: 10px;
+    }
+  }
 `;
 
 const LogoBox = styled.div`
@@ -110,6 +151,26 @@ const LogoBox = styled.div`
   justify-content: center;
   color: white;
   box-shadow: 0 8px 16px -4px rgba(99, 102, 241, 0.4);
+
+  @media (max-width: 768px) {
+    width: 40px;
+    height: 40px;
+
+    svg {
+      width: 20px;
+      height: 20px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    width: 36px;
+    height: 36px;
+
+    svg {
+      width: 18px;
+      height: 18px;
+    }
+  }
 `;
 
 const NavButton = styled.button`
@@ -130,11 +191,27 @@ const NavButton = styled.button`
     background: #e11d48;
     color: white;
   }
+
+  @media (max-width: 768px) {
+    padding: 8px 16px;
+    font-size: 13px;
+    width: 100%;
+    justify-content: center;
+  }
+
+  @media (max-width: 480px) {
+    padding: 8px 12px;
+    font-size: 12px;
+  }
 `;
 
 const DashboardLayout = styled.div`
   max-width: 1400px;
   margin: 0 auto;
+
+  @media (max-width: 768px) {
+    max-width: 100%;
+  }
 `;
 
 const TableContainer = styled.section`
@@ -143,6 +220,15 @@ const TableContainer = styled.section`
   border-radius: 24px;
   overflow: hidden;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+
+  @media (max-width: 768px) {
+    border-radius: 16px;
+    overflow-x: auto;
+  }
+
+  @media (max-width: 480px) {
+    border-radius: 12px;
+  }
 `;
 
 const TableHeader = styled.div`
@@ -151,6 +237,17 @@ const TableHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
+
+  @media (max-width: 768px) {
+    padding: 16px 20px;
+    flex-direction: column;
+    gap: 12px;
+    align-items: stretch;
+  }
+
+  @media (max-width: 480px) {
+    padding: 12px 16px;
+  }
 `;
 
 const SearchWrapper = styled.div`
@@ -177,11 +274,46 @@ const SearchWrapper = styled.div`
     transform: translateY(-50%);
     color: #94a3b8;
   }
+
+  @media (max-width: 768px) {
+    width: 100%;
+
+    input {
+      font-size: 13px;
+      padding: 10px 14px 10px 40px;
+    }
+
+    svg {
+      left: 12px;
+      width: 16px;
+      height: 16px;
+    }
+  }
+
+  @media (max-width: 480px) {
+    input {
+      font-size: 12px;
+      padding: 8px 12px 8px 36px;
+    }
+
+    svg {
+      left: 10px;
+      width: 14px;
+      height: 14px;
+    }
+  }
 `;
 
 const StyledTable = styled.table`
   width: 100%;
   border-collapse: collapse;
+  min-width: 800px;
+
+  @media (max-width: 768px) {
+    min-width: 100%;
+    display: block;
+    overflow-x: auto;
+  }
 `;
 
 const Th = styled.th`
@@ -193,12 +325,32 @@ const Th = styled.th`
   text-transform: uppercase;
   letter-spacing: 0.05em;
   background: #f8fafc;
+
+  @media (max-width: 768px) {
+    padding: 12px 16px;
+    font-size: 11px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 10px 12px;
+    font-size: 10px;
+  }
 `;
 
 const Td = styled.td`
   padding: 20px 32px;
   border-bottom: 1px solid #f1f5f9;
   font-size: 14px;
+
+  @media (max-width: 768px) {
+    padding: 16px;
+    font-size: 13px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 12px;
+    font-size: 12px;
+  }
 `;
 
 const StatusIndicator = styled.span`
@@ -209,6 +361,17 @@ const StatusIndicator = styled.span`
   display: inline-flex;
   align-items: center;
   gap: 6px;
+
+  @media (max-width: 768px) {
+    padding: 5px 10px;
+    font-size: 11px;
+    gap: 4px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 4px 8px;
+    font-size: 10px;
+  }
 `;
 
 const ActionBtn = styled.button`
@@ -222,6 +385,18 @@ const ActionBtn = styled.button`
   display: inline-flex;
   align-items: center;
   gap: 6px;
+
+  @media (max-width: 768px) {
+    padding: 6px 12px;
+    font-size: 12px;
+    gap: 4px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 6px 10px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
 `;
 
 const LabPortal = () => {

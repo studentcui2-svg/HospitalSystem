@@ -7,6 +7,14 @@ const Container = styled.div`
   padding: 20px;
   max-width: 1400px;
   margin: 0 auto;
+
+  @media (max-width: 768px) {
+    padding: 12px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 8px;
+  }
 `;
 
 const Header = styled.div`
@@ -14,12 +22,33 @@ const Header = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 30px;
+
+  @media (max-width: 768px) {
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 20px;
+    align-items: stretch;
+  }
+
+  @media (max-width: 480px) {
+    gap: 12px;
+    margin-bottom: 16px;
+  }
 `;
 
 const Title = styled.h1`
   color: #1f2937;
   font-size: 2rem;
   margin: 0;
+
+  @media (max-width: 768px) {
+    font-size: 1.5rem;
+    text-align: center;
+  }
+
+  @media (max-width: 480px) {
+    font-size: 1.25rem;
+  }
 `;
 
 const Button = styled.button`
@@ -36,6 +65,16 @@ const Button = styled.button`
     transform: translateY(-2px);
     box-shadow: 0 10px 24px rgba(79, 70, 229, 0.3);
   }
+
+  @media (max-width: 768px) {
+    width: 100%;
+    padding: 10px 20px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 8px 16px;
+    font-size: 14px;
+  }
 `;
 
 const SearchBar = styled.input`
@@ -51,6 +90,17 @@ const SearchBar = styled.input`
     outline: none;
     border-color: #4f46e5;
   }
+
+  @media (max-width: 768px) {
+    max-width: 100%;
+    padding: 10px 16px;
+    font-size: 14px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 8px 12px;
+    font-size: 13px;
+  }
 `;
 
 const PatientsGrid = styled.div`
@@ -58,6 +108,18 @@ const PatientsGrid = styled.div`
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 20px;
   margin-top: 20px;
+
+  @media (max-width: 768px) {
+    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+  }
+
+  @media (max-width: 480px) {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-top: 12px;
+  }
 `;
 
 const PatientCard = styled.div`
@@ -71,6 +133,14 @@ const PatientCard = styled.div`
   &:hover {
     transform: translateY(-4px);
     box-shadow: 0 8px 24px rgba(0, 0, 0, 0.15);
+  }
+
+  @media (max-width: 768px) {
+    padding: 16px;
+  }
+
+  @media (max-width: 480px) {
+    padding: 12px;
   }
 `;
 
@@ -91,18 +161,36 @@ const ViewRecordsButton = styled.button`
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(79, 70, 229, 0.4);
   }
+
+  @media (max-width: 480px) {
+    padding: 8px;
+    font-size: 0.85rem;
+    margin-top: 12px;
+  }
 `;
 
 const PatientName = styled.h3`
   color: #1f2937;
   margin: 0 0 10px 0;
   font-size: 1.25rem;
+
+  @media (max-width: 768px) {
+    font-size: 1.1rem;
+  }
+
+  @media (max-width: 480px) {
+    font-size: 1rem;
+  }
 `;
 
 const PatientInfo = styled.div`
   color: #6b7280;
   font-size: 0.9rem;
   margin: 5px 0;
+
+  @media (max-width: 480px) {
+    font-size: 0.85rem;
+  }
 `;
 
 const Badge = styled.span`
@@ -114,6 +202,11 @@ const Badge = styled.span`
   font-size: 0.8rem;
   font-weight: 600;
   margin-top: 10px;
+
+  @media (max-width: 480px) {
+    padding: 3px 10px;
+    font-size: 0.75rem;
+  }
 `;
 
 const PatientRecords = () => {
