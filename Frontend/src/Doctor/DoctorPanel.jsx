@@ -6,12 +6,14 @@ import {
   FaBars,
   FaTimes,
   FaCalendarAlt,
+  FaRobot,
 } from "react-icons/fa";
 import styled from "styled-components";
 import { jsonFetch } from "../utils/api";
 import VideoCall from "../Clientside/VideoCall";
 import IncomingCallModal from "../Clientside/IncomingCallModal";
 import ChatFloatingButton from "./ChatFloatingButton";
+import DoctorMedicalChatbot from "./DoctorMedicalChatbot";
 import io from "socket.io-client";
 
 const Container = styled.div`
@@ -905,6 +907,7 @@ const DoctorPanel = () => {
   const [showReferrals, setShowReferrals] = useState(false);
   const [expandedReferralId, setExpandedReferralId] = useState(null);
   const [referralRecords, setReferralRecords] = useState({});
+  const [showMedicalChatbot, setShowMedicalChatbot] = useState(false);
   const callTimeoutRef = useRef(null);
 
   useEffect(() => {
@@ -1304,12 +1307,26 @@ const DoctorPanel = () => {
         <MenuItem
           onClick={() => {
             setMenuOpen(false);
+            setShowMedicalChatbot(false);
+            setShowReferrals(false);
             // Scroll to appointments section
             window.scrollTo({ top: 0, behavior: "smooth" });
           }}
         >
           <FaCalendarAlt />
           My Appointments
+        </MenuItem>
+
+        <MenuItem
+          onClick={() => {
+            setMenuOpen(false);
+            setShowMedicalChatbot(true);
+            setShowReferrals(false);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+        >
+          <FaRobot />
+          Medical AI Assistant
         </MenuItem>
       </MobileMenu>
 
@@ -1429,7 +1446,10 @@ const DoctorPanel = () => {
           </FilterButton>
           <FilterButton
             $active={showReferrals}
-            onClick={() => setShowReferrals(!showReferrals)}
+            onClick={() => {
+              setShowReferrals(!showReferrals);
+              setShowMedicalChatbot(false);
+            }}
             style={{
               background: showReferrals ? "#10b981" : "#667eea",
               marginLeft: "auto",
@@ -1439,8 +1459,29 @@ const DoctorPanel = () => {
               ? "📋 Show Appointments"
               : `👨‍⚕️ Referrals (${referrals.length})`}
           </FilterButton>
+
+          <FilterButton
+            $active={showMedicalChatbot}
+            onClick={() => {
+              setShowMedicalChatbot(!showMedicalChatbot);
+              setShowReferrals(false);
+            }}
+            style={{
+              background: showMedicalChatbot ? "#f093fb" : "#667eea",
+            }}
+          >
+            {showMedicalChatbot
+              ? "📋 Show Appointments"
+              : "🤖 Medical AI Assistant"}
+          </FilterButton>
         </FilterButtons>
       </FilterToolbar>
+
+      {showMedicalChatbot && (
+        <div style={{ marginTop: "2rem" }}>
+          <DoctorMedicalChatbot />
+        </div>
+      )}
 
       {showReferrals && (
         <>
@@ -1946,322 +1987,331 @@ const DoctorPanel = () => {
 
       {filteredAndSortedAppointments.length === 0 &&
         !loading &&
-        !showReferrals && (
+        !showReferrals &&
+        !showMedicalChatbot && (
           <WelcomeText style={{ textAlign: "center", marginTop: "2rem" }}>
             📭 No appointments found.
           </WelcomeText>
         )}
 
-      {!showReferrals && filteredAndSortedAppointments.length > 0 && (
-        <TableCard>
-          <TableWrapper>
-            <Table>
-              <thead>
-                <Tr>
-                  <Th>Patient Details</Th>
-                  <Th>Father Name</Th>
-                  <Th>Date / Time</Th>
-                  <Th>Mode</Th>
-                  <Th>Time Remaining</Th>
-                  <Th>Status</Th>
-                  <Th>Remarks</Th>
-                  <Th style={{ textAlign: "right" }}>Actions</Th>
-                </Tr>
-              </thead>
-              <tbody>
-                {filteredAndSortedAppointments.map((a) => {
-                  // Determine if online payment is pending using normalized fields
-                  const invoicePending =
-                    a.invoice &&
-                    (a.invoice.status === "pending" ||
-                      a.invoice.status === "unpaid");
-                  const paymentPending =
-                    a.payment && a.payment.status === "pending";
-                  const needsPayment = paymentPending || invoicePending;
-                  const status = (a.status || "Pending").toLowerCase();
+      {!showReferrals &&
+        !showMedicalChatbot &&
+        filteredAndSortedAppointments.length > 0 && (
+          <TableCard>
+            <TableWrapper>
+              <Table>
+                <thead>
+                  <Tr>
+                    <Th>Patient Details</Th>
+                    <Th>Father Name</Th>
+                    <Th>Date / Time</Th>
+                    <Th>Mode</Th>
+                    <Th>Time Remaining</Th>
+                    <Th>Status</Th>
+                    <Th>Remarks</Th>
+                    <Th style={{ textAlign: "right" }}>Actions</Th>
+                  </Tr>
+                </thead>
+                <tbody>
+                  {filteredAndSortedAppointments.map((a) => {
+                    // Determine if online payment is pending using normalized fields
+                    const invoicePending =
+                      a.invoice &&
+                      (a.invoice.status === "pending" ||
+                        a.invoice.status === "unpaid");
+                    const paymentPending =
+                      a.payment && a.payment.status === "pending";
+                    const needsPayment = paymentPending || invoicePending;
+                    const status = (a.status || "Pending").toLowerCase();
 
-                  // Calculate age from dateOfBirth if not stored
-                  let calculatedAge = a.age;
-                  if (!calculatedAge && a.dateOfBirth) {
-                    const birthDate = new Date(a.dateOfBirth);
-                    const today = new Date();
-                    let age = today.getFullYear() - birthDate.getFullYear();
-                    const monthDiff = today.getMonth() - birthDate.getMonth();
-                    if (
-                      monthDiff < 0 ||
-                      (monthDiff === 0 && today.getDate() < birthDate.getDate())
-                    ) {
-                      age--;
+                    // Calculate age from dateOfBirth if not stored
+                    let calculatedAge = a.age;
+                    if (!calculatedAge && a.dateOfBirth) {
+                      const birthDate = new Date(a.dateOfBirth);
+                      const today = new Date();
+                      let age = today.getFullYear() - birthDate.getFullYear();
+                      const monthDiff = today.getMonth() - birthDate.getMonth();
+                      if (
+                        monthDiff < 0 ||
+                        (monthDiff === 0 &&
+                          today.getDate() < birthDate.getDate())
+                      ) {
+                        age--;
+                      }
+                      calculatedAge = age;
                     }
-                    calculatedAge = age;
-                  }
 
-                  // Calculate time-related values first
-                  const now = new Date();
-                  const appointmentDate = new Date(a.date);
-                  const appointmentEndDate = new Date(
-                    appointmentDate.getTime() +
-                      (a.durationMinutes || 30) * 60 * 1000,
-                  );
-                  const appointmentTimePassed = now > appointmentEndDate;
-                  const isMeetingTimeNear =
-                    now >= appointmentDate && now <= appointmentEndDate;
-                  const minutesUntilAppointment =
-                    (appointmentDate - now) / (1000 * 60);
+                    // Calculate time-related values first
+                    const now = new Date();
+                    const appointmentDate = new Date(a.date);
+                    const appointmentEndDate = new Date(
+                      appointmentDate.getTime() +
+                        (a.durationMinutes || 30) * 60 * 1000,
+                    );
+                    const appointmentTimePassed = now > appointmentEndDate;
+                    const isMeetingTimeNear =
+                      now >= appointmentDate && now <= appointmentEndDate;
+                    const minutesUntilAppointment =
+                      (appointmentDate - now) / (1000 * 60);
 
-                  // Auto-mark as done if accepted and time has passed
-                  const isDone =
-                    status === "completed" ||
-                    status === "done" ||
-                    (status === "accepted" && appointmentTimePassed);
-                  const isRejected = status === "rejected";
-                  const isPending = status === "pending";
-                  const isAccepted =
-                    status === "accepted" && !appointmentTimePassed;
-                  const isOnline = a.mode === "online";
+                    // Auto-mark as done if accepted and time has passed
+                    const isDone =
+                      status === "completed" ||
+                      status === "done" ||
+                      (status === "accepted" && appointmentTimePassed);
+                    const isRejected = status === "rejected";
+                    const isPending = status === "pending";
+                    const isAccepted =
+                      status === "accepted" && !appointmentTimePassed;
+                    const isOnline = a.mode === "online";
 
-                  let timeRemaining = "-";
-                  let remarks = "-";
+                    let timeRemaining = "-";
+                    let remarks = "-";
 
-                  if (isDone) {
-                    remarks = "Successful Done";
-                    timeRemaining = "Completed";
-                  } else if (isRejected) {
-                    remarks = "Rejected";
-                    timeRemaining = "N/A";
-                  } else if (isPending) {
-                    remarks = needsPayment
-                      ? "Payment Pending"
-                      : "Waiting for Approval";
-                    timeRemaining = "Pending";
-                  } else if (isMeetingTimeNear) {
-                    remarks = "In Meeting";
-                    timeRemaining = "Now";
-                  } else if (
-                    minutesUntilAppointment > 0 &&
-                    minutesUntilAppointment <= 5
-                  ) {
-                    timeRemaining = `${Math.floor(minutesUntilAppointment)} min`;
-                    remarks = "Starting Soon";
-                  } else if (minutesUntilAppointment > 0) {
-                    timeRemaining = `${Math.floor(minutesUntilAppointment)} min`;
-                    remarks = "Upcoming";
-                  }
+                    if (isDone) {
+                      remarks = "Successful Done";
+                      timeRemaining = "Completed";
+                    } else if (isRejected) {
+                      remarks = "Rejected";
+                      timeRemaining = "N/A";
+                    } else if (isPending) {
+                      remarks = needsPayment
+                        ? "Payment Pending"
+                        : "Waiting for Approval";
+                      timeRemaining = "Pending";
+                    } else if (isMeetingTimeNear) {
+                      remarks = "In Meeting";
+                      timeRemaining = "Now";
+                    } else if (
+                      minutesUntilAppointment > 0 &&
+                      minutesUntilAppointment <= 5
+                    ) {
+                      timeRemaining = `${Math.floor(minutesUntilAppointment)} min`;
+                      remarks = "Starting Soon";
+                    } else if (minutesUntilAppointment > 0) {
+                      timeRemaining = `${Math.floor(minutesUntilAppointment)} min`;
+                      remarks = "Upcoming";
+                    }
 
-                  let badgeColor = "#f59e0b"; // amber for pending
-                  if (isAccepted) badgeColor = "#10b981"; // green
-                  if (isRejected) badgeColor = "#ef4444"; // red
-                  if (isDone) badgeColor = "#6b7280"; // gray
+                    let badgeColor = "#f59e0b"; // amber for pending
+                    if (isAccepted) badgeColor = "#10b981"; // green
+                    if (isRejected) badgeColor = "#ef4444"; // red
+                    if (isDone) badgeColor = "#6b7280"; // gray
 
-                  return (
-                    <Tr key={a._id}>
-                      <Td data-label="Patient:">
-                        <div style={{ fontWeight: 800 }}>{a.patientName}</div>
-                        <Small>{a.patientEmail}</Small>
-                        <Small>{a.phone || a.patientPhone || "No phone"}</Small>
-                        <Small>{a.gender || ""}</Small>
-                        {a.cnic && <Small>CNIC: {a.cnic}</Small>}
-                        {calculatedAge !== null &&
-                          calculatedAge !== undefined && (
-                            <Small>Age: {calculatedAge} years</Small>
-                          )}
-                        {patientResponses[a._id] && (
-                          <Small style={{ marginTop: 6 }}>
-                            Response: {patientResponses[a._id]}
+                    return (
+                      <Tr key={a._id}>
+                        <Td data-label="Patient:">
+                          <div style={{ fontWeight: 800 }}>{a.patientName}</div>
+                          <Small>{a.patientEmail}</Small>
+                          <Small>
+                            {a.phone || a.patientPhone || "No phone"}
                           </Small>
-                        )}
-                      </Td>
-                      <Td data-label="Father Name:">
-                        <div style={{ fontWeight: 700 }}>
-                          {a.fatherName || "-"}
-                        </div>
-                      </Td>
-                      <Td data-label="Date / Time:">
-                        <div style={{ fontWeight: 700 }}>
-                          {new Date(a.date).toLocaleString()}
-                        </div>
-                        <Small>{a.durationMinutes || 30} mins</Small>
-                      </Td>
-                      <Td data-label="Mode:">
-                        <Badge $bg={isOnline ? "#7c3aed" : "#f59e0b"}>
-                          {isOnline ? "ONLINE" : "CLINIC"}
-                        </Badge>
-                      </Td>
-                      <Td data-label="Time Remaining:">
-                        <div
-                          style={{
-                            fontWeight: 700,
-                            color: isMeetingTimeNear ? "#ef4444" : "#111827",
-                          }}
+                          <Small>{a.gender || ""}</Small>
+                          {a.cnic && <Small>CNIC: {a.cnic}</Small>}
+                          {calculatedAge !== null &&
+                            calculatedAge !== undefined && (
+                              <Small>Age: {calculatedAge} years</Small>
+                            )}
+                          {patientResponses[a._id] && (
+                            <Small style={{ marginTop: 6 }}>
+                              Response: {patientResponses[a._id]}
+                            </Small>
+                          )}
+                        </Td>
+                        <Td data-label="Father Name:">
+                          <div style={{ fontWeight: 700 }}>
+                            {a.fatherName || "-"}
+                          </div>
+                        </Td>
+                        <Td data-label="Date / Time:">
+                          <div style={{ fontWeight: 700 }}>
+                            {new Date(a.date).toLocaleString()}
+                          </div>
+                          <Small>{a.durationMinutes || 30} mins</Small>
+                        </Td>
+                        <Td data-label="Mode:">
+                          <Badge $bg={isOnline ? "#7c3aed" : "#f59e0b"}>
+                            {isOnline ? "ONLINE" : "CLINIC"}
+                          </Badge>
+                        </Td>
+                        <Td data-label="Time Remaining:">
+                          <div
+                            style={{
+                              fontWeight: 700,
+                              color: isMeetingTimeNear ? "#ef4444" : "#111827",
+                            }}
+                          >
+                            {timeRemaining}
+                          </div>
+                        </Td>
+                        <Td data-label="Status:">
+                          <Badge $bg={badgeColor}>
+                            {(a.status || "Pending").toUpperCase()}
+                          </Badge>
+                        </Td>
+                        <Td data-label="Remarks:">
+                          <div
+                            style={{
+                              fontWeight: 600,
+                              color:
+                                remarks === "In Meeting"
+                                  ? "#10b981"
+                                  : remarks === "Missed"
+                                    ? "#ef4444"
+                                    : "#6b7280",
+                            }}
+                          >
+                            {remarks}
+                          </div>
+                        </Td>
+                        <Td
+                          data-label="Actions:"
+                          style={{ textAlign: "right" }}
                         >
-                          {timeRemaining}
-                        </div>
-                      </Td>
-                      <Td data-label="Status:">
-                        <Badge $bg={badgeColor}>
-                          {(a.status || "Pending").toUpperCase()}
-                        </Badge>
-                      </Td>
-                      <Td data-label="Remarks:">
-                        <div
-                          style={{
-                            fontWeight: 600,
-                            color:
-                              remarks === "In Meeting"
-                                ? "#10b981"
-                                : remarks === "Missed"
-                                  ? "#ef4444"
-                                  : "#6b7280",
-                          }}
-                        >
-                          {remarks}
-                        </div>
-                      </Td>
-                      <Td data-label="Actions:" style={{ textAlign: "right" }}>
-                        {isPending && !needsPayment && (
-                          <>
-                            <ActionButton
-                              $bg="#2563eb"
-                              onClick={() => acceptAppointment(a._id)}
-                            >
-                              Accept
-                            </ActionButton>
-                            <ActionButton
-                              $bg="#ef4444"
-                              style={{ marginLeft: 8 }}
-                              onClick={() => openRejectModal(a._id)}
-                            >
-                              Reject
-                            </ActionButton>
-                          </>
-                        )}
-                        {/* Reject Reason Modal */}
-                        {showRejectModal && (
-                          <Modal onClose={() => setShowRejectModal(false)}>
-                            <div style={{ padding: 24, minWidth: 320 }}>
-                              <h3>Reject Appointment</h3>
-                              <p>Please provide a reason for rejection:</p>
-                              <textarea
-                                value={rejectionReason}
-                                onChange={(e) =>
-                                  setRejectionReason(e.target.value)
-                                }
-                                rows={4}
-                                style={{ width: "100%", marginBottom: 16 }}
-                                placeholder="Enter reason..."
-                              />
-                              <div
-                                style={{
-                                  display: "flex",
-                                  justifyContent: "flex-end",
-                                  gap: 8,
-                                }}
+                          {isPending && !needsPayment && (
+                            <>
+                              <ActionButton
+                                $bg="#2563eb"
+                                onClick={() => acceptAppointment(a._id)}
                               >
-                                <button
-                                  onClick={() => setShowRejectModal(false)}
-                                >
-                                  Cancel
-                                </button>
-                                <button
+                                Accept
+                              </ActionButton>
+                              <ActionButton
+                                $bg="#ef4444"
+                                style={{ marginLeft: 8 }}
+                                onClick={() => openRejectModal(a._id)}
+                              >
+                                Reject
+                              </ActionButton>
+                            </>
+                          )}
+                          {/* Reject Reason Modal */}
+                          {showRejectModal && (
+                            <Modal onClose={() => setShowRejectModal(false)}>
+                              <div style={{ padding: 24, minWidth: 320 }}>
+                                <h3>Reject Appointment</h3>
+                                <p>Please provide a reason for rejection:</p>
+                                <textarea
+                                  value={rejectionReason}
+                                  onChange={(e) =>
+                                    setRejectionReason(e.target.value)
+                                  }
+                                  rows={4}
+                                  style={{ width: "100%", marginBottom: 16 }}
+                                  placeholder="Enter reason..."
+                                />
+                                <div
                                   style={{
-                                    background: "#ef4444",
-                                    color: "white",
-                                    padding: "8px 16px",
-                                    border: "none",
-                                    borderRadius: 4,
+                                    display: "flex",
+                                    justifyContent: "flex-end",
+                                    gap: 8,
                                   }}
-                                  onClick={handleRejectSubmit}
-                                  disabled={!rejectionReason.trim()}
                                 >
-                                  Reject
-                                </button>
+                                  <button
+                                    onClick={() => setShowRejectModal(false)}
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    style={{
+                                      background: "#ef4444",
+                                      color: "white",
+                                      padding: "8px 16px",
+                                      border: "none",
+                                      borderRadius: 4,
+                                    }}
+                                    onClick={handleRejectSubmit}
+                                    disabled={!rejectionReason.trim()}
+                                  >
+                                    Reject
+                                  </button>
+                                </div>
                               </div>
-                            </div>
-                          </Modal>
-                        )}
+                            </Modal>
+                          )}
 
-                        {needsPayment &&
-                          (a.invoice && a.invoice.html ? (
-                            <ActionButton
-                              $bg="#2563eb"
-                              onClick={() => downloadInvoice(a)}
-                            >
-                              Invoice
-                            </ActionButton>
-                          ) : (
-                            <ActionButton $bg="#9ca3af" disabled>
-                              Payment Pending
-                            </ActionButton>
-                          ))}
+                          {needsPayment &&
+                            (a.invoice && a.invoice.html ? (
+                              <ActionButton
+                                $bg="#2563eb"
+                                onClick={() => downloadInvoice(a)}
+                              >
+                                Invoice
+                              </ActionButton>
+                            ) : (
+                              <ActionButton $bg="#9ca3af" disabled>
+                                Payment Pending
+                              </ActionButton>
+                            ))}
 
-                        {isAccepted &&
-                          !isRejected &&
-                          !isDone &&
-                          (a.mode === "online" ? (
-                            <ActionButton
-                              $bg="#7c3aed"
-                              onClick={() =>
-                                !needsPayment &&
-                                canStartMeeting(a) &&
-                                startMeeting(a)
-                              }
-                              disabled={!canStartMeeting(a) || needsPayment}
-                              title={
-                                needsPayment
-                                  ? "Payment pending — please complete payment first"
-                                  : canStartMeeting(a)
-                                    ? "Click to start the meeting"
-                                    : (() => {
-                                        const now = new Date().getTime();
-                                        const apptTime = new Date(
-                                          a.date,
-                                        ).getTime();
-                                        const minutesUntil = Math.floor(
-                                          (apptTime - now) / (1000 * 60),
-                                        );
-                                        return minutesUntil > 2
-                                          ? `Meeting available in ${minutesUntil} minutes`
-                                          : "Meeting time has passed";
-                                      })()
-                              }
-                            >
-                              Start Meeting
-                            </ActionButton>
-                          ) : (
-                            <ActionButton $bg="#6b7280" disabled>
-                              On Clinic
-                            </ActionButton>
-                          ))}
+                          {isAccepted &&
+                            !isRejected &&
+                            !isDone &&
+                            (a.mode === "online" ? (
+                              <ActionButton
+                                $bg="#7c3aed"
+                                onClick={() =>
+                                  !needsPayment &&
+                                  canStartMeeting(a) &&
+                                  startMeeting(a)
+                                }
+                                disabled={!canStartMeeting(a) || needsPayment}
+                                title={
+                                  needsPayment
+                                    ? "Payment pending — please complete payment first"
+                                    : canStartMeeting(a)
+                                      ? "Click to start the meeting"
+                                      : (() => {
+                                          const now = new Date().getTime();
+                                          const apptTime = new Date(
+                                            a.date,
+                                          ).getTime();
+                                          const minutesUntil = Math.floor(
+                                            (apptTime - now) / (1000 * 60),
+                                          );
+                                          return minutesUntil > 2
+                                            ? `Meeting available in ${minutesUntil} minutes`
+                                            : "Meeting time has passed";
+                                        })()
+                                }
+                              >
+                                Start Meeting
+                              </ActionButton>
+                            ) : (
+                              <ActionButton $bg="#6b7280" disabled>
+                                On Clinic
+                              </ActionButton>
+                            ))}
 
-                        {isDone && (
-                          <ActionButton $bg="#10b981" disabled>
-                            Done
-                          </ActionButton>
-                        )}
+                          {isDone && (
+                            <ActionButton $bg="#10b981" disabled>
+                              Done
+                            </ActionButton>
+                          )}
 
-                        {/* Patient Records Link - Always visible */}
-                        <RecordsLinkButton
-                          onClick={() => {
-                            const identifier =
-                              a.patientEmail ||
-                              a.phone ||
-                              a.cnic ||
-                              a.patientName;
-                            window.location.hash = `#/doctor/patient/${encodeURIComponent(identifier)}`;
-                          }}
-                          title="View complete patient medical records"
-                        >
-                          📋 Records
-                        </RecordsLinkButton>
-                      </Td>
-                    </Tr>
-                  );
-                })}
-              </tbody>
-            </Table>
-          </TableWrapper>
-        </TableCard>
-      )}
+                          {/* Patient Records Link - Always visible */}
+                          <RecordsLinkButton
+                            onClick={() => {
+                              const identifier =
+                                a.patientEmail ||
+                                a.phone ||
+                                a.cnic ||
+                                a.patientName;
+                              window.location.hash = `#/doctor/patient/${encodeURIComponent(identifier)}`;
+                            }}
+                            title="View complete patient medical records"
+                          >
+                            📋 Records
+                          </RecordsLinkButton>
+                        </Td>
+                      </Tr>
+                    );
+                  })}
+                </tbody>
+              </Table>
+            </TableWrapper>
+          </TableCard>
+        )}
 
       {activeCall && (
         <VideoCall
