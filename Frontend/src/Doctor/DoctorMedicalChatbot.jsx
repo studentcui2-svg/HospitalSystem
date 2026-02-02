@@ -473,40 +473,71 @@ const DoctorMedicalChatbot = () => {
         .input-group {
           display: flex;
           flex-direction: column;
-          gap: 8px;
+          gap: 10px;
         }
 
         .input-label {
-          font-size: 10px;
-          font-weight: 800;
+          font-size: 11px;
+          font-weight: 700;
           text-transform: uppercase;
-          letter-spacing: 1px;
-          color: #64748b;
+          letter-spacing: 1.2px;
+          color: #94a3b8;
+          display: flex;
+          align-items: center;
+          gap: 6px;
         }
 
         .form-input {
-          background: #0a0b14;
-          border: 1px solid rgba(255, 255, 255, 0.1);
-          border-radius: 12px;
-          padding: 12px 16px;
-          color: #fff;
+          background: linear-gradient(135deg, rgba(15, 23, 42, 0.8) 0%, rgba(30, 41, 59, 0.6) 100%);
+          border: 1.5px solid rgba(99, 102, 241, 0.2);
+          border-radius: 14px;
+          padding: 14px 18px;
+          color: #e2e8f0;
           font-size: 14px;
-          transition: border-color 0.2s;
+          font-weight: 500;
+          transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+          box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.3), 
+                      0 1px 3px rgba(99, 102, 241, 0.1);
+        }
+
+        .form-input:hover {
+          border-color: rgba(99, 102, 241, 0.4);
+          background: linear-gradient(135deg, rgba(15, 23, 42, 0.9) 0%, rgba(30, 41, 59, 0.7) 100%);
         }
 
         .form-input:focus {
           outline: none;
           border-color: #6366f1;
+          box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4),
+                      0 0 0 3px rgba(99, 102, 241, 0.15),
+                      0 4px 12px rgba(99, 102, 241, 0.3);
+          background: linear-gradient(135deg, rgba(15, 23, 42, 1) 0%, rgba(30, 41, 59, 0.8) 100%);
+        }
+
+        .form-input::placeholder {
+          color: rgba(148, 163, 184, 0.5);
+          font-weight: 400;
         }
 
         .form-textarea {
           min-height: 100px;
-          resize: none;
+          resize: vertical;
+          font-family: inherit;
+          line-height: 1.6;
         }
 
         .complaint-box {
-          background: rgba(99, 102, 241, 0.05);
-          border: 1px solid rgba(99, 102, 241, 0.1);
+          background: linear-gradient(135deg, rgba(99, 102, 241, 0.08) 0%, rgba(139, 92, 246, 0.05) 100%);
+          border: 1.5px solid rgba(99, 102, 241, 0.25);
+          box-shadow: inset 0 2px 8px rgba(99, 102, 241, 0.1),
+                      0 2px 6px rgba(99, 102, 241, 0.15);
+        }
+
+        .complaint-box:focus {
+          border-color: #8b5cf6;
+          box-shadow: inset 0 2px 8px rgba(99, 102, 241, 0.15),
+                      0 0 0 3px rgba(139, 92, 246, 0.15),
+                      0 4px 12px rgba(139, 92, 246, 0.3);
         }
 
         .action-footer {
