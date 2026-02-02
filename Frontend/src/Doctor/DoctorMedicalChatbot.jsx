@@ -32,6 +32,9 @@ const DoctorMedicalChatbot = () => {
     additionalNotes: "",
   });
   const [files, setFiles] = useState([]);
+  const [hasInitialAnalysis, setHasInitialAnalysis] = useState(false);
+  const [followUpQuestion, setFollowUpQuestion] = useState("");
+  const [conversationHistory, setConversationHistory] = useState([]);
   const messagesEndRef = useRef(null);
 
   const scrollToBottom = () => {
@@ -200,15 +203,17 @@ const DoctorMedicalChatbot = () => {
       };
 
       setMessages((prev) => [...prev, aiMessage]);
-      setPatientInfo({
-        patientName: "",
-        patientAge: "",
-        patientGender: "Male",
-        symptoms: "",
-        medicalHistory: "",
-        currentMedications: "",
-        additionalNotes: "",
-      });
+
+      // Mark that we have initial analysis and can now do follow-ups
+      setHasInitialAnalysis(true);
+
+      // Store conversation context
+      setConversationHistory([
+        { role: "user", content: userMessage.content },
+        { role: "assistant", content: data.analysis },
+      ]);
+
+      // Don't reset form anymore - keep patient info for follow-ups
       setFiles([]);
     } catch (error) {
       console.error("Analysis Error:", error);
@@ -222,6 +227,115 @@ const DoctorMedicalChatbot = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleFollowUpQuestion = async () => {
+    if (!followUpQuestion.trim()) return;
+
+    const userMessage = {
+      sender: "user",
+      content: followUpQuestion,
+      timestamp: new Date().toISOString(),
+    };
+
+    setMessages((prev) => [...prev, userMessage]);
+    setFollowUpQuestion("");
+    setLoading(true);
+
+    try {
+      const formData = new FormData();
+
+      // Send patient info and conversation history for context
+      Object.keys(patientInfo).forEach((key) =>
+        formData.append(key, patientInfo[key]),
+      );
+
+      formData.append(
+        "conversationHistory",
+        JSON.stringify([
+          ...conversationHistory,
+          { role: "user", content: followUpQuestion },
+        ]),
+      );
+
+      const token =
+        window.__APP_TOKEN__ ||
+        localStorage.getItem("app_token") ||
+        localStorage.getItem("token");
+
+      const response = await fetch(
+        `${window?.VITE_BACKEND_URL || "http://localhost:5000"}/api/doctor-chatbot/analyze`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: formData,
+        },
+      );
+
+      if (!response.ok) throw new Error("Server error");
+      const data = await response.json();
+
+      const aiMessage = {
+        sender: "ai",
+        content: data.analysis,
+        timestamp: new Date().toISOString(),
+      };
+
+      setMessages((prev) => [...prev, aiMessage]);
+
+      // Update conversation history
+      setConversationHistory((prev) => [
+        ...prev,
+        { role: "user", content: followUpQuestion },
+        { role: "assistant", content: data.analysis },
+      ]);
+    } catch (error) {
+      console.error("Follow-up Error:", error);
+      const errorMessage = {
+        sender: "ai",
+        content: "❌ Unable to process follow-up question. Please try again.",
+        timestamp: new Date().toISOString(),
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleNewPatient = () => {
+    if (
+      messages.length > 0 &&
+      !window.confirm(
+        "Are you sure you want to start a new patient consultation? Current conversation will be lost.",
+      )
+    ) {
+      return;
+    }
+    resetToNewPatient();
+  };
+
+  const resetToNewPatient = () => {
+    // Clear everything and reset to initial state
+    setMessages([]);
+    setPatientInfo({
+      patientName: "",
+      patientAge: "",
+      patientGender: "Male",
+      symptoms: "",
+      medicalHistory: "",
+      currentMedications: "",
+      additionalNotes: "",
+    });
+    setFiles([]);
+    setHasInitialAnalysis(false);
+    setFollowUpQuestion("");
+    setConversationHistory([]);
+    setLoading(false);
+
+    // Scroll to top to show empty form
+    window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   return (
@@ -532,10 +646,90 @@ const DoctorMedicalChatbot = () => {
           filter: grayscale(1);
         }
 
+        .followup-section {
+          padding: 24px;
+          background: rgba(16, 185, 129, 0.05);
+          border-top: 1px solid rgba(16, 185, 129, 0.2);
+          border-radius: 0 0 24px 24px;
+        }
+
+        .followup-input-wrapper {
+          display: flex;
+          gap: 12px;
+          margin: 16px 0;
+        }
+
+        .followup-input {
+          flex: 1;
+          padding: 14px 18px;
+          background: rgba(255, 255, 255, 0.05);
+          border: 1px solid rgba(16, 185, 129, 0.3);
+          border-radius: 12px;
+          color: #e2e8f0;
+          font-size: 14px;
+          outline: none;
+          transition: all 0.3s ease;
+        }
+
+        .followup-input:focus {
+          border-color: #10b981;
+          background: rgba(255, 255, 255, 0.08);
+        }
+
+        .followup-input::placeholder {
+          color: rgba(226, 232, 240, 0.4);
+        }
+
+        .followup-send-btn {
+          padding: 14px 20px;
+          background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+          border: none;
+          border-radius: 12px;
+          color: white;
+          cursor: pointer;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          transition: all 0.3s ease;
+        }
+
+        .followup-send-btn:hover:not(:disabled) {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 20px rgba(16, 185, 129, 0.4);
+        }
+
+        .followup-send-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        .new-patient-btn {
+          padding: 10px 20px;
+          background: rgba(239, 68, 68, 0.1);
+          border: 1px solid rgba(239, 68, 68, 0.3);
+          border-radius: 8px;
+          color: #ef4444;
+          cursor: pointer;
+          display: inline-flex;
+          align-items: center;
+          gap: 8px;
+          font-size: 13px;
+          font-weight: 600;
+          transition: all 0.3s ease;
+        }
+
+        .new-patient-btn:hover {
+          background: rgba(239, 68, 68, 0.2);
+          border-color: #ef4444;
+        }
+
         @media (max-width: 768px) {
           .intake-section, .analysis-area { padding: 24px; }
           .action-footer { flex-direction: column; align-items: stretch; }
           .analyze-btn { justify-content: center; }
+          .followup-section { padding: 16px; }
+          .followup-input-wrapper { flex-direction: column; }
+          .followup-send-btn { width: 100%; padding: 16px; }
         }
       `}</style>
 
@@ -619,9 +813,8 @@ const DoctorMedicalChatbot = () => {
           </div>
 
           <div
-            className="form-grid"
+            className="form-grid medical-pharmacology-grid"
             style={{
-              gridTemplateColumns: "1fr 1fr",
               background: "transparent",
               padding: 0,
               border: "none",
@@ -819,6 +1012,41 @@ const DoctorMedicalChatbot = () => {
           )}
           <div ref={messagesEndRef} />
         </div>
+
+        {/* Follow-up Question Section - Only show after initial analysis */}
+        {hasInitialAnalysis && (
+          <div className="followup-section">
+            <div className="section-tag">
+              <Activity size={16} color="#10b981" />
+              <h2>Continue Consultation</h2>
+            </div>
+            <div className="followup-input-wrapper">
+              <input
+                className="followup-input"
+                type="text"
+                placeholder="Ask a follow-up question about this patient..."
+                value={followUpQuestion}
+                onChange={(e) => setFollowUpQuestion(e.target.value)}
+                onKeyPress={(e) => {
+                  if (e.key === "Enter" && !loading) {
+                    handleFollowUpQuestion();
+                  }
+                }}
+                disabled={loading}
+              />
+              <button
+                className="followup-send-btn"
+                onClick={handleFollowUpQuestion}
+                disabled={loading || !followUpQuestion.trim()}
+              >
+                <Send size={18} />
+              </button>
+            </div>
+            <button className="new-patient-btn" onClick={handleNewPatient}>
+              <X size={16} /> New Patient
+            </button>
+          </div>
+        )}
       </div>
 
       <div style={{ textAlign: "center", marginTop: "32px", opacity: 0.4 }}>
